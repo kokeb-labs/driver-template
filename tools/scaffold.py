@@ -490,6 +490,10 @@ def format_sources(dest: Path) -> bool:
     exe = shutil.which("clang-format")
     if not exe:
         return False
+    version = subprocess.run([exe, "--version"], capture_output=True, text=True, check=False).stdout
+    major = re.search(r"version (\d+)", version)
+    if not major or int(major.group(1)) < 20:  # the style file uses keys added in clang-format 20
+        return False
     files = [
         str(path)
         for path, rel, _ in text_files(dest)
