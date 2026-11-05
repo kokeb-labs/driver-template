@@ -1,0 +1,79 @@
+---
+# Template only (removed by tools/scaffold.py). In a repository created from the template, the first push opens
+# one issue, "Finish setup", with the tools/setup.py command to run. Nothing is scaffolded here: the bus and the
+# description cannot be inferred from the repository name. The template itself and repositories that already have
+# the issue are left alone.
+name: Template init
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: template-init
+  cancel-in-progress: false
+
+jobs:
+  finish-setup:
+    name: Open the setup issue
+    if: github.event.repository.name != 'driver-template' && !github.event.repository.is_template
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Open "Finish setup" unless it exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NAME: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          existing=$(gh issue list --repo "$REPO" --state all --search 'in:title "Finish setup"' \
+            --json title --jq '[.[] | select(.title == "Finish setup")] | length')
+          if [ "$existing" != "0" ]; then
+            echo "The setup issue exists already."
+            exit 0
+          fi
+
+          case "$NAME" in
+            driver-*)
+              chip=${NAME#driver-}
+              chip=${chip//-/_}
+              chip=${chip,,}
+              cmd="python3 tools/setup.py --non-interactive --bus <spi|i2c|uart|adc|none>"
+              cmd="${cmd} --description \"<one sentence>\""
+              what="a driver for the ${chip^^}"
+              ;;
+            *)
+              lib=${NAME//-/_}
+              lib=${lib,,}
+              cmd="python3 tools/setup.py --non-interactive --namespace ${lib}"
+              cmd="${cmd} --description \"<one sentence>\""
+              what="the library ${lib}"
+              ;;
+          esac
+
+          {
+            echo "This repository was created from the driver template. Turn it into ${what}:"
+            echo
+            echo '```bash'
+            echo "gh repo clone ${REPO} && cd ${NAME}"
+            echo "git switch -c feat/initial-driver"
+            echo "python3 tools/setup.py    # asks for what it cannot infer"
+            echo '```'
+            echo
+            echo "Without a terminal, or to script it:"
+            echo
+            echo '```bash'
+            echo "${cmd}"
+            echo '```'
+            echo
+            echo "Add \`--datasheet <url>\` to link the datasheet (only the link; the PDF is never committed)."
+            echo "The command scaffolds, builds and runs the host tests, then prints what is left to fill in."
+            echo "Open the result as a pull request and close this issue when it merges."
+          } > body.md
+
+          gh issue create --repo "$REPO" --title "Finish setup" --body-file body.md

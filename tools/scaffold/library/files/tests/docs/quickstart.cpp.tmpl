@@ -1,0 +1,26 @@
+/**
+ * @file quickstart.cpp
+ * @brief The Quickstart page's example, compiled by the host build (never run).
+ */
+// --8<-- [start:quickstart]
+#include "@ROOT@/MovingAverage.h"
+
+int smooth(const float* samples, int n, float& mean) {
+  xmpl100::MovingAverage<16> avg; // fixed storage for 16 samples, no heap
+
+  if (auto r = avg.Initialize({8, 0.0F}); !r) { // 1. window of 8 samples
+    return static_cast<int>(r.error);
+  }
+  for (int i = 0; i < n; ++i) {
+    if (auto r = avg.Push(samples[i]); !r) { // 2. NaN is refused
+      return static_cast<int>(r.error);
+    }
+  }
+  const auto m = avg.Average(); // 3. Empty when n == 0
+  if (!m) {
+    return static_cast<int>(m.error);
+  }
+  mean = m.value;
+  return 0;
+}
+// --8<-- [end:quickstart]

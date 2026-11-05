@@ -1,0 +1,20 @@
+---
+# On a vX.Y.Z (or vX.Y.Z-rc.N) tag: create the GitHub Release with the firmware artifacts of the CI run
+# for the tagged commit. Steps before tagging: standards/release.md and .claude/skills/release.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create release with artifacts
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-release-with-artifacts.yml@v1
+    with:
+      build_workflow: 'ci.yml'
+      artifact_pattern: 'fw-.*'
+      fail_on_no_artifacts: false

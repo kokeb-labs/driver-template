@@ -1,0 +1,46 @@
+/**
+ * @file host_xmpl100_port.hpp
+ * @brief The host port: the driver's GPIO hooks over a simulated XMPL100, so the example runs on
+ * any PC.
+ *
+ * `xmpl100_test::MockPortBase` (tests/mock_xmpl100.hpp) supplies the required GPIO hooks over the
+ * pin model the host tests use. This class adds what a real port adds: `DelayUs()` (here it moves
+ * the model's clock instead of sleeping), `GpioSet()` for SHDN_N, and `Log()` to the console. A
+ * port for real pins on a PC (libgpiod, a USB GPIO adapter) implements the same hooks: see
+ * docs/porting.md.
+ */
+#pragma once
+
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+
+#include "mock_xmpl100.hpp"
+
+/// The host port: simulated part, real console.
+class HostXmpl100Port : public xmpl100_test::MockPortBase<HostXmpl100Port> {
+public:
+  /// The model's clock moves; nothing sleeps.
+  void DelayUs(uint32_t us) noexcept {
+    state.now_us += us;
+  }
+
+  /// SHDN_N of the simulated part.
+  bool GpioSet(xmpl100::CtrlPin pin, xmpl100::GpioSignal signal) noexcept {
+    if (pin != xmpl100::CtrlPin::Enable) {
+      return false;
+    }
+    state.SetPowered(signal == xmpl100::GpioSignal::ACTIVE);
+    return true;
+  }
+
+  /// Driver messages (they carry their own `xmpl100:` prefix) go to the console, one line each.
+  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+    (void)level;
+    std::va_list args;
+    va_start(args, fmt);
+    std::vprintf(fmt, args);
+    std::fputs("\n", stdout);
+    va_end(args);
+  }
+};

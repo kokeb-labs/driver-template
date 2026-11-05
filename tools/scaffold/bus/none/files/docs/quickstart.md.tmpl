@@ -1,0 +1,34 @@
+# Quickstart
+
+Read the switch from your MCU: wire three signals, write a small port class, call two driver functions.
+
+## 1. Wire it
+
+| MCU | XMPL100 | Notes |
+| --- | --- | --- |
+| GPIO input | OUT | Pull-up to 3.3 V (10 kΩ, or the MCU's internal one) |
+| 3.3 V | VDD | 100 nF to GND close to the pin |
+| GND | GND | |
+
+## 2. Add the driver
+
+```bash
+git submodule add https://github.com/kokeb-labs/driver-template.git external/driver-template
+```
+
+## 3. Write the port
+
+```cpp title="my_port.hpp"
+--8<-- "tests/docs/my_port.hpp:port"
+```
+
+## 4. Read the switch
+
+```cpp title="main.cpp"
+--8<-- "tests/docs/quickstart.cpp:quickstart"
+```
+
+1. `Initialize()` configures the pins and waits out the self-test pulse of the part's power-up.
+2. `IsOverTemperature()` reads OUT `Config::samples` times and returns the level they agree on.
+
+Next: [API guide](api-guide.md).

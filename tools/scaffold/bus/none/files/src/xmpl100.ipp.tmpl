@@ -1,0 +1,118 @@
+/**
+ * @file xmpl100.ipp
+ * @brief XMPL100 driver implementation, included by `xmpl100.hpp`.
+ * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ */
+#pragma once
+
+namespace xmpl100 {
+
+template <SpiPort Port>
+Result<void> XMPL100<Port>::Initialize(const Config& config) noexcept {
+  initialized_ = false;
+  if (Validate(config) != Error::Ok) {
+    return Result<void>::Failure(Error::InvalidArgument);
+  }
+  if (!port_.EnsureInitialized()) {
+    detail::Log(port_, LogLevel::Error, "xmpl100: the port could not configure the pins");
+    return Result<void>::Failure(Error::Bus);
+  }
+  if constexpr (detail::HasGpioSet<Port>) {
+    // Power-cycle through SHDN_N (t_SD), then sample OUT inside the self-test pulse (t_POST).
+    if (!port_.GpioSet(CtrlPin::Enable, GpioSignal::INACTIVE)) {
+      return Result<void>::Failure(Error::Bus);
+    }
+    detail::DelayUs(port_, kShutdownTimeUs);
+    if (!port_.GpioSet(CtrlPin::Enable, GpioSignal::ACTIVE)) {
+      return Result<void>::Failure(Error::Bus);
+    }
+    detail::DelayUs(port_, kSelfTestCheckUs);
+    GpioSignal level = GpioSignal::INACTIVE;
+    if (!port_.GpioRead(InPin::Out, level)) {
+      return Result<void>::Failure(Error::Bus);
+    }
+    if (level != GpioSignal::ACTIVE) {
+      detail::Log(port_, LogLevel::Error, "xmpl100: no self-test pulse on OUT: no part?");
+      return Result<void>::Failure(Error::DeviceIdMismatch);
+    }
+    detail::DelayUs(port_, kSelfTestTimeMaxUs - kSelfTestCheckUs);
+  } else {
+    // SHDN_N is tied high: the self-test ran at board power-up. Wait it out, in case that was
+    // just now.
+    detail::DelayUs(port_, kSelfTestTimeMaxUs);
+  }
+  config_ = config;
+  initialized_ = true;
+  return Result<void>::Success();
+}
+
+template <SpiPort Port>
+Result<void> XMPL100<Port>::EnsureInitialized() noexcept {
+  return initialized_ ? Result<void>::Success() : Initialize(config_);
+}
+
+template <SpiPort Port>
+Result<void> XMPL100<Port>::Deinitialize() noexcept {
+  if (!initialized_) {
+    return Result<void>::Success();
+  }
+  initialized_ = false;
+  if constexpr (detail::HasGpioSet<Port>) {
+    if (!port_.GpioSet(CtrlPin::Enable, GpioSignal::INACTIVE)) {
+      return Result<void>::Failure(Error::Bus);
+    }
+  }
+  return Result<void>::Success();
+}
+
+template <SpiPort Port>
+Result<void> XMPL100<Port>::Sleep() noexcept {
+  if (!initialized_) {
+    return Result<void>::Failure(Error::NotInitialized);
+  }
+  if constexpr (!detail::HasGpioSet<Port>) {
+    return Result<void>::Failure(Error::Unsupported);
+  } else {
+    return Deinitialize();
+  }
+}
+
+template <SpiPort Port>
+Result<GpioSignal> XMPL100<Port>::ReadOutput() noexcept {
+  if (!initialized_) {
+    return Result<GpioSignal>::Failure(Error::NotInitialized);
+  }
+  return readStable();
+}
+
+template <SpiPort Port>
+Result<bool> XMPL100<Port>::IsOverTemperature() noexcept {
+  const auto level = ReadOutput();
+  if (!level) {
+    return Result<bool>::Failure(level.error);
+  }
+  return Result<bool>::Success(level.value == GpioSignal::ACTIVE);
+}
+
+template <SpiPort Port>
+Result<GpioSignal> XMPL100<Port>::readStable() noexcept {
+  GpioSignal first = GpioSignal::INACTIVE;
+  for (uint16_t i = 0; i < config_.samples; ++i) {
+    GpioSignal level = GpioSignal::INACTIVE;
+    if (!port_.GpioRead(InPin::Out, level)) {
+      return Result<GpioSignal>::Failure(Error::Bus);
+    }
+    if (i == 0) {
+      first = level;
+    } else if (level != first) {
+      detail::Log(port_, LogLevel::Warning, "xmpl100: OUT changed during a reading");
+      return Result<GpioSignal>::Failure(Error::DeviceFault);
+    }
+    if (i + 1U < config_.samples && config_.sample_interval_us > 0) {
+      detail::DelayUs(port_, config_.sample_interval_us);
+    }
+  }
+  return Result<GpioSignal>::Success(first);
+}
+
+} // namespace xmpl100

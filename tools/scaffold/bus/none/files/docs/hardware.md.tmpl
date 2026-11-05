@@ -1,0 +1,29 @@
+# Hardware
+
+The XMPL100's pins, timing and power, as the driver uses them.
+
+## Pins
+
+| Pin | Direction | Function |
+| --- | --- | --- |
+| VDD | Power | Supply; 100 nF to GND at the pin |
+| GND | Power | |
+| OUT | Out | Open drain, active low: asserted above the trip point and during the self-test pulse. Needs a pull-up |
+| SHDN_N | In | Shutdown, active low; optional (`CtrlPin::Enable`) |
+
+There is no data bus: the driver reads OUT through `GpioRead(InPin::Out, ...)` and drives SHDN_N through the
+optional `GpioSet()`. Your port maps the logical levels to the pins: `GpioSignal::ACTIVE` on OUT is a low level.
+
+## Timing
+
+| Parameter | Symbol | Value | Driver |
+| --- | --- | --- | --- |
+| Trip point | T_TRIP | 85 °C typical | `kTripPointC` |
+| Shutdown reset time | t_SD | 10 µs minimum | `kShutdownTimeUs` |
+| Self-test pulse | t_POST | 500 µs minimum, 2 ms maximum | `kSelfTestTimeMinUs`, `kSelfTestTimeMaxUs`; sampled at `kSelfTestCheckUs` |
+
+## Reference documents
+
+<!-- scaffold:datasheet -->
+The datasheet: the XMPL100 is fictional and has none; its section numbers refer to an imaginary one.
+<!-- /scaffold:datasheet -->

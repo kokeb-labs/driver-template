@@ -1,0 +1,29 @@
+# API guide
+
+The library's API by task, with code that compiles.
+
+## The shape of the API
+
+| Group | Calls |
+| --- | --- |
+| Lifecycle | `Initialize()`, `IsInitialized()`, `Deinitialize()`, `Clear()` |
+| Use | `Push()`, `Average()`, `GetCount()`, `GetConfig()` |
+| Version | `xmpl100::GetVersion()` |
+
+## Smooth a series
+
+```cpp
+--8<-- "tests/docs/quickstart.cpp:quickstart"
+```
+
+## Reject spikes
+
+```cpp
+--8<-- "tests/docs/api_tasks.cpp:reject"
+```
+
+A refused sample returns `InvalidArgument` and leaves the window unchanged.
+
+## Handle errors
+
+Every value is on the [Contract](contract.md#errors) page; `xmpl100::ToString()` names one for a log.

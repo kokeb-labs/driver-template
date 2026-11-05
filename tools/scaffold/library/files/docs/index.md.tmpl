@@ -1,0 +1,35 @@
+---
+hide:
+  - navigation
+  - toc
+---
+
+<div class="kb-hero" markdown>
+<span class="kb-kicker">Library</span>
+
+# @TITLE@
+
+<p>@DESCRIPTION@</p>
+
+[Quickstart](quickstart.md){ .md-button .md-button--primary }
+[API guide](api-guide.md){ .md-button }
+[Source on GitHub](https://github.com/@ORG@/@REPO@){ .md-button }
+</div>
+
+The library is platform-free C++20: no RTOS, no SDK, no heap. It builds as one CMake target, `xmpl100::xmpl100`, with
+one include root, `@ROOT@/`.
+
+## What you get
+
+- **`MovingAverage<N>`**, the template's example utility: the mean of the last samples in fixed storage. See
+  [API guide](api-guide.md).
+- **Errors you can act on.** Every fallible call returns `Result<T>` with an `Error`. See [Contract](contract.md).
+- **No heap, no exceptions, no RTTI.** The host tests build with `-fno-exceptions -fno-rtti`. See
+  [Testing and CI](testing.md).
+- **One include root and one target.** See [Integration](integration.md).
+
+## Used by
+
+| Repository | Uses |
+| --- | --- |
+| (none yet) | List the drivers, board support or applications that include this library |

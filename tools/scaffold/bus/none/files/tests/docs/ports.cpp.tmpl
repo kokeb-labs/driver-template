@@ -1,0 +1,57 @@
+/**
+ * @file ports.cpp
+ * @brief The port with every optional hook, as shown on the Porting page. Compiled, never run.
+ */
+#include <cstdarg>
+#include <cstdint>
+
+#include "xmpl100.hpp"
+
+bool platform_gpio_input_init(int pin) noexcept;
+bool platform_gpio_output_init(int pin) noexcept;
+bool platform_gpio_read(int pin, bool& high) noexcept;
+bool platform_gpio_write(int pin, bool high) noexcept;
+void platform_delay_us(uint32_t us) noexcept;
+void platform_vlog(const char* fmt, va_list args) noexcept;
+
+// --8<-- [start:full-port]
+class FullPort : public xmpl100::SpiInterface<FullPort> {
+public:
+  bool EnsureInitialized() noexcept {
+    return platform_gpio_input_init(kOutGpio) && platform_gpio_output_init(kShutdownGpio);
+  }
+  bool GpioRead(xmpl100::InPin pin, xmpl100::GpioSignal& level) noexcept {
+    bool high = true;
+    if (pin != xmpl100::InPin::Out || !platform_gpio_read(kOutGpio, high)) {
+      return false;
+    }
+    level = high ? xmpl100::GpioSignal::INACTIVE : xmpl100::GpioSignal::ACTIVE; // active low
+    return true;
+  }
+  void DelayUs(uint32_t us) noexcept {
+    platform_delay_us(us);
+  }
+
+  // Optional: SHDN_N on a GPIO. ACTIVE means "powered", which is a high level on the pin. With it,
+  // Initialize() power-cycles the part and checks its self-test pulse.
+  bool GpioSet(xmpl100::CtrlPin pin, xmpl100::GpioSignal signal) noexcept {
+    if (pin != xmpl100::CtrlPin::Enable) {
+      return false;
+    }
+    return platform_gpio_write(kShutdownGpio, signal == xmpl100::GpioSignal::ACTIVE);
+  }
+
+  // Optional: one line per failure. The driver never formats; the port does.
+  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+    (void)level;
+    va_list args;
+    va_start(args, fmt);
+    platform_vlog(fmt, args);
+    va_end(args);
+  }
+
+private:
+  static constexpr int kOutGpio = 4;
+  static constexpr int kShutdownGpio = 11;
+};
+// --8<-- [end:full-port]

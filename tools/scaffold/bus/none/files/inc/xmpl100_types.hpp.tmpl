@@ -1,0 +1,224 @@
+/**
+ * @file xmpl100_types.hpp
+ * @brief Public types of the XMPL100 driver: errors, `Result<T>`, configuration and presets.
+ * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ *
+ * @details
+ * The XMPL100 is a temperature switch: OUT asserts while the die is above the factory trip point
+ * (85 °C). The defaults sample OUT three times, 1 ms apart, and accept only a stable level.
+ */
+#pragma once
+
+#include <cstdint>
+
+#include "xmpl100_version.h"
+
+/** @brief The XMPL100 driver: everything it declares lives here; internals in `detail`. */
+namespace xmpl100 {
+
+/**
+ * @defgroup xmpl100_types Driver types
+ * @brief Errors, results, configuration and presets.
+ * @{
+ */
+
+/**
+ * @brief Why a call failed. Values 0 to 9 are the shared base set; chip-specific values start
+ * at 16.
+ *
+ * A part without a data bus has no protocol, so `Timeout`, `Crc` and `Busy` are never returned.
+ */
+enum class Error : uint8_t {
+  Ok = 0,               ///< The call succeeded.
+  NotInitialized = 1,   ///< `Initialize()` has not succeeded yet, or `Deinitialize()` ran since.
+  InvalidArgument = 2,  ///< A `Config` field is out of range; nothing was read.
+  Bus = 3,              ///< A pin read or write of the port failed.
+  Timeout = 4,          ///< Not returned by this driver.
+  DeviceIdMismatch = 5, ///< OUT did not show the power-on self-test pulse: no part, or OUT not
+                        ///< wired (checked only when the port drives SHDN_N).
+  Crc = 6,              ///< Not returned by this driver.
+  Busy = 7,             ///< Not returned by this driver.
+  DeviceFault = 8,      ///< OUT changed between the samples of one reading: a floating line or a
+                        ///< missing pull-up.
+  Unsupported =
+      9, ///< The feature needs a port hook that is absent (`Sleep()` without `GpioSet()`).
+};
+
+/**
+ * @brief The name of an error, for logs.
+ * @param error The error.
+ * @return A static string; `"Unknown"` for a value that is not an enumerator.
+ */
+constexpr const char* ToString(Error error) noexcept {
+  switch (error) {
+  case Error::Ok:
+    return "Ok";
+  case Error::NotInitialized:
+    return "NotInitialized";
+  case Error::InvalidArgument:
+    return "InvalidArgument";
+  case Error::Bus:
+    return "Bus";
+  case Error::Timeout:
+    return "Timeout";
+  case Error::DeviceIdMismatch:
+    return "DeviceIdMismatch";
+  case Error::Crc:
+    return "Crc";
+  case Error::Busy:
+    return "Busy";
+  case Error::DeviceFault:
+    return "DeviceFault";
+  case Error::Unsupported:
+    return "Unsupported";
+  }
+  return "Unknown";
+}
+
+/**
+ * @brief The value of a call, or why there is none.
+ * @tparam T The value type. `Result<void>` carries only the error.
+ */
+template <typename T>
+struct [[nodiscard]] Result {
+  T value{};              ///< The value; `T{}` when the call failed.
+  Error error{Error::Ok}; ///< `Error::Ok` on success.
+
+  /** @return true when the call succeeded. */
+  [[nodiscard]] constexpr bool ok() const noexcept {
+    return error == Error::Ok;
+  }
+  /** @return true when the call succeeded. */
+  constexpr explicit operator bool() const noexcept {
+    return ok();
+  }
+  /**
+   * @brief A successful result.
+   * @param v The value.
+   * @return `{v, Error::Ok}`.
+   */
+  static constexpr Result Success(T v) noexcept {
+    return {v, Error::Ok};
+  }
+  /**
+   * @brief A failed result.
+   * @param e Why it failed; never `Error::Ok`.
+   * @return `{T{}, e}`.
+   */
+  static constexpr Result Failure(Error e) noexcept {
+    return {T{}, e};
+  }
+};
+
+/** @brief The result of a call that returns no value. */
+template <>
+struct [[nodiscard]] Result<void> {
+  Error error{Error::Ok}; ///< `Error::Ok` on success.
+
+  /** @return true when the call succeeded. */
+  [[nodiscard]] constexpr bool ok() const noexcept {
+    return error == Error::Ok;
+  }
+  /** @return true when the call succeeded. */
+  constexpr explicit operator bool() const noexcept {
+    return ok();
+  }
+  /** @return A successful result. */
+  static constexpr Result Success() noexcept {
+    return {Error::Ok};
+  }
+  /**
+   * @brief A failed result.
+   * @param e Why it failed; never `Error::Ok`.
+   * @return `{e}`.
+   */
+  static constexpr Result Failure(Error e) noexcept {
+    return {e};
+  }
+};
+
+/** @brief Severity passed to the optional `Log()` hook. */
+enum class LogLevel : uint8_t {
+  Error = 0, ///< A call failed.
+  Warning,   ///< Something unexpected that the driver recovered from.
+  Info,      ///< Lifecycle events.
+  Debug,     ///< Detail for bring-up.
+};
+
+/// Die temperature at which OUT asserts, in degrees Celsius (datasheet T_TRIP, typical).
+inline constexpr float kTripPointC = 85.0F;
+/// SHDN_N low time that resets the part, in microseconds (datasheet t_SD, minimum).
+inline constexpr uint32_t kShutdownTimeUs = 10;
+/// OUT is asserted for this long after power-up: the self-test pulse (datasheet t_POST, minimum).
+inline constexpr uint32_t kSelfTestTimeMinUs = 500;
+/// The self-test pulse has ended after this long (datasheet t_POST, maximum).
+inline constexpr uint32_t kSelfTestTimeMaxUs = 2000;
+/// When the driver samples OUT inside the self-test pulse, in microseconds after power-up.
+inline constexpr uint32_t kSelfTestCheckUs = 100;
+/// Most samples one reading may take.
+inline constexpr uint16_t kMaxSamples = 16;
+/// Longest wait between two samples, in microseconds.
+inline constexpr uint32_t kMaxSampleIntervalUs = 100000;
+
+/** @brief Everything `Initialize()` uses. Defaults filter contact-style noise on OUT. */
+struct Config {
+  uint16_t samples{3}; ///< Reads of OUT per reading, 1 to `kMaxSamples`; all must agree.
+  uint32_t sample_interval_us{1000}; ///< Wait between two reads, up to `kMaxSampleIntervalUs`.
+};
+
+/**
+ * @brief One read of OUT per reading: lowest latency, no filtering.
+ * @return The preset.
+ */
+constexpr Config FastPreset() noexcept {
+  Config c{};
+  c.samples = 1;
+  c.sample_interval_us = 0;
+  return c;
+}
+
+/**
+ * @brief Eight reads 5 ms apart: rejects pickup on a long OUT line.
+ * @return The preset.
+ */
+constexpr Config DebouncedPreset() noexcept {
+  Config c{};
+  c.samples = 8;
+  c.sample_interval_us = 5000;
+  return c;
+}
+
+/**
+ * @brief Check a configuration without touching the hardware.
+ * @param config The configuration.
+ * @return `Error::Ok` or `Error::InvalidArgument` (samples 0 or above `kMaxSamples`, interval above
+ * `kMaxSampleIntervalUs`).
+ */
+constexpr Error Validate(const Config& config) noexcept {
+  if (config.samples == 0 || config.samples > kMaxSamples ||
+      config.sample_interval_us > kMaxSampleIntervalUs) {
+    return Error::InvalidArgument;
+  }
+  return Error::Ok;
+}
+
+/** @return The driver version, e.g. `"0.1.0"`. No I/O. */
+constexpr const char* GetDriverVersion() noexcept {
+  return XMPL100_VERSION_STRING;
+}
+/** @return The major version. No I/O. */
+constexpr uint32_t GetDriverVersionMajor() noexcept {
+  return XMPL100_VERSION_MAJOR;
+}
+/** @return The minor version. No I/O. */
+constexpr uint32_t GetDriverVersionMinor() noexcept {
+  return XMPL100_VERSION_MINOR;
+}
+/** @return The patch version. No I/O. */
+constexpr uint32_t GetDriverVersionPatch() noexcept {
+  return XMPL100_VERSION_PATCH;
+}
+
+/** @} */
+
+} // namespace xmpl100

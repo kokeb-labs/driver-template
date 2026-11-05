@@ -1,0 +1,17 @@
+# Kconfig for @TITLE@. The root CMakeLists.txt registers it with ESP-IDF
+# (idf_component_register(... KCONFIG _config/Kconfig)). The values reach the code only
+# through inc/@ROOT@/Kconfig.h.
+menuconfig XMPL100
+    bool "@TITLE@"
+    default y
+    help
+      Defaults for KconfigDefaults(). Outside ESP-IDF the same defaults come from Config{}.
+
+if XMPL100
+
+config XMPL100_WINDOW_SAMPLES
+    int "Moving average window (samples)"
+    range 1 64
+    default 8
+
+endif

@@ -1,0 +1,51 @@
+# Kconfig for the XMPL100 driver. The root CMakeLists.txt registers it with ESP-IDF
+# (idf_component_register(... KCONFIG _config/Kconfig)), so `idf.py menuconfig` shows
+# "XMPL100 temperature sensor". The values reach the code only through
+# inc/xmpl100_kconfig.hpp; no public driver signature uses them.
+menuconfig XMPL100
+    bool "XMPL100 temperature sensor"
+    default y
+    help
+      Defaults for xmpl100::KconfigDefaults(). The driver itself does not
+      need Kconfig; outside ESP-IDF the same defaults come from Config{}.
+
+if XMPL100
+
+choice XMPL100_ODR
+    prompt "Output data rate in continuous mode"
+    default XMPL100_ODR_4HZ
+    help
+      CONFIG.ODR. The reset value is 4 Hz.
+
+config XMPL100_ODR_1HZ
+    bool "1 Hz"
+config XMPL100_ODR_2HZ
+    bool "2 Hz"
+config XMPL100_ODR_4HZ
+    bool "4 Hz"
+config XMPL100_ODR_8HZ
+    bool "8 Hz"
+config XMPL100_ODR_16HZ
+    bool "16 Hz"
+
+endchoice
+
+config XMPL100_AVERAGING_SAMPLES
+    int "Samples averaged per result (1, 2, 4 or 8)"
+    range 1 8
+    default 1
+    help
+      CONFIG.AVG. Values other than 1, 2, 4 and 8 round down to the nearest of them.
+
+config XMPL100_CRC_ENABLE
+    bool "CRC-checked temperature reads (revision B silicon)"
+    default n
+    help
+      CONFIG.CRC_EN. Initialize() returns Unsupported on revision A silicon.
+
+config XMPL100_CONVERSION_TIMEOUT_MS
+    int "One-shot conversion timeout (ms)"
+    range 1 10000
+    default 100
+
+endif

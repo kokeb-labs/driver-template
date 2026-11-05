@@ -1,0 +1,38 @@
+/**
+ * @file Kconfig.h
+ * @brief Optional ESP-IDF layer: a `Config` from the `CONFIG_XMPL100_*` Kconfig options.
+ * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ *
+ * Include it only where menuconfig should choose the defaults. Without Kconfig, `KconfigDefaults()`
+ * equals `Config{}`.
+ */
+#pragma once
+
+#if defined(__has_include)
+#if __has_include("sdkconfig.h")
+#include "sdkconfig.h"
+#endif
+#endif
+
+#include "@ROOT@/MovingAverage.h"
+
+// NOLINTBEGIN(cppcoreguidelines-macro-usage): Kconfig values are macros by definition.
+#ifndef CONFIG_XMPL100_WINDOW_SAMPLES
+/** Samples averaged when Kconfig does not set it: `Config{}.window_samples`. */
+#define CONFIG_XMPL100_WINDOW_SAMPLES 8
+#endif
+// NOLINTEND(cppcoreguidelines-macro-usage)
+
+namespace xmpl100 {
+
+/**
+ * @brief The configuration menuconfig selected, on top of the defaults.
+ * @return `Config{}` with the window taken from Kconfig.
+ */
+constexpr Config KconfigDefaults() noexcept {
+  Config c{};
+  c.window_samples = static_cast<uint16_t>(CONFIG_XMPL100_WINDOW_SAMPLES);
+  return c;
+}
+
+} // namespace xmpl100

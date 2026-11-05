@@ -1,0 +1,58 @@
+# XMPL100 Driver
+
+C++20 driver for the XMPL100, a fictional example SPI temperature sensor: chip ID, one-shot and continuous reads, CRC.
+
+[![CI](https://github.com/kokeb-labs/driver-template/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kokeb-labs/driver-template/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+**Documentation: <https://kokeb-labs.github.io/driver-template/>**
+
+<!-- figure: driver-layers -->
+<!-- /figure -->
+
+## In 30 seconds
+
+Write a small port class for your MCU (two GPIO pins and a delay;
+[Porting](https://kokeb-labs.github.io/driver-template/latest/porting/)), then:
+
+<!-- generated: quickstart-code -->
+<!-- /generated -->
+
+## What it does
+
+- Talks to the part through GPIO only: no data bus.
+- Power-cycles the part (SHDN_N, when your port drives it) and checks its self-test pulse on OUT.
+- Reads OUT several times per reading and reports a floating line instead of a wrong answer.
+- Returns `Result<T>` with an `Error` from every call: no exceptions, no heap, no RTTI, no virtual calls.
+
+## Install
+
+```bash
+git submodule add https://github.com/kokeb-labs/driver-template.git external/driver-template
+```
+
+```cmake
+add_subdirectory(external/driver-template)
+target_link_libraries(my_app PRIVATE xmpl100::xmpl100)
+```
+
+## Documentation
+
+| | |
+| --- | --- |
+| [Quickstart](https://kokeb-labs.github.io/driver-template/latest/quickstart/) | Wire it, write the port, read the switch |
+| [Hardware](https://kokeb-labs.github.io/driver-template/latest/hardware/) | Pins, timing, power |
+| [Contract](https://kokeb-labs.github.io/driver-template/latest/contract/) | Promises, dependencies, threading, errors |
+| [API guide](https://kokeb-labs.github.io/driver-template/latest/api-guide/) | Start, read, handle errors |
+| [Porting](https://kokeb-labs.github.io/driver-template/latest/porting/) | The port and its optional hooks |
+| [API reference](https://kokeb-labs.github.io/driver-template/latest/api/) | Doxygen, every class and member |
+
+## Tests
+
+```bash
+cmake -S . -B build -DXMPL100_BUILD_TESTS=ON && cmake --build build && ctest --test-dir build
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).

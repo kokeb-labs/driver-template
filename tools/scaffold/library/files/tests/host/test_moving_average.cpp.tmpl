@@ -1,0 +1,64 @@
+/**
+ * @file test_moving_average.cpp
+ * @brief MovingAverage: lifecycle, window, rejection and errors.
+ */
+#include <limits>
+
+#include "@ROOT@/MovingAverage.h"
+#include "test_harness.hpp"
+
+using xmpl100::Error;
+
+TEST_CASE("Every call returns NotInitialized before Initialize") {
+  xmpl100::MovingAverage<8> avg;
+  CHECK(!avg.IsInitialized());
+  CHECK_EQ(avg.Push(1.0F).error, Error::NotInitialized);
+  CHECK_EQ(avg.Average().error, Error::NotInitialized);
+}
+
+TEST_CASE("Initialize checks the window against the capacity") {
+  xmpl100::MovingAverage<4> avg;
+  xmpl100::Config c{};
+  c.window_samples = 0;
+  CHECK_EQ(avg.Initialize(c).error, Error::InvalidArgument);
+  c.window_samples = 5;
+  CHECK_EQ(avg.Initialize(c).error, Error::InvalidArgument);
+  c.window_samples = 4;
+  CHECK(avg.Initialize(c).ok());
+  CHECK(avg.IsInitialized());
+}
+
+TEST_CASE("The average follows the last window_samples samples") {
+  xmpl100::MovingAverage<8> avg;
+  xmpl100::Config c{};
+  c.window_samples = 3;
+  REQUIRE(avg.Initialize(c).ok());
+  CHECK_EQ(avg.Average().error, Error::Empty);
+  REQUIRE(avg.Push(1.0F).ok());
+  REQUIRE(avg.Push(2.0F).ok());
+  CHECK(avg.Average().value == 1.5F);
+  REQUIRE(avg.Push(3.0F).ok());
+  REQUIRE(avg.Push(10.0F).ok()); // 1.0 leaves the window
+  CHECK(avg.Average().value == 5.0F);
+  CHECK_EQ(avg.GetCount(), 3);
+}
+
+TEST_CASE("NaN and samples above the limit are refused and change nothing") {
+  xmpl100::MovingAverage<8> avg;
+  xmpl100::Config c{};
+  c.reject_above_abs = 100.0F;
+  REQUIRE(avg.Initialize(c).ok());
+  REQUIRE(avg.Push(4.0F).ok());
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  CHECK_EQ(avg.Push(nan).error, Error::InvalidArgument);
+  CHECK_EQ(avg.Push(-101.0F).error, Error::InvalidArgument);
+  CHECK(avg.Average().value == 4.0F);
+}
+
+TEST_CASE("Deinitialize forgets everything") {
+  xmpl100::MovingAverage<2> avg;
+  REQUIRE(avg.Initialize({2, 0.0F}).ok());
+  REQUIRE(avg.Push(1.0F).ok());
+  REQUIRE(avg.Deinitialize().ok());
+  CHECK_EQ(avg.Average().error, Error::NotInitialized);
+}

@@ -1,0 +1,13 @@
+/**
+ * @file configuration.cpp
+ * @brief The Configuration page's examples, compiled by the host build (never run).
+ */
+#include "my_port.hpp"
+#include "xmpl100.hpp"
+#include "xmpl100_kconfig.hpp"
+
+// --8<-- [start:kconfig]
+xmpl100::Error StartFromMenuconfig(xmpl100::XMPL100<MyPort>& sensor) {
+  return sensor.Initialize(xmpl100::KconfigDefaults()).error;
+}
+// --8<-- [end:kconfig]

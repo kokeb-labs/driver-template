@@ -1,0 +1,21 @@
+# Testing and CI
+
+How the driver is checked: host tests against a model of the pins, compiled documentation, an install test, ESP32
+builds and static analysis.
+
+```bash
+cmake -S . -B build -DXMPL100_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+| File | Covers |
+| --- | --- |
+| [`tests/test_xmpl100.cpp`](../tests/test_xmpl100.cpp) | Lifecycle, the self-test check, sampling, hooks, port failures |
+| [`tests/test_errors.cpp`](../tests/test_errors.cpp) | The base `Error` values; every chip-specific value is returned |
+| [`tests/mock_xmpl100.hpp`](../tests/mock_xmpl100.hpp) | The model of OUT and SHDN_N, and the mock ports |
+| [`tests/compile_fail/`](../tests/compile_fail/port_without_delay.cpp) | Ports that must not compile |
+| [`tests/check_install.cmake`](../tests/check_install.cmake) | `find_package(xmpl100)` from an installed package |
+
+The tests build with `-fno-exceptions -fno-rtti` and warnings as errors, on GCC and Clang. CI runs them with the
+ESP32 build, the docs, lint and cppcheck, then the `CI gate` job (`CI gate / gate`).

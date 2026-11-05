@@ -1,0 +1,50 @@
+# Contract
+
+What @REPO@ promises, what it needs, and the rules a caller follows.
+
+The library inherits the [Kokeb Labs library contract](https://github.com/kokeb-labs/.github/blob/main/standards/library.md);
+this page states only what is specific to it.
+
+## Promises
+
+- Every fallible call returns `Result<T>`; nothing throws.
+- Every call returns `Error::NotInitialized` before `Initialize()` succeeds.
+- An invalid argument changes nothing and returns `Error::InvalidArgument`.
+- One include root, `@ROOT@/`; no macro leaks out of a public header.
+
+## Depends on
+
+| Dependency | Version | Why |
+| --- | --- | --- |
+| A C++20 compiler | GCC 10, Clang 13 or later | |
+| CMake | 3.16 or later | Generates `@ROOT@/Version.h` |
+
+Nothing else: no RTOS, no SDK, no other repository of the org.
+
+## Threading
+
+No object is thread-safe and none takes a lock. Use each object from one task at a time, or guard it with one
+mutex. The calls do not block and allocate nothing, so they may run in an ISR.
+
+## Errors
+
+| `Error` | Value | Returned when |
+| --- | --- | --- |
+| `Ok` | 0 | The call succeeded |
+| `NotInitialized` | 1 | `Initialize()` has not succeeded, or `Deinitialize()` ran since |
+| `InvalidArgument` | 2 | A window outside 1 to the capacity, a negative limit, a NaN or rejected sample |
+| `Empty` | 16 | `Average()` before the first sample |
+
+Above the library, map them to the caller's status type once: `Empty` to `NotFound` or `Busy`, as fits the caller.
+
+## Memory
+
+No heap. A `MovingAverage<N>` holds `N` floats plus about 24 bytes.
+
+## Platform
+
+Platform-free: the same code on any target with a C++20 compiler, including the host tests.
+
+## Deviations from the standard
+
+None.

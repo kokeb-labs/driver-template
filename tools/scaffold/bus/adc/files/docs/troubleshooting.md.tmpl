@@ -1,0 +1,10 @@
+# Troubleshooting
+
+Symptoms, causes and fixes, cheapest check first.
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `Initialize()` returns `Bus` | The port's ADC bring-up failed | Check the unit and the channel configuration |
+| `Initialize()` returns `DeviceIdMismatch` | No sensor output on the channel, or SHDN_N low | Check `Config::channel`, VOUT wiring and SHDN_N |
+| Reads return `DeviceFault` | VOUT open or shorted after start-up | Check the wiring; replace the part |
+| The temperature is a few degrees off | Typical transfer function, or ADC calibration | Measure and set `offset_mv` and `slope_uv_per_c` |

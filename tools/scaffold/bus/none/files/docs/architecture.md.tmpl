@@ -1,0 +1,17 @@
+# Architecture
+
+How the driver is built: the core, the port contract, and your port.
+
+<!-- figure: driver-layers -->
+<!-- /figure -->
+
+| Layer | Files | Owns |
+| --- | --- | --- |
+| Core | [`inc/xmpl100.hpp`](../inc/xmpl100.hpp), [`src/xmpl100.ipp`](../src/xmpl100.ipp) | Lifecycle, the self-test check, sampling |
+| Types | [`inc/xmpl100_types.hpp`](../inc/xmpl100_types.hpp) | `Error`, `Result<T>`, `Config`, presets, timing |
+| Port contract | [`inc/xmpl100_spi_interface.hpp`](../inc/xmpl100_spi_interface.hpp) | The CRTP base, `InPin`, `CtrlPin`, `GpioSignal`, the `SpiPort` concept |
+| Platform port | Your class | Pin set-up, pin reads, the delay, optionally SHDN_N |
+
+The part has no data bus, so there is no register map and no frame format: the port contract is two GPIO hooks.
+
+Next: [Contract](contract.md).

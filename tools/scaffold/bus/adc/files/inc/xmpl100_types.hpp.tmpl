@@ -1,0 +1,219 @@
+/**
+ * @file xmpl100_types.hpp
+ * @brief Public types of the XMPL100 driver: errors, `Result<T>`, configuration and presets.
+ * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ *
+ * @details
+ * The defaults are the datasheet's typical transfer function: 500 mV at 0 °C and 10 mV/°C.
+ */
+#pragma once
+
+#include <cstdint>
+
+#include "xmpl100_version.h"
+
+/** @brief The XMPL100 driver: everything it declares lives here; internals in `detail`. */
+namespace xmpl100 {
+
+/**
+ * @defgroup xmpl100_types Driver types
+ * @brief Errors, results, configuration and presets.
+ * @{
+ */
+
+/**
+ * @brief Why a call failed. Values 0 to 9 are the shared base set; chip-specific values start
+ * at 16.
+ *
+ * An analog sensor has no bus protocol, so `Timeout`, `Crc` and `Busy` are never returned.
+ */
+enum class Error : uint8_t {
+  Ok = 0,               ///< The call succeeded.
+  NotInitialized = 1,   ///< `Initialize()` has not succeeded yet, or `Deinitialize()` ran since.
+  InvalidArgument = 2,  ///< A `Config` field is out of range; nothing was read.
+  Bus = 3,              ///< The port's ADC read failed.
+  Timeout = 4,          ///< Not returned by this driver.
+  DeviceIdMismatch = 5, ///< The output at `Initialize()` is outside the sensor's range: no sensor,
+                        ///< or wrong channel.
+  Crc = 6,              ///< Not returned by this driver.
+  Busy = 7,             ///< Not returned by this driver.
+  DeviceFault = 8,      ///< A reading outside the sensor's range: output open or shorted.
+  Unsupported =
+      9, ///< The feature needs a port hook that is absent (`Sleep()` without `GpioSet()`).
+};
+
+/**
+ * @brief The name of an error, for logs.
+ * @param error The error.
+ * @return A static string; `"Unknown"` for a value that is not an enumerator.
+ */
+constexpr const char* ToString(Error error) noexcept {
+  switch (error) {
+  case Error::Ok:
+    return "Ok";
+  case Error::NotInitialized:
+    return "NotInitialized";
+  case Error::InvalidArgument:
+    return "InvalidArgument";
+  case Error::Bus:
+    return "Bus";
+  case Error::Timeout:
+    return "Timeout";
+  case Error::DeviceIdMismatch:
+    return "DeviceIdMismatch";
+  case Error::Crc:
+    return "Crc";
+  case Error::Busy:
+    return "Busy";
+  case Error::DeviceFault:
+    return "DeviceFault";
+  case Error::Unsupported:
+    return "Unsupported";
+  }
+  return "Unknown";
+}
+
+/**
+ * @brief The value of a call, or why there is none.
+ * @tparam T The value type. `Result<void>` carries only the error.
+ */
+template <typename T>
+struct [[nodiscard]] Result {
+  T value{};              ///< The value; `T{}` when the call failed.
+  Error error{Error::Ok}; ///< `Error::Ok` on success.
+
+  /** @return true when the call succeeded. */
+  [[nodiscard]] constexpr bool ok() const noexcept {
+    return error == Error::Ok;
+  }
+  /** @return true when the call succeeded. */
+  constexpr explicit operator bool() const noexcept {
+    return ok();
+  }
+  /**
+   * @brief A successful result.
+   * @param v The value.
+   * @return `{v, Error::Ok}`.
+   */
+  static constexpr Result Success(T v) noexcept {
+    return {v, Error::Ok};
+  }
+  /**
+   * @brief A failed result.
+   * @param e Why it failed; never `Error::Ok`.
+   * @return `{T{}, e}`.
+   */
+  static constexpr Result Failure(Error e) noexcept {
+    return {T{}, e};
+  }
+};
+
+/** @brief The result of a call that returns no value. */
+template <>
+struct [[nodiscard]] Result<void> {
+  Error error{Error::Ok}; ///< `Error::Ok` on success.
+
+  /** @return true when the call succeeded. */
+  [[nodiscard]] constexpr bool ok() const noexcept {
+    return error == Error::Ok;
+  }
+  /** @return true when the call succeeded. */
+  constexpr explicit operator bool() const noexcept {
+    return ok();
+  }
+  /** @return A successful result. */
+  static constexpr Result Success() noexcept {
+    return {Error::Ok};
+  }
+  /**
+   * @brief A failed result.
+   * @param e Why it failed; never `Error::Ok`.
+   * @return `{e}`.
+   */
+  static constexpr Result Failure(Error e) noexcept {
+    return {e};
+  }
+};
+
+/** @brief Severity passed to the optional `Log()` hook. */
+enum class LogLevel : uint8_t {
+  Error = 0, ///< A call failed.
+  Warning,   ///< Something unexpected that the driver recovered from.
+  Info,      ///< Lifecycle events.
+  Debug,     ///< Detail for bring-up.
+};
+
+/// Power-on time of the output after SHDN_N is released, in microseconds (datasheet t_ON, maximum).
+inline constexpr uint32_t kPowerOnTimeUs = 800;
+/// Lowest output the sensor drives, in millivolts (-40 °C with the typical transfer function).
+inline constexpr uint32_t kOutputMinMv = 100;
+/// Highest output the sensor drives, in millivolts (+125 °C with the typical transfer function).
+inline constexpr uint32_t kOutputMaxMv = 1750;
+/// Most samples one reading may average.
+inline constexpr uint16_t kMaxSamples = 64;
+
+/** @brief Everything `Initialize()` uses. Defaults are the datasheet's typical values. */
+struct Config {
+  uint8_t channel{0};               ///< The port's ADC channel the output is wired to.
+  uint32_t offset_mv{500};          ///< Output at 0 °C, mV (datasheet V_0, typical).
+  uint32_t slope_uv_per_c{10000};   ///< Output slope, µV/°C (datasheet T_C, typical).
+  uint16_t samples{4};              ///< Conversions averaged per reading, 1 to `kMaxSamples`.
+  uint32_t sample_interval_us{100}; ///< Wait between averaged conversions.
+};
+
+/**
+ * @brief One conversion per reading: lowest latency.
+ * @return The preset.
+ */
+constexpr Config FastPreset() noexcept {
+  Config c{};
+  c.samples = 1;
+  c.sample_interval_us = 0;
+  return c;
+}
+
+/**
+ * @brief 32 conversions 200 µs apart: averages ADC noise and mains pickup.
+ * @return The preset.
+ */
+constexpr Config LowNoisePreset() noexcept {
+  Config c{};
+  c.samples = 32;
+  c.sample_interval_us = 200;
+  return c;
+}
+
+/**
+ * @brief Check a configuration without touching the hardware.
+ * @param config The configuration.
+ * @return `Error::Ok` or `Error::InvalidArgument` (samples 0 or above `kMaxSamples`, offset above
+ * the output range, slope 0).
+ */
+constexpr Error Validate(const Config& config) noexcept {
+  if (config.samples == 0 || config.samples > kMaxSamples || config.slope_uv_per_c == 0 ||
+      config.offset_mv > kOutputMaxMv) {
+    return Error::InvalidArgument;
+  }
+  return Error::Ok;
+}
+
+/** @return The driver version, e.g. `"0.1.0"`. No I/O. */
+constexpr const char* GetDriverVersion() noexcept {
+  return XMPL100_VERSION_STRING;
+}
+/** @return The major version. No I/O. */
+constexpr uint32_t GetDriverVersionMajor() noexcept {
+  return XMPL100_VERSION_MAJOR;
+}
+/** @return The minor version. No I/O. */
+constexpr uint32_t GetDriverVersionMinor() noexcept {
+  return XMPL100_VERSION_MINOR;
+}
+/** @return The patch version. No I/O. */
+constexpr uint32_t GetDriverVersionPatch() noexcept {
+  return XMPL100_VERSION_PATCH;
+}
+
+/** @} */
+
+} // namespace xmpl100

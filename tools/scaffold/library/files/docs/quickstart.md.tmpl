@@ -1,0 +1,36 @@
+# Quickstart
+
+The smallest complete use of the library: smooth a series of samples.
+
+## Try it on your PC
+
+[`examples/host/`](../examples/host/README.md) is a complete program; from the repository root:
+
+```bash
+cmake -S examples/host -B build-example && cmake --build build-example && ./build-example/xmpl100_host_example
+```
+
+## 1. Add the library
+
+```bash
+git submodule add https://github.com/@ORG@/@REPO@.git external/@REPO@
+```
+
+```cmake
+add_subdirectory(external/@REPO@)
+target_link_libraries(my_app PRIVATE xmpl100::xmpl100)
+```
+
+## 2. Use it
+
+```cpp title="main.cpp"
+--8<-- "tests/docs/quickstart.cpp:quickstart"
+```
+
+1. `Initialize()` sets the window; a window of 0 or above the capacity is `InvalidArgument`.
+2. `Push()` adds a sample; NaN is refused with `InvalidArgument` and changes nothing.
+3. `Average()` is the mean of the window, or `Empty` before the first sample.
+
+This example is built by the host CI, so it compiles against the current headers.
+
+Next: [Concepts](concepts.md).

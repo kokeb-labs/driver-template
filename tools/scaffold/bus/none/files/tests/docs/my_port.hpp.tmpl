@@ -1,0 +1,46 @@
+/**
+ * @file my_port.hpp
+ * @brief The GPIO port shown on the Quickstart and Porting pages, compiled by the host build.
+ */
+#pragma once
+
+#include <cstdint>
+
+#include "xmpl100_spi_interface.hpp"
+
+// Your SDK's calls. Declared only: the docs build checks that the port compiles.
+bool platform_gpio_input_init(int pin) noexcept; // input with pull-up
+bool platform_gpio_read(int pin, bool& high) noexcept;
+void platform_delay_us(uint32_t us) noexcept;
+
+// --8<-- [start:port]
+class MyPort : public xmpl100::SpiInterface<MyPort> {
+public:
+  // Configure OUT as an input with a pull-up, once; later calls return true at once.
+  bool EnsureInitialized() noexcept {
+    if (!ready_) {
+      ready_ = platform_gpio_input_init(kOutGpio);
+    }
+    return ready_;
+  }
+
+  // The logical level of OUT: it is active low on the pin.
+  bool GpioRead(xmpl100::InPin pin, xmpl100::GpioSignal& level) noexcept {
+    bool high = true;
+    if (pin != xmpl100::InPin::Out || !platform_gpio_read(kOutGpio, high)) {
+      return false;
+    }
+    level = high ? xmpl100::GpioSignal::INACTIVE : xmpl100::GpioSignal::ACTIVE;
+    return true;
+  }
+
+  // Wait at least `us` microseconds: start-up and sample spacing depend on it.
+  void DelayUs(uint32_t us) noexcept {
+    platform_delay_us(us);
+  }
+
+private:
+  static constexpr int kOutGpio = 4;
+  bool ready_ = false;
+};
+// --8<-- [end:port]

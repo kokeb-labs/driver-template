@@ -1,0 +1,104 @@
+---
+# The repository's CI: every check, then the one gate that the ruleset requires ("CI gate / gate").
+# Each check is its own workflow file (callable alone with workflow_dispatch) that calls the shared
+# workflows of kokeb-labs/ci-tools at @v1; this file runs them together so a single gate can need all of them.
+name: CI
+
+on:
+  push:
+    branches: [main, 'release/*']
+    tags: ['v*']
+  pull_request:
+    branches: [main, 'release/*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  host-tests:
+    name: Host tests
+    uses: ./.github/workflows/ci-host-tests.yml
+
+  # scaffold:platform-esp32
+  esp32:
+    name: ESP32 examples
+    uses: ./.github/workflows/esp32-examples-build-ci.yml
+    permissions:
+      contents: read
+      pull-requests: write
+  # /scaffold:platform-esp32
+
+  docs:
+    name: Docs
+    uses: ./.github/workflows/ci-docs-publish.yml
+    permissions:
+      contents: write  # the publish job pushes gh-pages on main and tags; pull requests never publish
+
+  lint:
+    name: C++ lint
+    uses: ./.github/workflows/ci-cpp-lint.yml
+    permissions:
+      contents: read
+      pull-requests: write
+
+  cppcheck:
+    name: C++ analysis
+    uses: ./.github/workflows/ci-cpp-analysis.yml
+
+  markdown:
+    name: Markdown lint
+    uses: ./.github/workflows/ci-markdown-lint.yml
+
+  yaml:
+    name: YAML lint
+    uses: ./.github/workflows/ci-yaml-lint.yml
+
+  # Every commit of a pull request carries a Signed-off-by line (Developer Certificate of Origin).
+  dco:
+    name: DCO
+    if: github.event_name == 'pull_request'
+    uses: kokeb-labs/ci-tools/.github/workflows/dco.yml@v1
+    permissions:
+      contents: read
+      pull-requests: read
+
+  # The files and settings the org standard requires of every repository (licence, governance files, root layout).
+  org-standard:
+    name: Org standard
+    uses: kokeb-labs/ci-tools/.github/workflows/org-standard-check.yml@v1
+    permissions:
+      contents: read
+
+  # >>> template-only (tools/scaffold.py removes this block from a scaffolded repository)
+  template-selftest:
+    name: Template self-test
+    uses: ./.github/workflows/template-selftest.yml
+  # <<< template-only
+
+  ci-gate:
+    name: CI gate
+    needs:
+      - host-tests
+      # scaffold:platform-esp32-gate
+      - esp32
+      # /scaffold:platform-esp32-gate
+      - docs
+      - lint
+      - cppcheck
+      - markdown
+      - yaml
+      - dco
+      - org-standard
+      - template-selftest  # template-only
+    if: always()
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-ci-gate.yml@v1
+    permissions:
+      contents: read
+    with:
+      needs_json: ${{ toJSON(needs) }}
+      allow_skipped: dco  # runs on pull requests only

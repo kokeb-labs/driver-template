@@ -1,0 +1,86 @@
+/**
+ * @file esp32_xmpl100_port.hpp
+ * @brief ESP-IDF port for the XMPL100 driver: GPIO for OUT and SHDN_N, esp_rom delays and ESP_LOG
+ * for the log hook.
+ */
+#pragma once
+
+#include <cstdarg>
+#include <cstdint>
+
+#include "driver/gpio.h"
+#include "esp_log.h"
+#include "esp_rom_sys.h"
+
+#include "xmpl100.hpp"
+
+/// Pins of the ESP-IDF port (ESP32-C6 DevKitC-1).
+struct Esp32Xmpl100Pins {
+  int out = 4;     ///< OUT, open drain, active low; the internal pull-up is enabled.
+  int shdn_n = 11; ///< -1 when SHDN_N is tied high.
+};
+
+/// The XMPL100 GPIO port on ESP-IDF, with every optional hook.
+class Esp32Xmpl100Port : public xmpl100::SpiInterface<Esp32Xmpl100Port> {
+public:
+  explicit Esp32Xmpl100Port(const Esp32Xmpl100Pins& pins = {}) noexcept : pins_(pins) {}
+
+  bool EnsureInitialized() noexcept {
+    if (ready_) {
+      return true;
+    }
+    gpio_config_t in{};
+    in.pin_bit_mask = 1ULL << static_cast<unsigned>(pins_.out);
+    in.mode = GPIO_MODE_INPUT;
+    in.pull_up_en = GPIO_PULLUP_ENABLE;
+    if (gpio_config(&in) != ESP_OK) {
+      return false;
+    }
+    if (pins_.shdn_n >= 0) {
+      gpio_config_t io{};
+      io.pin_bit_mask = 1ULL << static_cast<unsigned>(pins_.shdn_n);
+      io.mode = GPIO_MODE_OUTPUT;
+      if (gpio_config(&io) != ESP_OK) {
+        return false;
+      }
+    }
+    ready_ = true;
+    return true;
+  }
+
+  bool GpioRead(xmpl100::InPin pin, xmpl100::GpioSignal& level) noexcept {
+    if (pin != xmpl100::InPin::Out) {
+      return false;
+    }
+    const int high = gpio_get_level(static_cast<gpio_num_t>(pins_.out));
+    level = high != 0 ? xmpl100::GpioSignal::INACTIVE : xmpl100::GpioSignal::ACTIVE; // active low
+    return true;
+  }
+
+  void DelayUs(uint32_t us) noexcept {
+    esp_rom_delay_us(us);
+  }
+
+  bool GpioSet(xmpl100::CtrlPin pin, xmpl100::GpioSignal signal) noexcept {
+    if (pin != xmpl100::CtrlPin::Enable || pins_.shdn_n < 0) {
+      return false;
+    }
+    const uint32_t level = signal == xmpl100::GpioSignal::ACTIVE ? 1 : 0; // powered = SHDN_N high
+    return gpio_set_level(static_cast<gpio_num_t>(pins_.shdn_n), level) == ESP_OK;
+  }
+
+  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+    const esp_log_level_t esp_level =
+        level == xmpl100::LogLevel::Error ? ESP_LOG_ERROR : ESP_LOG_INFO;
+    va_list args;
+    va_start(args, fmt);
+    esp_log_writev(esp_level, kTag, fmt, args);
+    va_end(args);
+    esp_log_write(esp_level, kTag, "\n");
+  }
+
+private:
+  static constexpr const char* kTag = "xmpl100";
+  Esp32Xmpl100Pins pins_;
+  bool ready_ = false;
+};

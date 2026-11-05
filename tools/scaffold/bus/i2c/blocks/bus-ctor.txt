@@ -1,0 +1,7 @@
+  /**
+   * @brief Bind the driver to a port and a 7-bit I2C address. No I/O.
+   * @param port The port; it must outlive the driver.
+   * @param address 7-bit I2C address, `kDefaultI2cAddress` with ADDR low.
+   */
+  explicit XMPL100(Port& port, uint8_t address = kDefaultI2cAddress) noexcept
+      : bus_(port, address) {}

@@ -1,0 +1,99 @@
+/**
+ * @file mock_xmpl100.hpp
+ * @brief A model of the XMPL100's analog output behind an ADC, and the mock ports.
+ *
+ * The model follows the datasheet transfer function (V = V_0 + T_C x T), is unpowered while SHDN_N
+ * is asserted, and injects faults through public fields.
+ *
+ * | Port | Hooks |
+ * | --- | --- |
+ * | `MinimalPort` | the required ones plus `DelayUs()` (needed by every wait) |
+ * | `FullPort` | also `GpioSet()` (SHDN_N) and `Log()` |
+ */
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+#include "xmpl100_spi_interface.hpp"
+#include "xmpl100_types.hpp"
+
+namespace xmpl100_test {
+
+/// The sensor, the ADC in front of it, fault injection and counters.
+struct MockBusState {
+  float temperature_c = 25.0F; ///< What the sensor sees.
+  uint8_t wired_channel = 0;   ///< The ADC channel the output is wired to; others read 0 mV.
+  bool powered = true;         ///< False while SHDN_N is asserted.
+  bool open_output = false;    ///< The output floats high: reads 3300 mV.
+  bool bus_up_ok = true;       ///< EnsureInitialized() result.
+  int fail_transfer = -1;      ///< Fail the conversion with this index (0-based); -1 never.
+  int transfers = 0;           ///< Conversions so far.
+  int bus_up_calls = 0;        ///< EnsureInitialized() calls so far.
+
+  bool Convert(uint8_t channel, uint32_t& mv) noexcept {
+    const int index = transfers++;
+    if (index == fail_transfer) {
+      return false;
+    }
+    if (open_output) {
+      mv = 3300;
+    } else if (channel != wired_channel || !powered) {
+      mv = 0;
+    } else {
+      mv = static_cast<uint32_t>(500.0F + 10.0F * temperature_c + 0.5F);
+    }
+    return true;
+  }
+};
+
+/// The required ADC hooks over a MockBusState. Derive `class P : public MockPortBase<P>`.
+template <typename Self>
+class MockPortBase : public xmpl100::SpiInterface<Self> {
+public:
+  MockBusState state;
+
+  bool EnsureInitialized() noexcept {
+    state.bus_up_calls++;
+    return state.bus_up_ok;
+  }
+  bool ReadVoltageMv(uint8_t channel, uint32_t& voltage_mv) noexcept {
+    return state.Convert(channel, voltage_mv);
+  }
+};
+
+/// Required hooks plus the delay.
+class MinimalPort : public MockPortBase<MinimalPort> {
+public:
+  uint64_t delayed_us = 0; ///< Sum of DelayUs() arguments.
+
+  void DelayUs(uint32_t us) noexcept {
+    delayed_us += us;
+  }
+};
+
+/// Every optional hook, with counters.
+class FullPort : public MockPortBase<FullPort> {
+public:
+  uint64_t delayed_us = 0; ///< Sum of DelayUs() arguments.
+  int log_lines = 0;       ///< Log() calls.
+  bool gpio_ok = true;     ///< GpioSet() result.
+
+  void DelayUs(uint32_t us) noexcept {
+    delayed_us += us;
+  }
+  bool GpioSet(xmpl100::CtrlPin pin, xmpl100::GpioSignal signal) noexcept {
+    if (!gpio_ok || pin != xmpl100::CtrlPin::Enable) {
+      return false;
+    }
+    state.powered = signal == xmpl100::GpioSignal::ACTIVE;
+    return true;
+  }
+  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+    (void)level;
+    (void)fmt;
+    log_lines++;
+  }
+};
+
+} // namespace xmpl100_test

@@ -1,0 +1,23 @@
+---
+# cppcheck over the driver sources.
+name: C++ analysis
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-cppcheck:
+    name: cppcheck
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-cpp-analysis.yml@v1
+    with:
+      # scaffold:cppcheck-paths
+      paths: "inc src"
+      # /scaffold:cppcheck-paths
+      std: "c++20"
+      enable: "warning,style,performance,portability,information"
+      force: true
+      strict: false

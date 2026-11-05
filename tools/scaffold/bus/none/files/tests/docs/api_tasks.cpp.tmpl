@@ -1,0 +1,29 @@
+/**
+ * @file api_tasks.cpp
+ * @brief The API guide's examples, compiled by the host build (never run).
+ */
+#include "my_port.hpp"
+#include "xmpl100.hpp"
+
+using Switch = xmpl100::XMPL100<MyPort>;
+
+// --8<-- [start:debounced]
+xmpl100::Error StartDebounced(Switch& sw) {
+  xmpl100::Config c = xmpl100::DebouncedPreset(); // 8 reads, 5 ms apart
+  c.samples = 4;                                  // 4 reads are enough on a short trace
+  return sw.Initialize(c).error;
+}
+// --8<-- [end:debounced]
+
+// --8<-- [start:errors]
+const char* Describe(xmpl100::Error e) {
+  switch (e) {
+  case xmpl100::Error::DeviceIdMismatch:
+    return "no self-test pulse on OUT: no part, or OUT not wired";
+  case xmpl100::Error::DeviceFault:
+    return "OUT changed during a reading: floating line or missing pull-up";
+  default:
+    return xmpl100::ToString(e);
+  }
+}
+// --8<-- [end:errors]

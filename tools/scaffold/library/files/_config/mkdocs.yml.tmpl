@@ -1,0 +1,20 @@
+# Documentation site on the shared MkDocs platform (kokeb-mkdocs-theme in kokeb-labs/ci-tools).
+# This file lives in _config/ with the other tool configuration; the pages are in ../docs. From the root:
+#
+#   mkdocs serve -f _config/mkdocs.yml               http://127.0.0.1:8000
+#   mkdocs build -f _config/mkdocs.yml --strict      what CI runs
+#   kokeb-docs gen && kokeb-docs check           generated regions
+site_name: "@TITLE@"
+site_description: >-
+  @DESCRIPTION@
+repo_url: https://github.com/@ORG@/@REPO@
+docs_dir: ../docs
+site_dir: ../site
+
+theme:
+  name: kokeb
+
+plugins:
+  - kokeb
+  - search
+  - awesome-nav

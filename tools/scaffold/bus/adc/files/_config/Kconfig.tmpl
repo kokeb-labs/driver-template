@@ -1,0 +1,22 @@
+# Kconfig for the XMPL100 driver (analog output). The root CMakeLists.txt registers it with ESP-IDF
+# (idf_component_register(... KCONFIG _config/Kconfig)). The values reach the code only
+# through inc/xmpl100_kconfig.hpp.
+menuconfig XMPL100
+    bool "XMPL100 temperature sensor"
+    default y
+    help
+      Defaults for xmpl100::KconfigDefaults(). Outside ESP-IDF they come from Config{}.
+
+if XMPL100
+
+config XMPL100_ADC_CHANNEL
+    int "ADC channel of the sensor output"
+    range 0 15
+    default 0
+
+config XMPL100_SAMPLES
+    int "Conversions averaged per reading"
+    range 1 64
+    default 4
+
+endif

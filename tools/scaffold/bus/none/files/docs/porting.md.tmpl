@@ -1,0 +1,37 @@
+# Porting
+
+Run the driver on a new MCU by writing one class: the port.
+
+The driver calls hooks on a class you derive from `xmpl100::SpiInterface<Self>` (in
+[`inc/xmpl100_spi_interface.hpp`](../inc/xmpl100_spi_interface.hpp)). The base declares no hook; the driver template
+is constrained by the `xmpl100::SpiPort` concept, so a missing or misdeclared hook is a compile error.
+
+## What you implement
+
+| Method | Required | Contract |
+| --- | --- | --- |
+| `bool EnsureInitialized() noexcept` | yes | Configure the pins on the first call; `true` at once afterwards |
+| `bool GpioRead(InPin pin, GpioSignal& level) noexcept` | yes | The logical level of `pin`; `false` on an error |
+| `void DelayUs(uint32_t us) noexcept` | yes, for every wait | Wait at least `us` microseconds |
+| `bool GpioSet(CtrlPin, GpioSignal) noexcept` | no | Drive SHDN_N; with it `Initialize()` checks the self-test pulse, without it `Sleep()` returns `Unsupported` |
+| `void Log(LogLevel, const char* fmt, ...) noexcept` | no | Format and print one line |
+
+## The port
+
+```cpp title="my_port.hpp"
+--8<-- "tests/docs/my_port.hpp:port"
+```
+
+A port with every hook:
+
+```cpp
+--8<-- "tests/docs/ports.cpp:full-port"
+```
+
+Map the polarity in the port: OUT is active low, so a low level is `GpioSignal::ACTIVE`. The ESP32 example uses
+[`esp32_xmpl100_port.hpp`](../examples/esp32/main/esp32_xmpl100_port.hpp) (the GPIO driver with the internal
+pull-up).
+
+## Threads
+
+The driver is not thread-safe. Give each driver object one owner task, or guard every call with one mutex.

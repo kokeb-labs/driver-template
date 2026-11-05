@@ -1,0 +1,109 @@
+/**
+ * @file esp32_xmpl100_port.hpp
+ * @brief ESP-IDF port for the XMPL100 driver: the UART driver for the bus, GPIO for RESET_N,
+ * esp_rom delays and ESP_LOG for the log hook.
+ *
+ * Start from this file for any ESP-IDF target. The pins are in Esp32Xmpl100Pins; the defaults match
+ * the wiring table in examples/esp32/README.md (ESP32-C6 DevKitC-1).
+ */
+#pragma once
+
+#include <cstdarg>
+#include <cstddef>
+#include <cstdint>
+
+#include "driver/gpio.h"
+#include "driver/uart.h"
+#include "esp_log.h"
+#include "esp_rom_sys.h"
+#include "freertos/FreeRTOS.h"
+
+#include "xmpl100.hpp"
+
+/// Pins and bus settings of the ESP-IDF port.
+struct Esp32Xmpl100Pins {
+  uart_port_t port = UART_NUM_1;
+  int tx = 4;
+  int rx = 5;
+  int reset_n = 11; ///< -1 when RESET_N is tied high.
+  int baud = 115200;
+};
+
+/// The XMPL100 UART port on ESP-IDF, with every optional hook.
+class Esp32Xmpl100Port : public xmpl100::SpiInterface<Esp32Xmpl100Port> {
+public:
+  explicit Esp32Xmpl100Port(const Esp32Xmpl100Pins& pins = {}) noexcept : pins_(pins) {}
+
+  bool EnsureInitialized() noexcept {
+    if (ready_) {
+      return true;
+    }
+    uart_config_t cfg{};
+    cfg.baud_rate = pins_.baud;
+    cfg.data_bits = UART_DATA_8_BITS;
+    cfg.parity = UART_PARITY_DISABLE;
+    cfg.stop_bits = UART_STOP_BITS_1;
+    cfg.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
+    cfg.source_clk = UART_SCLK_DEFAULT;
+    if (uart_driver_install(pins_.port, 256, 0, 0, nullptr, 0) != ESP_OK ||
+        uart_param_config(pins_.port, &cfg) != ESP_OK ||
+        uart_set_pin(pins_.port, pins_.tx, pins_.rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) !=
+            ESP_OK) {
+      return false;
+    }
+    if (pins_.reset_n >= 0) {
+      gpio_config_t io{};
+      io.pin_bit_mask = 1ULL << static_cast<unsigned>(pins_.reset_n);
+      io.mode = GPIO_MODE_OUTPUT;
+      if (gpio_config(&io) != ESP_OK ||
+          gpio_set_level(static_cast<gpio_num_t>(pins_.reset_n), 1) != ESP_OK) {
+        return false;
+      }
+    }
+    ready_ = true;
+    return true;
+  }
+
+  bool Write(const uint8_t* data, std::size_t len) noexcept {
+    return uart_write_bytes(pins_.port, data, len) == static_cast<int>(len);
+  }
+
+  bool Read(uint8_t* data, std::size_t len, uint32_t timeout_ms) noexcept {
+    const int n = uart_read_bytes(pins_.port, data, static_cast<uint32_t>(len),
+                                  pdMS_TO_TICKS(timeout_ms) + 1);
+    return n == static_cast<int>(len);
+  }
+
+  bool FlushInput() noexcept {
+    return uart_flush_input(pins_.port) == ESP_OK;
+  }
+
+  void DelayUs(uint32_t us) noexcept {
+    esp_rom_delay_us(us);
+  }
+
+  bool GpioSet(xmpl100::CtrlPin pin, xmpl100::GpioSignal signal) noexcept {
+    if (pin != xmpl100::CtrlPin::Reset || pins_.reset_n < 0) {
+      return false;
+    }
+    const uint32_t level = signal == xmpl100::GpioSignal::ACTIVE ? 0 : 1; // RESET_N is active low
+    return gpio_set_level(static_cast<gpio_num_t>(pins_.reset_n), level) == ESP_OK;
+  }
+
+  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+    const esp_log_level_t esp_level = level == xmpl100::LogLevel::Error     ? ESP_LOG_ERROR
+                                      : level == xmpl100::LogLevel::Warning ? ESP_LOG_WARN
+                                      : level == xmpl100::LogLevel::Info    ? ESP_LOG_INFO
+                                                                            : ESP_LOG_DEBUG;
+    va_list args;
+    va_start(args, fmt);
+    esp_log_writev(esp_level, kTag, fmt, args);
+    va_end(args);
+    esp_log_write(esp_level, kTag, "\n");
+  }
+
+private:
+  static constexpr const char* kTag = "xmpl100";
+  Esp32Xmpl100Pins pins_;
+  bool ready_ = false;
+};

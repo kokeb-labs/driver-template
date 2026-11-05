@@ -1,0 +1,22 @@
+---
+name: Markdown lint
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  markdownlint:
+    name: Markdown lint
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-markdown-lint.yml@v1
+    with:
+      globs: 'docs/** *.md **/*.md'
+      exclude_patterns: >-
+        .git/**,node_modules/**,venv/**,.venv/**,_site/**,**/espidf-tools/**,examples/esp32/scripts/**
+      config_file: '_config/.markdownlint.json'
+      use_docker: false
+      fix: false
+      separator: ''

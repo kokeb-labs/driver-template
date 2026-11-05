@@ -1,0 +1,26 @@
+---
+# Documentation: strict MkDocs build, figure and generated-region checks, Doxygen under /api/, offline
+# link check, Lighthouse budget and screenshots on pull requests; publish to gh-pages with mike
+# (main -> dev, vX.Y.Z tag -> that version + latest). Inputs: docs/ru-mkdocs-publish.md in
+# kokeb-labs/ci-tools.
+name: Docs
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-mkdocs-publish.yml@v1
+    permissions:
+      contents: write  # the publish job pushes gh-pages; pull requests never publish
+    with:
+      mkdocs_config: _config/mkdocs.yml
+      doxygen_config: _config/Doxyfile  # paths inside are relative to the root, where Doxygen runs
+      # scaffold:docs-deploy
+      # The template repository has no Pages site; repositories made from it publish.
+      deploy: ${{ github.repository != 'kokeb-labs/driver-template' }}
+      # /scaffold:docs-deploy

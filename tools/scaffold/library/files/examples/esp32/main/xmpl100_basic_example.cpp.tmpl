@@ -1,0 +1,35 @@
+/**
+ * @file xmpl100_basic_example.cpp
+ * @brief Smooth a noisy value with MovingAverage and log it once a second. No hardware needed.
+ */
+#include "esp_log.h"
+#include "esp_random.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+#include "@ROOT@/Kconfig.h"
+#include "@ROOT@/MovingAverage.h"
+
+namespace {
+constexpr const char* kTag = "xmpl100_example";
+}
+
+extern "C" void app_main(void) {
+  static xmpl100::MovingAverage<64> avg;
+  ESP_LOGI(kTag, "@TITLE@ %s", xmpl100::GetVersion());
+  if (const auto r = avg.Initialize(xmpl100::KconfigDefaults()); !r) {
+    ESP_LOGE(kTag, "Initialize failed: %s", xmpl100::ToString(r.error));
+    return;
+  }
+  while (true) {
+    const float noisy = 25.0F + static_cast<float>(esp_random() % 100) / 100.0F;
+    if (const auto r = avg.Push(noisy); !r) {
+      ESP_LOGW(kTag, "Push: %s", xmpl100::ToString(r.error));
+    }
+    if (const auto m = avg.Average(); m) {
+      ESP_LOGI(kTag, "raw %.2f, average %.2f", static_cast<double>(noisy),
+               static_cast<double>(m.value));
+    }
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+}

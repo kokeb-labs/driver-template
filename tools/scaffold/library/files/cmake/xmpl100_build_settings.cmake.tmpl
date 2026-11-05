@@ -1,0 +1,43 @@
+#===============================================================================
+# @TITLE@: build settings
+#===============================================================================
+# Read by the root CMakeLists.txt in both of its modes (plain CMake and the
+# ESP-IDF component): target name, version, include directories, sources and
+# ESP-IDF requirements. This file is the single source
+# of the version; tests/CMakeLists.txt checks every other copy against it.
+#===============================================================================
+
+include_guard(GLOBAL)
+
+set(XMPL100_TARGET_NAME "xmpl100")
+
+#===============================================================================
+# Version (single source of truth)
+#===============================================================================
+set(XMPL100_VERSION_MAJOR 0)
+set(XMPL100_VERSION_MINOR 1)
+set(XMPL100_VERSION_PATCH 0)
+set(XMPL100_VERSION "${XMPL100_VERSION_MAJOR}.${XMPL100_VERSION_MINOR}.${XMPL100_VERSION_PATCH}")
+
+#===============================================================================
+# Generated version header: @ROOT@/Version.h in the build tree
+#===============================================================================
+set(XMPL100_VERSION_TEMPLATE "${CMAKE_CURRENT_LIST_DIR}/../inc/@ROOT@/Version.h.in")
+set(XMPL100_VERSION_HEADER_DIR "${CMAKE_CURRENT_BINARY_DIR}/xmpl100_generated")
+set(XMPL100_VERSION_HEADER "${XMPL100_VERSION_HEADER_DIR}/@ROOT@/Version.h")
+
+file(MAKE_DIRECTORY "${XMPL100_VERSION_HEADER_DIR}/@ROOT@")
+configure_file("${XMPL100_VERSION_TEMPLATE}" "${XMPL100_VERSION_HEADER}" @ONLY)
+
+#===============================================================================
+# Public include directories (one include root: "@ROOT@/..."), sources, ESP-IDF requirements
+#===============================================================================
+set(XMPL100_PUBLIC_INCLUDE_DIRS
+    "${CMAKE_CURRENT_LIST_DIR}/../inc"
+    "${XMPL100_VERSION_HEADER_DIR}"
+)
+
+# Header-only.
+set(XMPL100_SOURCE_FILES)
+
+set(XMPL100_IDF_REQUIRES)

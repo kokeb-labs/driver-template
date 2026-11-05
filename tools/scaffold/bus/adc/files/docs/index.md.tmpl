@@ -1,0 +1,44 @@
+---
+hide:
+  - navigation
+  - toc
+---
+
+<div class="kb-hero" markdown>
+<span class="kb-kicker">Driver</span>
+
+# XMPL100 Driver
+
+<p>A C++20 driver for the XMPL100 analog temperature sensor, read through an ADC channel of any MCU.</p>
+
+[Quickstart](quickstart.md){ .md-button .md-button--primary }
+[API guide](api-guide.md){ .md-button }
+[Source on GitHub](https://github.com/kokeb-labs/driver-template){ .md-button }
+</div>
+
+The driver has no platform code. You give it a small class that reads one ADC channel in millivolts; it does the
+rest: power-up timing, range checks, averaging and the transfer function.
+
+<div class="kb-chip" markdown>
+<div class="kb-chip__head">
+<span class="kb-chip__kicker">Analog temperature sensor</span>
+<span class="kb-chip__name">XMPL100</span>
+<span class="kb-chip__vendor">Fill in the vendor</span>
+</div>
+
+Output
+:   500 mV at 0 °C, 10 mV/°C (typical); 100 mV to 1750 mV over -40 °C to +125 °C
+
+Interface
+:   One analog output to an MCU ADC channel; optional SHDN_N
+
+Supply
+:   Fill in from the datasheet
+</div>
+
+## What you get
+
+- **One object per sensor**, no I/O until `Initialize()`. See [API guide](api-guide.md).
+- **Errors you can act on**: `Result<T>` with an `Error`. See [Contract](contract.md).
+- **Zero-overhead portability**: a CRTP port checked by a concept. See [Porting](porting.md).
+- **Tested without hardware** against a model of the output. See [Testing and CI](testing.md).

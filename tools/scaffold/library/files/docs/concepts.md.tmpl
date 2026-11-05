@@ -1,0 +1,27 @@
+# Concepts
+
+The model the library implements: here, a moving average over a fixed window.
+
+`MovingAverage<Capacity>` keeps the last `window_samples` samples in a ring of `Capacity` floats and a running
+sum. Each `Push()` adds the new sample to the sum and, once the window is full, subtracts the sample it replaces,
+so both `Push()` and `Average()` take constant time whatever the window.
+
+```mermaid
+flowchart LR
+    S[Push sample] --> F{window full?}
+    F -- no --> A[count + 1]
+    F -- yes --> D[sum - oldest]
+    A --> W[store, sum + sample]
+    D --> W
+    W --> M[Average = sum / count]
+```
+
+| Property | Value |
+| --- | --- |
+| Memory | `Capacity` floats, a double and a few counters, inside the object |
+| Time | O(1) per `Push()` and `Average()` |
+| Precision | The sum is a `double`, so long runs of `float` samples do not drift measurably |
+
+Replace this page with the model of the library's own code.
+
+Next: [Contract](contract.md).

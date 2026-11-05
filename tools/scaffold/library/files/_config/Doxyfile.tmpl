@@ -1,0 +1,32 @@
+# Doxygen configuration for the API reference (published under /api/ by the docs CI).
+# Doxygen resolves paths against the folder it runs in, not this file's: run it from the repository root
+# (`doxygen _config/Doxyfile`), as the docs CI and tests/check_doxygen.cmake do.
+# Public symbols must be documented: EXTRACT_ALL = NO with WARN_AS_ERROR = FAIL_ON_WARNINGS.
+PROJECT_NAME           = "@TITLE@"
+PROJECT_NUMBER         = 0.1.0
+PROJECT_BRIEF          = "API reference"
+OUTPUT_DIRECTORY       = build/doxygen
+INPUT                  = inc docs/_doxygen/mainpage.md
+FILE_PATTERNS          = *.h *.md
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = docs/_doxygen/mainpage.md
+EXCLUDE_SYMBOLS        = *::detail *::detail::* detail
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_IF_INCOMPLETE_DOC = YES
+WARN_NO_PARAMDOC       = YES
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
+WARN_FORMAT            = "$file:$line: $text"
+FULL_PATH_NAMES        = YES
+STRIP_FROM_PATH        = .
+STRIP_FROM_INC_PATH    = inc
+ENABLE_PREPROCESSING   = YES
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+HAVE_DOT               = NO

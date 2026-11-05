@@ -1,0 +1,30 @@
+# API guide
+
+The driver's API by task, with code that compiles.
+
+| Group | Calls |
+| --- | --- |
+| Lifecycle | `Initialize()`, `EnsureInitialized()`, `IsInitialized()`, `Deinitialize()`, `Sleep()` |
+| Measurement | `ReadTemperatureC()`, `ReadVoltageMv()` |
+| Configuration | `GetConfig()`, `xmpl100::Validate()` |
+
+## Read the temperature
+
+```cpp
+--8<-- "tests/docs/quickstart.cpp:quickstart"
+```
+
+## Calibrate
+
+```cpp
+--8<-- "tests/docs/api_tasks.cpp:calibrated"
+```
+
+## Handle errors
+
+```cpp
+--8<-- "tests/docs/api_tasks.cpp:errors"
+```
+
+This analog driver never returns `Timeout`, `Crc` or `Busy`. Every value it returns is on the
+[Contract](contract.md#errors) page.

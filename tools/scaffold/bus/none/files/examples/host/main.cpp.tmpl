@@ -1,0 +1,37 @@
+/**
+ * @file main.cpp
+ * @brief The XMPL100 driver on your PC: start a simulated part and watch it trip.
+ *
+ * No hardware and no SDK: the host port (host_xmpl100_port.hpp) connects the real driver to the
+ * pin model the host tests use. The same calls run on an MCU with that MCU's port
+ * (examples/esp32/ for ESP-IDF). Exit code 0 when every call succeeded.
+ */
+#include <array>
+#include <cstdint>
+#include <cstdio>
+
+#include "host_xmpl100_port.hpp"
+#include "xmpl100.hpp"
+
+int main() {
+  HostXmpl100Port port;
+  xmpl100::XMPL100<HostXmpl100Port> sw(port); // no I/O yet
+
+  std::printf("XMPL100 driver %s on the host\n", xmpl100::GetDriverVersion());
+  if (const auto r = sw.Initialize(); !r) {
+    std::printf("Initialize failed: %s\n", xmpl100::ToString(r.error));
+    return 1;
+  }
+
+  constexpr std::array<float, 3> kTemperaturesC = {25.0F, 90.0F, 60.0F};
+  for (const float celsius : kTemperaturesC) {
+    port.state.temperature_c = celsius; // what the simulated die sees
+    const auto over = sw.IsOverTemperature();
+    if (!over) {
+      std::printf("read failed: %s\n", xmpl100::ToString(over.error));
+      return 1;
+    }
+    std::printf("%.0f C: %s\n", static_cast<double>(celsius), over.value ? "over" : "ok");
+  }
+  return 0;
+}

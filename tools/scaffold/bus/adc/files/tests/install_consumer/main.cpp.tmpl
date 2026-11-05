@@ -1,0 +1,37 @@
+/**
+ * @file main.cpp
+ * @brief Builds the driver from the installed package only: headers, version header and .ipp.
+ */
+#include <cstdint>
+
+#include "xmpl100.hpp"
+
+namespace {
+
+// An ADC that always reads 0 mV: enough to instantiate the whole driver template.
+class ZeroPort : public xmpl100::SpiInterface<ZeroPort> {
+public:
+  bool EnsureInitialized() noexcept {
+    return true;
+  }
+  bool ReadVoltageMv(uint8_t channel, uint32_t& voltage_mv) noexcept {
+    (void)channel;
+    voltage_mv = 0;
+    return true;
+  }
+  void DelayUs(uint32_t us) noexcept {
+    (void)us;
+  }
+};
+
+} // namespace
+
+int main() {
+  ZeroPort port;
+  xmpl100::XMPL100<ZeroPort> sensor(port);
+  // 0 mV is outside the sensor's range, so Initialize() must fail with DeviceIdMismatch.
+  const auto r = sensor.Initialize();
+  return (r.error == xmpl100::Error::DeviceIdMismatch && xmpl100::GetDriverVersion()[0] != '\0')
+             ? 0
+             : 1;
+}

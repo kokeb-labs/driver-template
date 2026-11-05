@@ -1,0 +1,24 @@
+# Configuration
+
+Every field of `xmpl100::Config`, the presets, and the optional Kconfig layer.
+
+| Field | Default | Range |
+| --- | --- | --- |
+| `samples` | 3 | 1 to 16; every sample of a reading must agree |
+| `sample_interval_us` | 1000 | 0 to 100000 |
+
+| Preset | What it sets |
+| --- | --- |
+| `FastPreset()` | One read per reading, no filtering |
+| `DebouncedPreset()` | 8 reads, 5 ms apart |
+
+## Kconfig
+
+```cpp
+--8<-- "tests/docs/configuration.cpp:kconfig"
+```
+
+| Option | Default | `Config` field |
+| --- | --- | --- |
+| `CONFIG_XMPL100_SAMPLES` | 3 | `samples` |
+| `CONFIG_XMPL100_SAMPLE_INTERVAL_US` | 1000 | `sample_interval_us` |

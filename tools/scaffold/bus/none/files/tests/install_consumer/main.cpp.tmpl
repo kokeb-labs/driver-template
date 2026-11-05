@@ -1,0 +1,42 @@
+/**
+ * @file main.cpp
+ * @brief Builds the driver from the installed package only: headers, version header and .ipp.
+ */
+#include <cstdint>
+
+#include "xmpl100.hpp"
+
+namespace {
+
+// Pins with nothing attached: OUT never asserts. Enough to instantiate the whole driver template.
+class EmptyPort : public xmpl100::SpiInterface<EmptyPort> {
+public:
+  bool EnsureInitialized() noexcept {
+    return true;
+  }
+  bool GpioRead(xmpl100::InPin pin, xmpl100::GpioSignal& level) noexcept {
+    (void)pin;
+    level = xmpl100::GpioSignal::INACTIVE;
+    return true;
+  }
+  bool GpioSet(xmpl100::CtrlPin pin, xmpl100::GpioSignal signal) noexcept {
+    (void)pin;
+    (void)signal;
+    return true;
+  }
+  void DelayUs(uint32_t us) noexcept {
+    (void)us;
+  }
+};
+
+} // namespace
+
+int main() {
+  EmptyPort port;
+  xmpl100::XMPL100<EmptyPort> sw(port);
+  // No self-test pulse on OUT, so Initialize() must fail with DeviceIdMismatch.
+  const auto r = sw.Initialize();
+  return (r.error == xmpl100::Error::DeviceIdMismatch && xmpl100::GetDriverVersion()[0] != '\0')
+             ? 0
+             : 1;
+}

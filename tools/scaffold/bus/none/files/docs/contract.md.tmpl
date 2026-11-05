@@ -1,0 +1,55 @@
+# Contract
+
+What the XMPL100 driver promises, what it needs, and the rules a caller follows.
+
+The driver inherits the [Kokeb Labs driver contract](https://github.com/kokeb-labs/.github/blob/main/standards/driver.md);
+this page states only what is specific to it.
+
+## Promises
+
+- The constructor is `noexcept`, does no I/O and cannot fail.
+- `Initialize()` configures the pins. With `GpioSet()` it power-cycles the part through SHDN_N and checks the
+  self-test pulse on OUT (the closest equivalent of a chip-ID check, since the part has no ID); without it, it waits
+  out the pulse of the board's power-up and cannot tell a missing part.
+- Every read returns `Error::NotInitialized` before `Initialize()` succeeds.
+- Every port failure propagates as `Error::Bus`.
+- A reading is never a guess: if the samples of one reading disagree, it is `Error::DeviceFault`.
+
+## Depends on
+
+| Dependency | Version | Why |
+| --- | --- | --- |
+| A C++20 compiler | GCC 10, Clang 13 or later | Concepts constrain the port |
+| CMake | 3.16 or later | Generates `xmpl100_version.h` |
+| Your port | | Two GPIO pins, the delay, optionally SHDN_N |
+
+## Threading
+
+Not thread-safe; takes no lock. One owner task, or one mutex around every call. Nothing may run in an ISR: a reading
+waits between its samples.
+
+## Errors
+
+| `Error` | Value | Returned when |
+| --- | --- | --- |
+| `Ok` | 0 | The call succeeded |
+| `NotInitialized` | 1 | Before `Initialize()` succeeded |
+| `InvalidArgument` | 2 | `Validate()` failed |
+| `Bus` | 3 | A pin read or write of the port failed |
+| `DeviceIdMismatch` | 5 | No self-test pulse on OUT at `Initialize()` (with `GpioSet()` only) |
+| `DeviceFault` | 8 | OUT changed between the samples of one reading |
+| `Unsupported` | 9 | `Sleep()` without `GpioSet()` |
+
+`Timeout`, `Crc` and `Busy` are never returned.
+
+## Memory
+
+No heap, exceptions, RTTI or static mutable state. The object holds a port reference, a `Config` and a flag.
+
+## Platform
+
+Platform-free; the ESP-IDF port in `examples/esp32` is an example.
+
+## Deviations from the standard
+
+None.

@@ -1,0 +1,30 @@
+{
+  "name": "xmpl100",
+  "cls": "XMPL100",
+  "calls": [
+    "Initialize",
+    "EnsureInitialized",
+    "Deinitialize",
+    "SoftReset",
+    "HardwareReset",
+    "ApplyConfig",
+    "SetMode",
+    "SetAlertThresholdsC",
+    "ReadStatus",
+    "ReadRawTemperature",
+    "ReadTemperatureC",
+    "TriggerOneShot",
+    "WaitDataReady",
+    "MeasureOnceC"
+  ],
+  "sources": [
+    "inc/xmpl100.hpp:public calls",
+    "inc/xmpl100_spi_interface.hpp:SpiInterface"
+  ],
+  "bus": "SPI",
+  "base": "SpiInterface",
+  "hooks": [
+    "EnsureInitialized",
+    "Transfer"
+  ]
+}

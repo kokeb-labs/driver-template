@@ -1,0 +1,43 @@
+/**
+ * @file xmpl100_kconfig.hpp
+ * @brief Optional ESP-IDF layer: a `Config` built from the `CONFIG_XMPL100_*` Kconfig options.
+ * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ *
+ * Include it only where menuconfig should choose the defaults; without Kconfig `KconfigDefaults()`
+ * equals `Config{}`.
+ */
+#pragma once
+
+#if defined(__has_include)
+#if __has_include("sdkconfig.h")
+#include "sdkconfig.h"
+#endif
+#endif
+
+#include "xmpl100_types.hpp"
+
+// NOLINTBEGIN(cppcoreguidelines-macro-usage): Kconfig values are macros by definition.
+#ifndef CONFIG_XMPL100_SAMPLES
+/** Reads of OUT per reading when Kconfig does not set it: `Config{}.samples`. */
+#define CONFIG_XMPL100_SAMPLES 3
+#endif
+#ifndef CONFIG_XMPL100_SAMPLE_INTERVAL_US
+/** Wait between two reads when Kconfig does not set it: `Config{}.sample_interval_us`. */
+#define CONFIG_XMPL100_SAMPLE_INTERVAL_US 1000
+#endif
+// NOLINTEND(cppcoreguidelines-macro-usage)
+
+namespace xmpl100 {
+
+/**
+ * @brief The configuration menuconfig selected, on top of the datasheet defaults.
+ * @return `Config{}` with the sampling from Kconfig.
+ */
+constexpr Config KconfigDefaults() noexcept {
+  Config c{};
+  c.samples = static_cast<uint16_t>(CONFIG_XMPL100_SAMPLES);
+  c.sample_interval_us = static_cast<uint32_t>(CONFIG_XMPL100_SAMPLE_INTERVAL_US);
+  return c;
+}
+
+} // namespace xmpl100

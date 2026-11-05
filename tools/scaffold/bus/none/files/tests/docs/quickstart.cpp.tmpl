@@ -1,0 +1,23 @@
+/**
+ * @file quickstart.cpp
+ * @brief The Quickstart page's example, compiled by the host build (never run).
+ */
+#include "my_port.hpp"
+
+// --8<-- [start:quickstart]
+#include "xmpl100.hpp"
+
+int check_board_overheat(MyPort& port, bool& overheated) {
+  xmpl100::XMPL100<MyPort> sw(port); // no I/O yet
+
+  if (auto r = sw.Initialize(); !r) { // 1. pins up, self-test pulse waited out
+    return static_cast<int>(r.error); //    Bus: the port could not configure the pins
+  }
+  const auto over = sw.IsOverTemperature(); // 2. OUT read 3 times, 1 ms apart
+  if (!over) {
+    return static_cast<int>(over.error); //    DeviceFault: OUT is floating (pull-up?)
+  }
+  overheated = over.value; // 3. true above the 85 °C trip point
+  return 0;
+}
+// --8<-- [end:quickstart]

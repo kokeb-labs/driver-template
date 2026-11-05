@@ -1,0 +1,21 @@
+/**
+ * @file api_tasks.cpp
+ * @brief The API guide's examples, compiled by the host build (never run).
+ */
+#include "@ROOT@/Kconfig.h"
+#include "@ROOT@/MovingAverage.h"
+
+// --8<-- [start:reject]
+xmpl100::Error FilterSpikes(xmpl100::MovingAverage<32>& avg) {
+  xmpl100::Config c{};
+  c.window_samples = 32;
+  c.reject_above_abs = 150.0F; // refuse readings beyond ±150
+  return avg.Initialize(c).error;
+}
+// --8<-- [end:reject]
+
+// --8<-- [start:kconfig]
+xmpl100::Error FromMenuconfig(xmpl100::MovingAverage<64>& avg) {
+  return avg.Initialize(xmpl100::KconfigDefaults()).error;
+}
+// --8<-- [end:kconfig]

@@ -1,0 +1,22 @@
+# Kconfig for the XMPL100 driver (GPIO only). The root CMakeLists.txt registers it with ESP-IDF
+# (idf_component_register(... KCONFIG _config/Kconfig)). The values reach the code only
+# through inc/xmpl100_kconfig.hpp.
+menuconfig XMPL100
+    bool "XMPL100 temperature switch"
+    default y
+    help
+      Defaults for xmpl100::KconfigDefaults(). Outside ESP-IDF they come from Config{}.
+
+if XMPL100
+
+config XMPL100_SAMPLES
+    int "Reads of OUT per reading (all must agree)"
+    range 1 16
+    default 3
+
+config XMPL100_SAMPLE_INTERVAL_US
+    int "Wait between two reads of OUT, in microseconds"
+    range 0 100000
+    default 1000
+
+endif

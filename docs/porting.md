@@ -1,0 +1,99 @@
+# Porting
+
+Run the driver on a new MCU by writing one class: the port.
+
+The driver never calls your SDK. It calls hooks on a class you derive from `xmpl100::SpiInterface<Self>` (in
+[`inc/xmpl100_spi_interface.hpp`](../inc/xmpl100_spi_interface.hpp)). The base uses CRTP and declares no hook
+itself; the driver template is constrained by the `xmpl100::SpiPort` concept, so calls are resolved at compile
+time (no virtual functions, nothing to allocate) and a missing or misdeclared hook is a compile error at the point
+of use.
+
+<!-- scaffold:bus-port -->
+## What you implement
+
+| Method | Required | Contract |
+| --- | --- | --- |
+| `bool EnsureInitialized() noexcept` | yes | Bring the bus up on the first call; return `true` at once afterwards. `false` makes `Initialize()` return `Bus` |
+| `bool Transfer(const uint8_t* tx, uint8_t* rx, std::size_t len) noexcept` | yes | One full-duplex transfer of `len` bytes with CS_N low for all of them. `rx` is `nullptr` for writes. `false` on any bus error |
+| `void DelayUs(uint32_t us) noexcept` | yes, for every wait | Wait at least `us` microseconds |
+| `bool GpioSet(CtrlPin, GpioSignal) noexcept` | no | Drive RESET_N; `false` if the pin write failed |
+| `void Log(LogLevel, const char* fmt, ...) noexcept` | no | Format and print one line; the driver never formats |
+
+## The port
+
+```cpp title="my_port.hpp"
+--8<-- "tests/docs/my_port.hpp:port"
+```
+
+Rules the transfer must follow:
+
+- **One call, one frame.** Keep CS_N low for all `len` bytes; the chip decodes the frame when CS_N rises. Never
+  split a burst into several transfers: the address auto-increment does not carry over.
+- **Mode 0 or 3, MSB first, up to 10 MHz.** Start at 1 MHz on jumper wires.
+- **Raw bytes only.** Do not interpret, retry or reorder bytes; the driver owns the framing and the retries.
+- **Return `false` for a bus error.** The driver turns it into `Error::Bus` and never ignores it.
+- **Bounded time-outs.** A stuck bus fails the call; it does not block forever.
+<!-- /scaffold:bus-port -->
+
+## Optional hooks
+
+The driver finds the optional hooks at compile time with C++20 `requires`, in one place
+(`xmpl100::detail`). A missing hook falls back in a documented, safe way or fails to compile; it never skips a
+step silently.
+
+| Hook | Used for | Without it |
+| --- | --- | --- |
+| `DelayUs()` | t_RST after a reset; 1 ms between polls while a one-shot converts | Compile error at the first call that waits (every port needs it in practice) |
+| `GpioSet()` | RESET_N: the reset in `Initialize()` and `HardwareReset()` | `Initialize()` soft-resets; `HardwareReset()` returns `Error::Unsupported` |
+| `Log()` | One line per lifecycle event or failure | Nothing is logged |
+
+A port with every hook:
+
+```cpp
+--8<-- "tests/docs/ports.cpp:full-port"
+```
+
+```cpp
+--8<-- "tests/docs/ports.cpp:hardware-reset"
+```
+
+A `GpioSet()` that returns `void` is a compile error: the driver must see a failed pin write. The
+[compile-fail tests](testing.md) check both rules.
+
+## Reference implementations
+
+Every port lives with its example, in `examples/<platform>/`; the driver has none. [Platforms](platforms.md) lists
+them and how to add one.
+
+- [`examples/host/host_xmpl100_port.hpp`](../examples/host/host_xmpl100_port.hpp): any PC, against a simulated
+  chip. Start from it for a host build or a test bench; it is also the smallest complete port.
+<!-- scaffold:platform-esp32 -->
+- [`examples/esp32/main/esp32_xmpl100_port.hpp`](../examples/esp32/main/esp32_xmpl100_port.hpp): ESP-IDF, with
+  every hook. Start from it for any ESP-IDF target.
+<!-- /scaffold:platform-esp32 -->
+
+## Check your port
+
+1. Build it: the ports on this page are compiled by the host CI from [`tests/docs/`](../tests/docs/my_port.hpp),
+   with the driver instantiated over them.
+2. Call `Initialize()`: `Ok` proves that writes and reads work and that CHIP_ID read `0xA1`.
+3. Call `ReadTemperatureC()` twice a second and warm the chip with a finger: the value rises within seconds.
+
+## Threads
+
+The driver is not thread-safe. Give each driver object one owner task, or guard every call with one mutex. When
+several chips share a bus, the port must also serialise the bus. See [Contract](contract.md#threading).
+
+## Editor setup
+
+The clang-format and clang-tidy configuration is in `_config/`, and the repository root has no copy of it. Tools
+that take a path use it directly; CI does the same:
+
+| Tool | Setting |
+| --- | --- |
+| Command line | `clang-format --style=file:_config/.clang-format`, `clang-tidy --config-file=_config/.clang-tidy -p build` |
+| VS Code (C/C++ extension) | `"C_Cpp.clang_format_style": "file:${workspaceFolder}/_config/.clang-format"` and `"C_Cpp.codeAnalysis.clangTidy.args": ["--config-file=${workspaceFolder}/_config/.clang-tidy"]` |
+| clangd (VS Code clangd, Neovim, Emacs), CLion | These find `.clang-format` and `.clang-tidy` only by name, from the file upwards: copy both to the root once (`cp _config/.clang-format _config/.clang-tidy .`). `.gitignore` lists the copies, so they never reach a commit; copy again after `_config/` changes |
+
+Configure with `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON` (clangd: `--compile-commands-dir=build`) so the editor sees the
+same flags as the build.

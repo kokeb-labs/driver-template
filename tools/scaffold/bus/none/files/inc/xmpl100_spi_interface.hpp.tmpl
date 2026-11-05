@@ -1,0 +1,79 @@
+/**
+ * @file xmpl100_spi_interface.hpp
+ * @brief The GPIO port of the XMPL100 driver: the CRTP base, its pin enums and the `SpiPort`
+ * concept.
+ * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ *
+ * @details
+ * The XMPL100 has no data bus: it reports through one digital output (OUT) and is switched by an
+ * optional shutdown input (SHDN_N). The driver calls hooks on a class you derive from
+ * `xmpl100::SpiInterface<Self>`:
+ *
+ * | Hook | Contract |
+ * | --- | --- |
+ * | `bool EnsureInitialized() noexcept` | Configure the pins on the first call; `true` at once
+ * afterwards | | `bool GpioRead(InPin pin, GpioSignal& level) noexcept` | The logical level of an
+ * input pin; `false` on an error |
+ *
+ * The port maps logical levels to the physical polarity: OUT is active low on the pin, and
+ * `GpioSignal::ACTIVE` means "asserted".
+ */
+#pragma once
+
+#include <concepts>
+#include <cstdint>
+
+namespace xmpl100 {
+
+/** @brief Input pins the driver reads through the `GpioRead()` hook. */
+enum class InPin : uint8_t {
+  Out = 0, ///< OUT, open drain, active low; ACTIVE means "over temperature" or "self-test".
+};
+
+/** @brief Control pins the port may drive through the optional `GpioSet()` hook. */
+enum class CtrlPin : uint8_t {
+  Enable = 0, ///< SHDN_N, active low shutdown; ACTIVE means the part is powered.
+};
+
+/** @brief Logical level of a pin; the port maps it to the physical polarity. */
+enum class GpioSignal : uint8_t {
+  INACTIVE = 0, ///< The pin function is deasserted.
+  ACTIVE = 1,   ///< The pin function is asserted.
+};
+
+/**
+ * @brief CRTP base of the platform GPIO port.
+ *
+ * The base declares no hook itself (a forwarding hook would turn a missing override into infinite
+ * recursion); the driver checks your class with the `SpiPort` concept.
+ *
+ * @tparam Derived Your port class.
+ */
+template <typename Derived>
+class SpiInterface {
+public:
+  /** @brief Ports are not copied: the driver holds a reference. */
+  SpiInterface(const SpiInterface&) = delete;
+  /** @brief Ports are not copied: the driver holds a reference. */
+  SpiInterface& operator=(const SpiInterface&) = delete;
+
+protected:
+  /** @brief Only the derived port is constructed. */
+  SpiInterface() noexcept = default;
+  /** @brief Destroyed through the derived port only. */
+  ~SpiInterface() noexcept = default;
+};
+
+/**
+ * @brief Satisfied by a class that derives from `SpiInterface<Port>` and implements the required
+ * hooks with the right types.
+ * @tparam Port The port class.
+ */
+template <typename Port>
+concept SpiPort = std::derived_from<Port, SpiInterface<Port>> &&
+                  requires(Port& port, InPin pin, GpioSignal& level) {
+                    { port.EnsureInitialized() } -> std::same_as<bool>;
+                    { port.GpioRead(pin, level) } -> std::same_as<bool>;
+                  };
+
+} // namespace xmpl100

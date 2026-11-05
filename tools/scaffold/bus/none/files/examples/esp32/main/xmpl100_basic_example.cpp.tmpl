@@ -1,0 +1,35 @@
+/**
+ * @file xmpl100_basic_example.cpp
+ * @brief Start the XMPL100 from the menuconfig values and log its state twice a second.
+ */
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+#include "esp32_xmpl100_port.hpp"
+#include "xmpl100.hpp"
+#include "xmpl100_kconfig.hpp"
+
+namespace {
+constexpr const char* kTag = "xmpl100_example";
+}
+
+extern "C" void app_main(void) {
+  static Esp32Xmpl100Port port;
+  static xmpl100::XMPL100<Esp32Xmpl100Port> sw(port);
+
+  ESP_LOGI(kTag, "XMPL100 driver %s", xmpl100::GetDriverVersion());
+  if (const auto init = sw.Initialize(xmpl100::KconfigDefaults()); !init) {
+    ESP_LOGE(kTag, "Initialize failed: %s", xmpl100::ToString(init.error));
+    return;
+  }
+  while (true) {
+    const auto over = sw.IsOverTemperature();
+    if (over) {
+      ESP_LOGI(kTag, "%s", over.value ? "over temperature" : "ok");
+    } else {
+      ESP_LOGW(kTag, "read failed: %s", xmpl100::ToString(over.error));
+    }
+    vTaskDelay(pdMS_TO_TICKS(500));
+  }
+}

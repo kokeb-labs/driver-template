@@ -1,0 +1,28 @@
+# Testing and CI
+
+How the library is checked: host tests, compiled documentation, an install test, the examples and static analysis,
+on every pull request.
+
+## Host tests
+
+```bash
+cmake -S . -B build -DXMPL100_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+| File | Covers |
+| --- | --- |
+| [`tests/host/test_moving_average.cpp`](../tests/host/test_moving_average.cpp) | Lifecycle, window, rejection, errors |
+| [`tests/host/test_errors.cpp`](../tests/host/test_errors.cpp) | Every `Error` value is returned by some call |
+| [`tests/host/test_version.cpp`](../tests/host/test_version.cpp) | The version getters follow the generated header |
+| [`tests/host/test_kconfig.cpp`](../tests/host/test_kconfig.cpp) | `KconfigDefaults()` with and without `CONFIG_` values |
+| [`tests/check_install.cmake`](../tests/check_install.cmake) | Installs and builds [`tests/install_consumer/`](../tests/install_consumer/CMakeLists.txt) with `find_package(xmpl100)` |
+
+The tests build with `-fno-exceptions -fno-rtti` and warnings as errors, on GCC and Clang. Every C++ block on this
+site is included from [`tests/docs/`](../tests/docs/quickstart.cpp), which the same build compiles.
+
+## CI workflows
+
+[`ci.yml`](../.github/workflows/ci.yml) runs the host tests and the host example, the MCU example builds, the docs
+build, clang-format and clang-tidy, cppcheck, Markdown and YAML lint, then the `CI gate` job: the one required check, `CI gate / gate`.

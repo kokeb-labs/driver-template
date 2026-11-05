@@ -1,0 +1,1 @@
+    REQUIRES esp_hw_support freertos log ${xmpl100_component}

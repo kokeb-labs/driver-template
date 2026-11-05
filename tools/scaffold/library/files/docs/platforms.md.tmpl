@@ -1,0 +1,17 @@
+# Platforms
+
+The library is MCU-agnostic: `inc/` contains no SDK, RTOS or vendor header. Only `examples/<platform>/` holds
+platform code, one self-contained folder per platform, each built by CI.
+
+<!-- scaffold:platforms-table -->
+| Platform | Example | Build integration | Built by CI |
+| --- | --- | --- | --- |
+| Host (Linux, macOS, Windows) | [`examples/host/`](../examples/host/README.md) | Plain CMake | yes, run as a test |
+| ESP32 (ESP-IDF) | [`examples/esp32/`](../examples/esp32/README.md) | Root `CMakeLists.txt` under `ESP_PLATFORM` (component) | yes |
+| STM32, RP2040, nRF, other MCUs | none yet | Plain CMake | no |
+<!-- /scaffold:platforms-table -->
+
+Plain CMake (`add_subdirectory()` or `find_package()`, see [Integration](integration.md)) covers STM32, RP2040,
+nRF and host builds; the root `CMakeLists.txt` can also register the library as an ESP-IDF component (the template
+adds that branch with `--platforms host,esp32`). Zephyr modules, Arduino library manifests and PlatformIO manifests
+are added only when a product needs them, and an example only together with a CI job that builds it.

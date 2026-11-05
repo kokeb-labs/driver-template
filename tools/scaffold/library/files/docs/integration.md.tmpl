@@ -1,0 +1,67 @@
+# Integration
+
+Add the library to any CMake project (host, STM32, RP2040, nRF, ...), and choose its defaults with Kconfig.
+
+## CMake (any MCU, any host)
+
+```cmake
+add_subdirectory(external/@REPO@)
+target_link_libraries(my_app PRIVATE xmpl100::xmpl100)
+```
+
+Or install it and use the package; the target name is the same:
+
+```bash
+cmake -S external/@REPO@ -B build-lib && cmake --install build-lib --prefix /opt/sdk
+```
+
+```cmake
+find_package(xmpl100 0.1 REQUIRED)            # with CMAKE_PREFIX_PATH=/opt/sdk
+target_link_libraries(my_app PRIVATE xmpl100::xmpl100)
+```
+
+Headers are included through the one include root: `#include "@ROOT@/MovingAverage.h"`.
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `XMPL100_ENABLE_WARNINGS` | `OFF` | `-Wall -Wextra -Wpedantic` on every target that links the library |
+| `XMPL100_BUILD_TESTS` | `OFF` | Builds the host tests ([Testing and CI](testing.md)) |
+
+<!-- scaffold:platform-esp32 -->
+## ESP-IDF
+
+Under ESP-IDF the root [`CMakeLists.txt`](../CMakeLists.txt) registers the repository itself as a component
+(`ESP_PLATFORM`: `idf_component_register()` with [`_config/Kconfig`](../_config/Kconfig)). Add the checkout to
+`EXTRA_COMPONENT_DIRS`, put it under `components/`, or use it as a component-manager git dependency:
+
+```yaml
+# main/idf_component.yml of your project
+dependencies:
+  xmpl100:
+    git: https://github.com/@ORG@/@REPO@.git
+    version: v0.1.0
+```
+
+ESP-IDF names a component after its folder (or, through the component manager, after the key), so your component
+declares `REQUIRES xmpl100` or the folder name. There is no `idf_component.yml` in the repository: it is only
+needed to publish to the ESP Component Registry, and is added at the root if that is chosen.
+<!-- /scaffold:platform-esp32 -->
+
+## Kconfig
+
+Under ESP-IDF, menuconfig shows **@TITLE@** ([`_config/Kconfig`](../_config/Kconfig)). The values reach the code
+only through
+[`inc/@ROOT@/Kconfig.h`](../inc/@ROOT@/Kconfig.h):
+
+```cpp
+--8<-- "tests/docs/api_tasks.cpp:kconfig"
+```
+
+| Option | Default | `Config` field |
+| --- | --- | --- |
+| `CONFIG_XMPL100_WINDOW_SAMPLES` | 8 | `window_samples` |
+
+## Version
+
+The version is set once in [`cmake/xmpl100_build_settings.cmake`](../cmake/xmpl100_build_settings.cmake)
+and generated into `@ROOT@/Version.h`; `xmpl100::GetVersion()` returns it.

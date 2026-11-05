@@ -1,0 +1,129 @@
+/**
+ * @file xmpl100_spi_interface.hpp
+ * @brief The I2C port of the XMPL100 driver: the CRTP base, its pin enums, the `SpiPort` concept
+ * and the register framing.
+ * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ *
+ * @details
+ * The driver never calls an SDK. It calls hooks on a class you derive from
+ * `xmpl100::SpiInterface<Self>`:
+ *
+ * | Hook | Contract |
+ * | --- | --- |
+ * | `bool EnsureInitialized() noexcept` | Bring the bus up on the first call; `true` at once
+ * afterwards | | `bool Write(uint8_t addr, const uint8_t* data, std::size_t len) noexcept` | START,
+ * `addr` + W, `len` bytes, STOP; `false` on a NACK or bus error | | `bool WriteRead(uint8_t addr,
+ * const uint8_t* tx, std::size_t tx_len, uint8_t* rx, std::size_t rx_len) noexcept` | START, `addr`
+ * + W, `tx`, repeated START, `addr` + R, `rx_len` bytes, STOP |
+ *
+ * `addr` is the 7-bit address. The port moves raw bytes: the register address travels in the
+ * payload, and the port never retries or configures the chip. Standard or fast mode, up to 400 kHz.
+ */
+#pragma once
+
+#include <concepts>
+#include <cstddef>
+#include <cstdint>
+
+#include "xmpl100_types.hpp"
+
+namespace xmpl100 {
+
+/** @brief Control pins the port may drive through the optional `GpioSet()` hook. */
+enum class CtrlPin : uint8_t {
+  Reset = 0, ///< RESET_N, active low on the package pin. ACTIVE holds the chip in reset.
+};
+
+/** @brief Logical level of a control pin; the port maps it to the physical polarity. */
+enum class GpioSignal : uint8_t {
+  INACTIVE = 0, ///< The pin function is deasserted.
+  ACTIVE = 1,   ///< The pin function is asserted.
+};
+
+/// 7-bit I2C address with the ADDR pin low (0x48 to 0x4B with ADDR on GND, VDD, SDA, SCL).
+inline constexpr uint8_t kDefaultI2cAddress = 0x48;
+
+/**
+ * @brief CRTP base of the platform I2C port.
+ *
+ * Derive `class MyPort : public xmpl100::SpiInterface<MyPort>` and implement the hooks in this
+ * file's description. The base declares no hook itself (a forwarding hook would turn a missing
+ * override into infinite recursion) and no data; the driver checks your class with the `SpiPort`
+ * concept, so a missing or misdeclared hook is a compile error that names it.
+ *
+ * @tparam Derived Your port class.
+ */
+template <typename Derived>
+class SpiInterface {
+public:
+  /** @brief Ports are not copied: the driver holds a reference. */
+  SpiInterface(const SpiInterface&) = delete;
+  /** @brief Ports are not copied: the driver holds a reference. */
+  SpiInterface& operator=(const SpiInterface&) = delete;
+
+protected:
+  /** @brief Only the derived port is constructed. */
+  SpiInterface() noexcept = default;
+  /** @brief Destroyed through the derived port only. */
+  ~SpiInterface() noexcept = default;
+};
+
+/**
+ * @brief Satisfied by a class that derives from `SpiInterface<Port>` and implements the required
+ * hooks with the right types.
+ * @tparam Port The port class.
+ */
+template <typename Port>
+concept SpiPort =
+    std::derived_from<Port, SpiInterface<Port>> &&
+    requires(Port& port, uint8_t addr, const uint8_t* tx, uint8_t* rx, std::size_t len) {
+      { port.EnsureInitialized() } -> std::same_as<bool>;
+      { port.Write(addr, tx, len) } -> std::same_as<bool>;
+      { port.WriteRead(addr, tx, len, rx, len) } -> std::same_as<bool>;
+    };
+
+namespace detail {
+
+/// Longest register burst the driver issues, in data bytes.
+inline constexpr std::size_t kMaxBurst = 4;
+
+/// Register access over I2C: the register address is the first payload byte; reads use a repeated
+/// START. The address auto-increments within one transaction.
+template <SpiPort Port>
+class RegisterBus {
+public:
+  RegisterBus(Port& port, uint8_t address) noexcept : port_(port), address_(address) {}
+
+  Port& GetPort() noexcept {
+    return port_;
+  }
+
+  /// Read `len` consecutive registers from `reg`. `Error::Bus` on a NACK or bus error.
+  Error Read(uint8_t reg, uint8_t* out, std::size_t len) noexcept {
+    if (len == 0 || len > kMaxBurst) {
+      return Error::InvalidArgument;
+    }
+    return port_.WriteRead(address_, &reg, 1, out, len) ? Error::Ok : Error::Bus;
+  }
+
+  /// Write `len` consecutive registers from `reg`. `Error::Bus` on a NACK or bus error.
+  Error Write(uint8_t reg, const uint8_t* data, std::size_t len) noexcept {
+    if (len == 0 || len > kMaxBurst) {
+      return Error::InvalidArgument;
+    }
+    uint8_t frame[1 + kMaxBurst] = {};
+    frame[0] = reg;
+    for (std::size_t i = 0; i < len; ++i) {
+      frame[1 + i] = data[i];
+    }
+    return port_.Write(address_, frame, len + 1) ? Error::Ok : Error::Bus;
+  }
+
+private:
+  Port& port_;
+  uint8_t address_;
+};
+
+} // namespace detail
+
+} // namespace xmpl100

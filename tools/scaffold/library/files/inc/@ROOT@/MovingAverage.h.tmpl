@@ -1,0 +1,146 @@
+/**
+ * @file MovingAverage.h
+ * @brief `MovingAverage<Capacity>`: the mean of the last N samples, in fixed storage. The example
+ * utility of the library template; replace it with the library's code.
+ * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ */
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+#include "@ROOT@/Result.h"
+
+namespace xmpl100 {
+
+/**
+ * @defgroup xmpl100_moving_average MovingAverage
+ * @brief A fixed-capacity moving average.
+ * @{
+ */
+
+/** @brief What `MovingAverage::Initialize()` sets. */
+struct Config {
+  uint16_t window_samples{8}; ///< Samples averaged, 1 to the capacity.
+  float reject_above_abs{
+      0.0F}; ///< Samples with a larger magnitude are refused; 0 accepts every sample.
+};
+
+/**
+ * @brief The mean of the last `window_samples` samples.
+ *
+ * No heap: the samples live in a member array of `Capacity` floats. `Push()` and `Average()` are
+ * O(1). Not thread-safe and takes no lock: use one object from one task, or guard it.
+ *
+ * @tparam Capacity The largest window, in samples.
+ */
+template <std::size_t Capacity>
+class MovingAverage {
+  static_assert(Capacity > 0 && Capacity <= 65535, "MovingAverage: Capacity must be 1 to 65535");
+
+public:
+  /** @brief An uninitialised average; `Initialize()` sets the window. */
+  constexpr MovingAverage() noexcept = default;
+
+  /**
+   * @brief Set the window and clear the samples.
+   * @param config The window and the rejection limit.
+   * @return `Ok`, or `InvalidArgument` when the window is 0 or above `Capacity` or the limit is
+   * negative.
+   */
+  Result<void> Initialize(const Config& config = {}) noexcept {
+    initialized_ = false;
+    if (config.window_samples == 0 || config.window_samples > Capacity ||
+        !(config.reject_above_abs >= 0.0F)) {
+      return Result<void>::Failure(Error::InvalidArgument);
+    }
+    config_ = config;
+    Clear();
+    initialized_ = true;
+    return Result<void>::Success();
+  }
+
+  /** @return true after a successful `Initialize()` and before `Deinitialize()`. */
+  [[nodiscard]] bool IsInitialized() const noexcept {
+    return initialized_;
+  }
+
+  /**
+   * @brief Forget the samples and the configuration.
+   * @return Always `Ok`.
+   */
+  Result<void> Deinitialize() noexcept {
+    Clear();
+    initialized_ = false;
+    return Result<void>::Success();
+  }
+
+  /** @brief Drop every sample; the configuration stays. */
+  void Clear() noexcept {
+    count_ = 0;
+    next_ = 0;
+    sum_ = 0.0;
+  }
+
+  /**
+   * @brief Add one sample; the oldest leaves the window when it is full.
+   * @param sample The sample, in the caller's unit.
+   * @return `Ok`, `NotInitialized`, or `InvalidArgument` for a NaN or a sample above the rejection
+   * limit.
+   */
+  Result<void> Push(float sample) noexcept {
+    if (!initialized_) {
+      return Result<void>::Failure(Error::NotInitialized);
+    }
+    const float magnitude = sample < 0.0F ? -sample : sample;
+    if (!(sample == sample) ||
+        (config_.reject_above_abs > 0.0F && magnitude > config_.reject_above_abs)) {
+      return Result<void>::Failure(Error::InvalidArgument);
+    }
+    if (count_ == config_.window_samples) {
+      sum_ -= samples_[next_];
+    } else {
+      ++count_;
+    }
+    samples_[next_] = sample;
+    sum_ += sample;
+    next_ = static_cast<uint16_t>((next_ + 1) % config_.window_samples);
+    return Result<void>::Success();
+  }
+
+  /**
+   * @brief The mean of the samples in the window.
+   * @return The mean, or `NotInitialized` / `Empty`.
+   */
+  [[nodiscard]] Result<float> Average() const noexcept {
+    if (!initialized_) {
+      return Result<float>::Failure(Error::NotInitialized);
+    }
+    if (count_ == 0) {
+      return Result<float>::Failure(Error::Empty);
+    }
+    return Result<float>::Success(static_cast<float>(sum_ / count_));
+  }
+
+  /** @return Samples in the window, 0 to `window_samples`. */
+  [[nodiscard]] uint16_t GetCount() const noexcept {
+    return count_;
+  }
+
+  /** @return The configuration last applied. */
+  [[nodiscard]] const Config& GetConfig() const noexcept {
+    return config_;
+  }
+
+private:
+  float samples_[Capacity] = {};
+  double sum_ = 0.0;
+  Config config_{};
+  uint16_t count_ = 0;
+  uint16_t next_ = 0;
+  bool initialized_ = false;
+};
+
+/** @} */
+
+} // namespace xmpl100

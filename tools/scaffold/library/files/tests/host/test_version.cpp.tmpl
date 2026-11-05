@@ -1,0 +1,22 @@
+/**
+ * @file test_version.cpp
+ * @brief The version getters follow the generated @ROOT@/Version.h (also built against a 9.8.7
+ * probe).
+ */
+#include <cstdio>
+#include <cstring>
+
+#include "@ROOT@/Result.h"
+
+static_assert(xmpl100::GetVersionMajor() == EXPECTED_MAJOR, "major version differs from CMake");
+static_assert(xmpl100::GetVersionMinor() == EXPECTED_MINOR, "minor version differs from CMake");
+static_assert(xmpl100::GetVersionPatch() == EXPECTED_PATCH, "patch version differs from CMake");
+
+int main() {
+  if (std::strcmp(xmpl100::GetVersion(), EXPECTED_STRING) != 0) {
+    std::printf("version string %s, expected %s\n", xmpl100::GetVersion(), EXPECTED_STRING);
+    return 1;
+  }
+  std::printf("version %s: PASS\n", xmpl100::GetVersion());
+  return 0;
+}

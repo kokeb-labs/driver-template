@@ -1,0 +1,30 @@
+# Hardware
+
+The XMPL100's pins, transfer function and power, as the driver uses them.
+
+## Pins
+
+| Pin | Direction | Function |
+| --- | --- | --- |
+| VDD | Power | Supply; 100 nF to GND at the pin |
+| GND | Power | |
+| VOUT | Out | Analog output to an MCU ADC channel |
+| SHDN_N | In | Shutdown, active low; optional (`CtrlPin::Enable`) |
+
+## Transfer function
+
+| Parameter | Symbol | Value | Driver |
+| --- | --- | --- | --- |
+| Output at 0 °C | V_0 | 500 mV typical | `Config::offset_mv` |
+| Slope | T_C | 10 mV/°C typical | `Config::slope_uv_per_c` |
+| Output range | | 100 mV to 1750 mV | `kOutputMinMv`, `kOutputMaxMv` |
+| Power-on time | t_ON | 800 µs maximum | `kPowerOnTimeUs` |
+
+A reading outside the output range at `Initialize()` is `DeviceIdMismatch` (no sensor on the channel); later it is
+`DeviceFault` (output open or shorted).
+
+## Reference documents
+
+<!-- scaffold:datasheet -->
+The datasheet: the XMPL100 is fictional and has none; its section numbers refer to an imaginary one.
+<!-- /scaffold:datasheet -->

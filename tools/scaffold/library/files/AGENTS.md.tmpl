@@ -1,0 +1,48 @@
+# AGENTS.md
+
+@REPO@: @DESCRIPTION@ It follows the
+[Kokeb Labs engineering standard](https://github.com/kokeb-labs/.github/blob/main/standards/README.md)
+(agents: `standards/agents.md`, libraries:
+`standards/library.md`).
+
+## Layout
+
+- `inc/@ROOT@/`: the public headers, one include root (`#include "@ROOT@/<Header>.h"`), PascalCase file
+  names. `Version.h` is generated from `Version.h.in`.
+- `tests/host/`: host tests; `tests/docs/`: every code block on the site; `tests/install_consumer/`.
+- `docs/`: the site. `examples/<platform>/`: the only platform code; `examples/host/` always exists and runs in
+  the host tests.
+- `cmake/xmpl100_build_settings.cmake`: the only place the version is set.
+
+## Layer rules
+
+- Platform-free: no RTOS, no vendor SDK, no global mutable state, no heap, exceptions, RTTI, `std::function`,
+  `std::string` or `printf`. A helper that needs a lock or a clock takes it as a parameter.
+- Code in `namespace xmpl100`; no macros that leak (`MIN`, `MAX`); no header path shared with another repository.
+- Every fallible call returns `Result<T>`; `Error` keeps the base names and values, library values from 16.
+- Public and protected methods PascalCase, private camelBack, members `snake_case_`, constants `kPascalCase`.
+
+## Build and test on the host
+
+```bash
+cmake -S . -B build -DXMPL100_BUILD_TESTS=ON
+cmake --build build --parallel && ctest --test-dir build --output-on-failure
+```
+
+## Docs checks
+
+```bash
+kokeb-docs gen && kokeb-docs check && mkdocs build -f _config/mkdocs.yml --strict -d /tmp/site
+```
+
+## Definition of done
+
+`standards/agents.md#definition-of-done`: one change; standard followed or deviation named; every check above
+passes locally (the `verify` skill); tests for new behaviour including failure paths; docs and Doxygen updated;
+`CHANGELOG.md` under `## [Unreleased]`; CI green including `CI gate / gate`.
+
+## Rules specific to this repo
+
+- No attribution lines anywhere: no `Co-Authored-By:` trailers, no "Generated with" footers.
+- Work on a `feat/`, `fix/`, `docs/`, `ci/` or `chore/` branch; never push to `main`, force-push, merge or change
+  settings.

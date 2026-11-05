@@ -1,0 +1,52 @@
+# @TITLE@
+
+@DESCRIPTION@
+
+[![CI](https://github.com/@ORG@/@REPO@/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/@ORG@/@REPO@/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+**Documentation: <https://@ORG@.github.io/@REPO@/>**
+
+## In 30 seconds
+
+<!-- generated: quickstart-code -->
+<!-- /generated -->
+
+## What it does
+
+- `xmpl100::MovingAverage<N>`: the mean of the last samples in fixed storage (the template's example utility).
+- One include root, `@ROOT@/`, and one CMake target, `xmpl100::xmpl100`.
+- Every fallible call returns `Result<T>` with an `Error`: no exceptions, no heap, no RTTI.
+- MCU-agnostic: the same code on any MCU and on the host (`examples/host`).
+
+## Install
+
+```bash
+git submodule add https://github.com/@ORG@/@REPO@.git external/@REPO@
+```
+
+```cmake
+add_subdirectory(external/@REPO@)
+target_link_libraries(my_app PRIVATE xmpl100::xmpl100)
+```
+
+## Documentation
+
+| | |
+| --- | --- |
+| [Quickstart](https://@ORG@.github.io/@REPO@/latest/quickstart/) | The smallest use |
+| [Concepts](https://@ORG@.github.io/@REPO@/latest/concepts/) | The model the library implements |
+| [Contract](https://@ORG@.github.io/@REPO@/latest/contract/) | Promises, dependencies, threading, errors |
+| [API guide](https://@ORG@.github.io/@REPO@/latest/api-guide/) | The API by task |
+| [Integration](https://@ORG@.github.io/@REPO@/latest/integration/) | CMake on any MCU, Kconfig |
+| [API reference](https://@ORG@.github.io/@REPO@/latest/api/) | Doxygen, every class and member |
+
+## Tests
+
+```bash
+cmake -S . -B build -DXMPL100_BUILD_TESTS=ON && cmake --build build && ctest --test-dir build
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).

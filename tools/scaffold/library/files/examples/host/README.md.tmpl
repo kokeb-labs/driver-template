@@ -1,0 +1,17 @@
+# @TITLE@ host example
+
+The library on your PC: [`main.cpp`](main.cpp) smooths a series of samples with `MovingAverage` and prints the
+mean after each one.
+
+## Build and run
+
+From the repository root, with CMake 3.16+ and a C++20 compiler:
+
+```bash
+cmake -S examples/host -B build-example
+cmake --build build-example
+./build-example/xmpl100_host_example
+```
+
+The host tests build this folder too and run the example (CTest `xmpl100_host_example`), so CI fails if it stops
+compiling or a call fails.

@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="884" viewBox="0 0 1200 884" role="img" aria-labelledby="driver-layers-title driver-layers-desc" font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="driver-layers-title">The layers, one of them yours</title>
+<desc id="driver-layers-desc">Layer diagram: the application calls the hardware-agnostic XMPL100 core, which uses the CRTP SPI port contract, which calls the platform port you write, which drives the chip.</desc>
+<defs><marker id="fk-arrow-rail" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8893A2"/></marker></defs>
+<rect x="0.5" y="0.5" width="1199" height="883" rx="16" fill="#FFFFFF" stroke="#E2E7EE"/>
+<text x="32" y="46.8" font-size="16" font-weight="700" letter-spacing="1.2" fill="#3730A3">ARCHITECTURE</text>
+<text x="32" y="85.6" font-size="32" font-weight="700" fill="#0E1726">The layers, one of them yours</text>
+<text x="32" y="115.4" font-size="18" fill="#566070">The core and the contract are the same on every MCU. The port is a small class you write.</text>
+<rect x="32" y="131.4" width="1136" height="1" fill="#E2E7EE"/>
+<rect x="32" y="278.4" width="1136" height="157" rx="16" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1.2"/>
+<path d="M600 242.4 L600 274.4" fill="none" stroke="#8893A2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<path d="M600 439.4 L600 471.4" fill="none" stroke="#8893A2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<path d="M600 568.4 L600 600.4" fill="none" stroke="#8893A2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<path d="M600 696.4 L600 728.4" fill="none" stroke="#8893A2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<rect x="32" y="149.4" width="1136" height="89" rx="12" fill="#FFFFFF" stroke="#C9D1DB" stroke-width="1"/>
+<rect x="32" y="157.4" width="4" height="73" rx="2" fill="#64748B"/>
+<rect x="32" y="475.4" width="1136" height="89" rx="12" fill="#FBEFE6" stroke="#4F46E5" stroke-width="1.4"/>
+<rect x="32" y="483.4" width="4" height="73" rx="2" fill="#4F46E5"/>
+<rect x="32" y="604.4" width="1136" height="88" rx="12" fill="#E6F6F4" stroke="#0F8B80" stroke-width="1.4"/>
+<rect x="32" y="612.4" width="4" height="72" rx="2" fill="#0F8B80"/>
+<rect x="32" y="732.4" width="1136" height="89" rx="12" fill="#FFFFFF" stroke="#C9D1DB" stroke-width="1"/>
+<rect x="32" y="740.4" width="4" height="73" rx="2" fill="#64748B"/>
+<text x="56" y="184.4" font-size="20" font-weight="700" fill="#0E1726">Your application</text>
+<text x="56" y="215" font-size="17" fill="#2B3442">a handler, a manager or a test</text>
+<rect x="48" y="323.4" width="98.4" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="56" y="341.5" font-size="16" font-weight="700" fill="#3730A3">Initialize()</text>
+<rect x="154.4" y="323.4" width="167" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="162.4" y="341.5" font-size="16" font-weight="700" fill="#3730A3">EnsureInitialized()</text>
+<rect x="329.4" y="323.4" width="120.6" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="337.4" y="341.5" font-size="16" font-weight="700" fill="#3730A3">Deinitialize()</text>
+<rect x="457.9" y="323.4" width="110.3" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="465.9" y="341.5" font-size="16" font-weight="700" fill="#3730A3">SoftReset()</text>
+<rect x="576.2" y="323.4" width="157.2" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="584.2" y="341.5" font-size="16" font-weight="700" fill="#3730A3">HardwareReset()</text>
+<rect x="741.5" y="323.4" width="133.2" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="749.5" y="341.5" font-size="16" font-weight="700" fill="#3730A3">ApplyConfig()</text>
+<rect x="882.7" y="323.4" width="103.2" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="890.7" y="341.5" font-size="16" font-weight="700" fill="#3730A3">SetMode()</text>
+<rect x="48" y="357.4" width="203.4" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="56" y="375.5" font-size="16" font-weight="700" fill="#3730A3">SetAlertThresholdsC()</text>
+<rect x="259.4" y="357.4" width="124" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="267.4" y="375.5" font-size="16" font-weight="700" fill="#3730A3">ReadStatus()</text>
+<rect x="391.4" y="357.4" width="214.2" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="399.4" y="375.5" font-size="16" font-weight="700" fill="#3730A3">ReadRawTemperature()</text>
+<rect x="613.6" y="357.4" width="191.3" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="621.6" y="375.5" font-size="16" font-weight="700" fill="#3730A3">ReadTemperatureC()</text>
+<rect x="812.9" y="357.4" width="162.1" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="820.9" y="375.5" font-size="16" font-weight="700" fill="#3730A3">TriggerOneShot()</text>
+<rect x="983" y="357.4" width="157.2" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="991" y="375.5" font-size="16" font-weight="700" fill="#3730A3">WaitDataReady()</text>
+<rect x="48" y="391.4" width="157.9" height="26" rx="13" fill="#FBEFE6" stroke="#C7CBF8" stroke-width="1"/>
+<text x="56" y="409.5" font-size="16" font-weight="700" fill="#3730A3">MeasureOnceC()</text>
+<text x="48" y="307.4" font-size="17" font-weight="700" fill="#3730A3">HARDWARE-AGNOSTIC CORE</text>
+<text x="326.2" y="307.4" font-size="16" fill="#3730A3">XMPL100, inc/xmpl100.hpp</text>
+<text x="56" y="510.4" font-size="20" font-weight="700" fill="#3730A3">Port contract</text>
+<text x="56" y="541" font-size="17" fill="#2B3442">SpiInterface&lt;Derived&gt;: CRTP base, checked at compile time, no virtual calls</text>
+<text x="56" y="639.4" font-size="20" font-weight="700" fill="#115E59">Platform port (your class)</text>
+<text x="56" y="668.6" font-size="16" font-family="'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace" fill="#2B3442">EnsureInitialized()  Transfer()</text>
+<text x="56" y="767.4" font-size="20" font-weight="700" fill="#0E1726">XMPL100</text>
+<text x="56" y="798" font-size="17" fill="#2B3442">SPI bus</text>
+<rect x="32" y="833.8" width="14" height="14" rx="4" fill="#FBEFE6" stroke="#4F46E5" stroke-width="1.4"/>
+<text x="54" y="848.4" font-size="16" fill="#566070">this library</text>
+<rect x="161.8" y="833.8" width="14" height="14" rx="4" fill="#E6F6F4" stroke="#0F8B80" stroke-width="1.4"/>
+<text x="183.8" y="848.4" font-size="16" fill="#566070">you write</text>
+<rect x="282.1" y="833.8" width="14" height="14" rx="4" fill="#F1F4F8" stroke="#64748B" stroke-width="1.4"/>
+<text x="304.1" y="848.4" font-size="16" fill="#566070">hardware or caller</text>
+</svg>

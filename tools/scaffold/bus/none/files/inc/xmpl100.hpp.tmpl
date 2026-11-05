@@ -1,0 +1,154 @@
+/**
+ * @file xmpl100.hpp
+ * @brief XMPL100 driver: the one header to include.
+ * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ *
+ * @details
+ * `xmpl100::XMPL100<Port>` reads one XMPL100 temperature switch through the GPIO pins of your port
+ * (see `xmpl100_gpio_interface.hpp`). No data bus, no platform code, no heap, no exceptions, no
+ * lock.
+ */
+#pragma once
+
+#include <cstdint>
+
+#include "xmpl100_spi_interface.hpp"
+#include "xmpl100_types.hpp"
+#include "xmpl100_version.h"
+
+namespace xmpl100 {
+
+namespace detail {
+
+/// The port declares something called `GpioSet` (used to reject a misdeclared hook).
+template <typename Port>
+concept DeclaresGpioSet =
+    requires(Port& port) { port.GpioSet(CtrlPin::Enable, GpioSignal::ACTIVE); };
+
+/// The port drives control pins: `bool GpioSet(CtrlPin, GpioSignal) noexcept`.
+template <typename Port>
+concept HasGpioSet = requires(Port& port) {
+  { port.GpioSet(CtrlPin::Enable, GpioSignal::ACTIVE) } -> std::same_as<bool>;
+};
+
+/// Wait through the port; a port without `DelayUs()` fails to compile at the first wait.
+template <typename Port>
+void DelayUs(Port& port, uint32_t us) noexcept {
+  if constexpr (requires { port.DelayUs(us); }) {
+    port.DelayUs(us);
+  } else {
+    static_assert(sizeof(Port) == 0,
+                  "xmpl100: the port must implement `void DelayUs(uint32_t us) noexcept`");
+  }
+}
+
+/// Log through the port, or nothing when the port has no `Log()`.
+template <typename Port>
+void Log(Port& port, LogLevel level, const char* message) noexcept {
+  if constexpr (requires { port.Log(level, message); }) {
+    port.Log(level, message);
+  } else {
+    (void)port;
+    (void)level;
+    (void)message;
+  }
+}
+
+} // namespace detail
+
+/**
+ * @defgroup xmpl100_driver XMPL100 driver
+ * @brief The driver class.
+ * @{
+ */
+
+/**
+ * @brief Driver for one XMPL100 temperature switch on a GPIO port.
+ *
+ * Optional hooks: `void DelayUs(uint32_t)` (required by every wait: a missing one is a compile
+ * error), `bool GpioSet(CtrlPin, GpioSignal)` (SHDN_N; without it `Sleep()` returns `Unsupported`),
+ * `void Log(LogLevel, const char* fmt, ...)`.
+ *
+ * @tparam Port Your class derived from `SpiInterface<Port>`.
+ */
+template <SpiPort Port>
+class XMPL100 {
+  static_assert(!detail::DeclaresGpioSet<Port> || detail::HasGpioSet<Port>,
+                "xmpl100: the optional GpioSet hook must be `bool GpioSet(CtrlPin, GpioSignal) "
+                "noexcept`, so that a failed pin write is reported");
+
+public:
+  /**
+   * @brief Bind the driver to a port. No I/O.
+   * @param port The port; it must outlive the driver.
+   */
+  explicit XMPL100(Port& port) noexcept : port_(port) {}
+
+  /** @brief One driver object per sensor. */
+  XMPL100(const XMPL100&) = delete;
+  /** @brief One driver object per sensor. */
+  XMPL100& operator=(const XMPL100&) = delete;
+
+  /**
+   * @brief Configure the pins and start the part. With `GpioSet()` the driver power-cycles it
+   * through SHDN_N and checks the self-test pulse on OUT (the closest equivalent of a chip-ID
+   * check); without it, it waits out the pulse of the board's power-up.
+   * @param config The sampling; checked with `Validate()` first.
+   * @return `Ok`, `InvalidArgument`, `Bus` or `DeviceIdMismatch` (no self-test pulse).
+   */
+  Result<void> Initialize(const Config& config = {}) noexcept;
+
+  /**
+   * @brief `Initialize()` with the last configuration, unless already initialised.
+   * @return `Ok` at once when initialised; otherwise what `Initialize()` returns.
+   */
+  Result<void> EnsureInitialized() noexcept;
+
+  /** @return true after a successful `Initialize()`. No I/O. */
+  [[nodiscard]] bool IsInitialized() const noexcept {
+    return initialized_;
+  }
+
+  /**
+   * @brief Shut the part down when the port drives SHDN_N, and mark the driver uninitialised.
+   * @return `Ok` or `Bus` (the pin write failed).
+   */
+  Result<void> Deinitialize() noexcept;
+
+  /**
+   * @brief Shut the part down; `Initialize()` powers it again.
+   * @return `Ok`, `NotInitialized`, `Unsupported` (no `GpioSet()`) or `Bus`.
+   */
+  Result<void> Sleep() noexcept;
+
+  /**
+   * @brief Read OUT `Config::samples` times, `Config::sample_interval_us` apart.
+   * @return The level every sample agreed on, or `NotInitialized`, `Bus` or `DeviceFault` (the
+   * samples disagree).
+   */
+  Result<GpioSignal> ReadOutput() noexcept;
+
+  /**
+   * @brief Whether the die is above the trip point (`kTripPointC`).
+   * @return `true` while OUT is asserted, or the errors of `ReadOutput()`.
+   */
+  Result<bool> IsOverTemperature() noexcept;
+
+  /** @return The configuration last applied. No I/O. */
+  [[nodiscard]] const Config& GetConfig() const noexcept {
+    return config_;
+  }
+
+private:
+  Result<GpioSignal> readStable() noexcept;
+
+  Port& port_;
+  Config config_{};
+  bool initialized_{false};
+};
+
+/** @} */
+
+} // namespace xmpl100
+
+#include "../src/xmpl100.ipp" // IWYU pragma: export

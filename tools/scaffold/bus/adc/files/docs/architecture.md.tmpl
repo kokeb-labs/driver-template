@@ -1,0 +1,15 @@
+# Architecture
+
+How the driver is built: the core, the port contract, and your port.
+
+<!-- figure: driver-layers -->
+<!-- /figure -->
+
+| Layer | Files | Owns |
+| --- | --- | --- |
+| Core | [`inc/xmpl100.hpp`](../inc/xmpl100.hpp), [`src/xmpl100.ipp`](../src/xmpl100.ipp) | Lifecycle, averaging, range checks, the transfer function |
+| Types | [`inc/xmpl100_types.hpp`](../inc/xmpl100_types.hpp) | `Error`, `Result<T>`, `Config`, presets |
+| Port contract | [`inc/xmpl100_spi_interface.hpp`](../inc/xmpl100_spi_interface.hpp) | The CRTP base, `CtrlPin`, `GpioSignal`, the `SpiPort` concept |
+| Platform port | Your class | ADC bring-up and calibrated conversions |
+
+Next: [Contract](contract.md).

@@ -1,0 +1,108 @@
+/**
+ * @file esp32_xmpl100_port.hpp
+ * @brief ESP-IDF port for the XMPL100 driver: adc_oneshot with curve-fitting calibration, GPIO for
+ * SHDN_N, esp_rom delays and ESP_LOG for the log hook.
+ */
+#pragma once
+
+#include <cstdarg>
+#include <cstdint>
+
+#include "driver/gpio.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
+#include "esp_adc/adc_oneshot.h"
+#include "esp_log.h"
+#include "esp_rom_sys.h"
+
+#include "xmpl100.hpp"
+
+/// Pins of the ESP-IDF port (ESP32-C6: ADC1 channel 0 is GPIO0).
+struct Esp32Xmpl100Pins {
+  adc_unit_t unit = ADC_UNIT_1;
+  int shdn_n = 11; ///< -1 when SHDN_N is tied high.
+};
+
+/// The XMPL100 ADC port on ESP-IDF, with every optional hook.
+class Esp32Xmpl100Port : public xmpl100::SpiInterface<Esp32Xmpl100Port> {
+public:
+  explicit Esp32Xmpl100Port(const Esp32Xmpl100Pins& pins = {}) noexcept : pins_(pins) {}
+
+  bool EnsureInitialized() noexcept {
+    if (adc_ != nullptr) {
+      return true;
+    }
+    adc_oneshot_unit_init_cfg_t unit{};
+    unit.unit_id = pins_.unit;
+    if (adc_oneshot_new_unit(&unit, &adc_) != ESP_OK) {
+      adc_ = nullptr;
+      return false;
+    }
+    adc_cali_curve_fitting_config_t cali{};
+    cali.unit_id = pins_.unit;
+    cali.atten = ADC_ATTEN_DB_12;
+    cali.bitwidth = ADC_BITWIDTH_DEFAULT;
+    if (adc_cali_create_scheme_curve_fitting(&cali, &cali_) != ESP_OK) {
+      return false;
+    }
+    if (pins_.shdn_n >= 0) {
+      gpio_config_t io{};
+      io.pin_bit_mask = 1ULL << static_cast<unsigned>(pins_.shdn_n);
+      io.mode = GPIO_MODE_OUTPUT;
+      if (gpio_config(&io) != ESP_OK) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool ReadVoltageMv(uint8_t channel, uint32_t& voltage_mv) noexcept {
+    const auto ch = static_cast<adc_channel_t>(channel);
+    if (configured_ != channel) {
+      adc_oneshot_chan_cfg_t cfg{};
+      cfg.atten = ADC_ATTEN_DB_12;
+      cfg.bitwidth = ADC_BITWIDTH_DEFAULT;
+      if (adc_oneshot_config_channel(adc_, ch, &cfg) != ESP_OK) {
+        return false;
+      }
+      configured_ = channel;
+    }
+    int raw = 0;
+    int mv = 0;
+    if (adc_oneshot_read(adc_, ch, &raw) != ESP_OK ||
+        adc_cali_raw_to_voltage(cali_, raw, &mv) != ESP_OK) {
+      return false;
+    }
+    voltage_mv = static_cast<uint32_t>(mv);
+    return true;
+  }
+
+  void DelayUs(uint32_t us) noexcept {
+    esp_rom_delay_us(us);
+  }
+
+  bool GpioSet(xmpl100::CtrlPin pin, xmpl100::GpioSignal signal) noexcept {
+    if (pin != xmpl100::CtrlPin::Enable || pins_.shdn_n < 0) {
+      return false;
+    }
+    const uint32_t level = signal == xmpl100::GpioSignal::ACTIVE ? 1 : 0; // powered = SHDN_N high
+    return gpio_set_level(static_cast<gpio_num_t>(pins_.shdn_n), level) == ESP_OK;
+  }
+
+  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+    const esp_log_level_t esp_level =
+        level == xmpl100::LogLevel::Error ? ESP_LOG_ERROR : ESP_LOG_INFO;
+    va_list args;
+    va_start(args, fmt);
+    esp_log_writev(esp_level, kTag, fmt, args);
+    va_end(args);
+    esp_log_write(esp_level, kTag, "\n");
+  }
+
+private:
+  static constexpr const char* kTag = "xmpl100";
+  Esp32Xmpl100Pins pins_;
+  adc_oneshot_unit_handle_t adc_ = nullptr;
+  adc_cali_handle_t cali_ = nullptr;
+  int configured_ = -1;
+};

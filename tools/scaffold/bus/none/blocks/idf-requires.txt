@@ -1,0 +1,1 @@
+    REQUIRES driver esp_rom freertos log ${xmpl100_component}

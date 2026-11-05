@@ -1,0 +1,18 @@
+/**
+ * @file test_kconfig.cpp
+ * @brief KconfigDefaults(): Config{} without Kconfig, the menuconfig value with it (KCONFIG_SET).
+ */
+#include "@ROOT@/Kconfig.h"
+#include "test_harness.hpp"
+
+#if defined(KCONFIG_SET)
+TEST_CASE("Kconfig values reach the Config") {
+  constexpr xmpl100::Config c = xmpl100::KconfigDefaults();
+  CHECK_EQ(c.window_samples, 16);
+}
+#else
+TEST_CASE("Without Kconfig, KconfigDefaults() equals Config{}") {
+  constexpr xmpl100::Config c = xmpl100::KconfigDefaults();
+  CHECK_EQ(c.window_samples, xmpl100::Config{}.window_samples);
+}
+#endif

@@ -1,0 +1,105 @@
+# =============================================================================
+# @TITLE@: host tests
+# =============================================================================
+# Built with the firmware's flags (-fno-exceptions -fno-rtti) and warnings as
+# errors. No hardware, no ESP-IDF:
+#
+#   cmake -S . -B build -DXMPL100_BUILD_TESTS=ON
+#   cmake --build build
+#   ctest --test-dir build --output-on-failure
+# =============================================================================
+
+set(XMPL100_TEST_FLAGS -fno-exceptions -fno-rtti -Wall -Wextra -Wpedantic -Wshadow -Wconversion
+    -Wsign-conversion -Werror)
+
+function(xmpl100_test_target name)
+  target_link_libraries(${name} PRIVATE xmpl100::xmpl100)
+  target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/host)
+  target_compile_features(${name} PRIVATE cxx_std_20)
+  target_compile_options(${name} PRIVATE ${XMPL100_TEST_FLAGS})
+endfunction()
+
+# --- Unit tests (tests/host/) --------------------------------------------------
+file(GLOB XMPL100_UNIT_TESTS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/host/test_*.cpp)
+list(FILTER XMPL100_UNIT_TESTS EXCLUDE REGEX "test_(main|version|kconfig)\\.cpp$")
+add_executable(xmpl100_host_tests host/test_main.cpp ${XMPL100_UNIT_TESTS})
+xmpl100_test_target(xmpl100_host_tests)
+add_test(NAME xmpl100_host_tests COMMAND xmpl100_host_tests)
+
+add_library(xmpl100_optimised_build OBJECT ${XMPL100_UNIT_TESTS})
+xmpl100_test_target(xmpl100_optimised_build)
+target_compile_options(xmpl100_optimised_build PRIVATE -O2)
+
+# --- Kconfig layer: without and with CONFIG_ values ---------------------------
+add_executable(xmpl100_kconfig_defaults host/test_main.cpp host/test_kconfig.cpp)
+xmpl100_test_target(xmpl100_kconfig_defaults)
+add_test(NAME xmpl100_kconfig_defaults COMMAND xmpl100_kconfig_defaults)
+
+add_executable(xmpl100_kconfig_set host/test_main.cpp host/test_kconfig.cpp)
+xmpl100_test_target(xmpl100_kconfig_set)
+target_compile_definitions(xmpl100_kconfig_set PRIVATE KCONFIG_SET=1 CONFIG_XMPL100=1
+  CONFIG_XMPL100_WINDOW_SAMPLES=16)
+add_test(NAME xmpl100_kconfig_set COMMAND xmpl100_kconfig_set)
+
+# --- Version: the getters, and every copy of the version string ---------------
+function(xmpl100_version_test name include_dir major minor patch)
+  add_executable(${name} host/test_version.cpp)
+  if(include_dir)
+    target_include_directories(${name} BEFORE PRIVATE ${include_dir})
+  endif()
+  xmpl100_test_target(${name})
+  target_compile_definitions(${name} PRIVATE EXPECTED_MAJOR=${major} EXPECTED_MINOR=${minor}
+    EXPECTED_PATCH=${patch} EXPECTED_STRING="${major}.${minor}.${patch}")
+  add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+xmpl100_version_test(xmpl100_version "" ${PROJECT_VERSION_MAJOR} ${PROJECT_VERSION_MINOR}
+  ${PROJECT_VERSION_PATCH})
+
+function(xmpl100_version_probe_header)
+  set(XMPL100_VERSION_MAJOR 9)
+  set(XMPL100_VERSION_MINOR 8)
+  set(XMPL100_VERSION_PATCH 7)
+  set(XMPL100_VERSION 9.8.7)
+  configure_file(${XMPL100_VERSION_TEMPLATE} ${CMAKE_CURRENT_BINARY_DIR}/version_probe/@ROOT@/Version.h @ONLY)
+endfunction()
+xmpl100_version_probe_header()
+xmpl100_version_test(xmpl100_version_probe ${CMAKE_CURRENT_BINARY_DIR}/version_probe 9 8 7)
+
+foreach(copy "_config/Doxyfile|PROJECT_NUMBER")
+  string(REPLACE "|" ";" parts "${copy}")
+  list(GET parts 0 file)
+  list(GET parts 1 key)
+  string(MAKE_C_IDENTIFIER "${file}" id)
+  add_test(NAME xmpl100_version_copy_${id}
+    COMMAND ${CMAKE_COMMAND} -DFILE=${PROJECT_SOURCE_DIR}/${file} -DKEY=${key} -DVERSION=${PROJECT_VERSION}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/check_version_copy.cmake)
+endforeach()
+
+# --- Documentation snippets: compiled, never linked or run --------------------
+file(GLOB XMPL100_DOC_SNIPPETS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/docs/*.cpp)
+add_library(xmpl100_doc_snippets OBJECT ${XMPL100_DOC_SNIPPETS})
+xmpl100_test_target(xmpl100_doc_snippets)
+
+# --- Host example (examples/host/): built with the test flags and run ------------
+add_subdirectory(${PROJECT_SOURCE_DIR}/examples/host ${CMAKE_CURRENT_BINARY_DIR}/examples-host)
+xmpl100_test_target(xmpl100_host_example)
+add_test(NAME xmpl100_host_example COMMAND xmpl100_host_example)
+
+# --- Install rules and the find_package() consumer ----------------------------
+add_test(NAME xmpl100_install_consumer
+  COMMAND ${CMAKE_COMMAND}
+    -DBUILD_DIR=${PROJECT_BINARY_DIR}
+    -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+    -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/install-check
+    -DCXX_COMPILER=${CMAKE_CXX_COMPILER}
+    "-DGENERATOR=${CMAKE_GENERATOR}"
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/check_install.cmake)
+
+# --- Doxygen: every public symbol documented (when doxygen is installed) -------
+find_program(XMPL100_DOXYGEN doxygen)
+if(XMPL100_DOXYGEN)
+  add_test(NAME xmpl100_doxygen
+    COMMAND ${CMAKE_COMMAND} -DDOXYGEN=${XMPL100_DOXYGEN} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+            -DOUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/doxygen -P ${CMAKE_CURRENT_SOURCE_DIR}/check_doxygen.cmake)
+endif()

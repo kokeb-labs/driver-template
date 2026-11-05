@@ -1,0 +1,135 @@
+/**
+ * @file Result.h
+ * @brief Errors and `Result<T>` of @TITLE@, and its version.
+ * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ *
+ * @details
+ * The library is a leaf: it depends on no other repository of the org, so it carries its own small
+ * error type with the names and values of the shared base set where they apply. Layers above map
+ * it to their own status type.
+ */
+#pragma once
+
+#include <cstdint>
+
+#include "@ROOT@/Version.h"
+
+/** @brief @TITLE@: everything it declares lives here. */
+namespace xmpl100 {
+
+/**
+ * @defgroup xmpl100_types Types
+ * @brief Errors, results and version.
+ * @{
+ */
+
+/** @brief Why a call failed. Values 0 to 9 follow the shared base set; library values start at 16.
+ */
+enum class Error : uint8_t {
+  Ok = 0,              ///< The call succeeded.
+  NotInitialized = 1,  ///< `Initialize()` has not succeeded yet, or `Deinitialize()` ran since.
+  InvalidArgument = 2, ///< An argument or a `Config` field is out of range; nothing changed.
+  Empty = 16,          ///< There is no sample to compute a result from.
+};
+
+/**
+ * @brief The name of an error, for logs.
+ * @param error The error.
+ * @return A static string such as `"Empty"`; `"Unknown"` for a value that is not an enumerator.
+ */
+constexpr const char* ToString(Error error) noexcept {
+  switch (error) {
+  case Error::Ok:
+    return "Ok";
+  case Error::NotInitialized:
+    return "NotInitialized";
+  case Error::InvalidArgument:
+    return "InvalidArgument";
+  case Error::Empty:
+    return "Empty";
+  }
+  return "Unknown";
+}
+
+/**
+ * @brief The value of a call, or why there is none.
+ * @tparam T The value type. `Result<void>` carries only the error.
+ */
+template <typename T>
+struct [[nodiscard]] Result {
+  T value{};              ///< The value; `T{}` when the call failed.
+  Error error{Error::Ok}; ///< `Error::Ok` on success.
+
+  /** @return true when the call succeeded. */
+  [[nodiscard]] constexpr bool ok() const noexcept {
+    return error == Error::Ok;
+  }
+  /** @return true when the call succeeded. */
+  constexpr explicit operator bool() const noexcept {
+    return ok();
+  }
+  /**
+   * @brief A successful result.
+   * @param v The value.
+   * @return `{v, Error::Ok}`.
+   */
+  static constexpr Result Success(T v) noexcept {
+    return {v, Error::Ok};
+  }
+  /**
+   * @brief A failed result.
+   * @param e Why it failed; never `Error::Ok`.
+   * @return `{T{}, e}`.
+   */
+  static constexpr Result Failure(Error e) noexcept {
+    return {T{}, e};
+  }
+};
+
+/** @brief The result of a call that returns no value. */
+template <>
+struct [[nodiscard]] Result<void> {
+  Error error{Error::Ok}; ///< `Error::Ok` on success.
+
+  /** @return true when the call succeeded. */
+  [[nodiscard]] constexpr bool ok() const noexcept {
+    return error == Error::Ok;
+  }
+  /** @return true when the call succeeded. */
+  constexpr explicit operator bool() const noexcept {
+    return ok();
+  }
+  /** @return A successful result. */
+  static constexpr Result Success() noexcept {
+    return {Error::Ok};
+  }
+  /**
+   * @brief A failed result.
+   * @param e Why it failed; never `Error::Ok`.
+   * @return `{e}`.
+   */
+  static constexpr Result Failure(Error e) noexcept {
+    return {e};
+  }
+};
+
+/** @return The library version, e.g. `"0.1.0"`, from the generated `@ROOT@/Version.h`. */
+constexpr const char* GetVersion() noexcept {
+  return XMPL100_VERSION_STRING;
+}
+/** @return The major version. */
+constexpr uint32_t GetVersionMajor() noexcept {
+  return XMPL100_VERSION_MAJOR;
+}
+/** @return The minor version. */
+constexpr uint32_t GetVersionMinor() noexcept {
+  return XMPL100_VERSION_MINOR;
+}
+/** @return The patch version. */
+constexpr uint32_t GetVersionPatch() noexcept {
+  return XMPL100_VERSION_PATCH;
+}
+
+/** @} */
+
+} // namespace xmpl100

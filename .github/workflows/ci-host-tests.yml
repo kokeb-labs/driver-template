@@ -1,0 +1,47 @@
+---
+# Host tests on GCC and Clang: unit tests over the register model (-fno-exceptions -fno-rtti,
+# warnings as errors), compile-fail tests, doc snippets, version copies, the install consumer and the host example
+# (examples/host), which also runs on its own as the quickstart shows it.
+name: Host tests
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host-tests:
+    name: Host tests (${{ matrix.compiler }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            cxx: g++
+          - compiler: clang
+            cxx: clang++
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure
+        run: >
+          cmake -S . -B build-host
+          -DXMPL100_BUILD_TESTS=ON
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+          -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build-host --parallel
+
+      - name: Test
+        run: ctest --test-dir build-host --output-on-failure
+
+      # The quickstart's first step, exactly as a reader runs it: the host example as its own project.
+      - name: Host example (standalone)
+        run: |
+          cmake -S examples/host -B build-example -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+          cmake --build build-example --parallel
+          ./build-example/xmpl100_host_example

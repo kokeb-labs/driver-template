@@ -1,0 +1,30 @@
+# API guide
+
+The driver's API by task, with code that compiles.
+
+| Group | Calls |
+| --- | --- |
+| Lifecycle | `Initialize()`, `EnsureInitialized()`, `IsInitialized()`, `Deinitialize()`, `Sleep()` |
+| Measurement | `IsOverTemperature()`, `ReadOutput()` |
+| Configuration | `GetConfig()`, `xmpl100::Validate()` |
+
+## Read the switch
+
+```cpp
+--8<-- "tests/docs/quickstart.cpp:quickstart"
+```
+
+## Filter a noisy line
+
+```cpp
+--8<-- "tests/docs/api_tasks.cpp:debounced"
+```
+
+## Handle errors
+
+```cpp
+--8<-- "tests/docs/api_tasks.cpp:errors"
+```
+
+A part without a data bus has no protocol, so this driver never returns `Timeout`, `Crc` or `Busy`. Every value it
+returns is on the [Contract](contract.md#errors) page.

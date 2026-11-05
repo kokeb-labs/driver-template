@@ -1,0 +1,46 @@
+---
+# Template only (removed by tools/scaffold.py): scaffold a driver for every bus and a library into
+# temporary directories, check that each root holds only the allowed files, then configure, build and run their
+# host tests (the host example included), kokeb-docs check and
+# mkdocs build -f _config/mkdocs.yml --strict. Proves that the template's shell works for every kind it can produce.
+name: Template self-test
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    name: Scaffold ${{ matrix.case }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - driver-tmp117
+          - driver-ab1234
+          - driver-lm35
+          - driver-hcsr501
+          - driver-max31865
+          - driver-bme280
+          - library-ring_buffer
+          - library-idf_utils
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install the docs toolchain
+        run: >
+          python -m pip install
+          "git+https://github.com/kokeb-labs/ci-tools@v1#subdirectory=packages/kokeb-mkdocs-theme"
+
+      - name: Scaffold and check
+        env:
+          SCAFFOLD_SELFTEST_ONLY: ${{ matrix.case }}
+        run: python3 tools/scaffold.py --selftest

@@ -1,0 +1,105 @@
+/**
+ * @file test_xmpl100.cpp
+ * @brief Driver behaviour over the analog model: lifecycle, range checks, averaging, hooks.
+ */
+#include "mock_xmpl100.hpp"
+#include "test_harness.hpp"
+#include "xmpl100.hpp"
+
+using xmpl100::Error;
+using xmpl100_test::FullPort;
+using xmpl100_test::MinimalPort;
+
+TEST_CASE("The constructor does no I/O, and every read returns NotInitialized before Initialize") {
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  CHECK_EQ(port.state.transfers, 0);
+  CHECK_EQ(sensor.ReadVoltageMv().error, Error::NotInitialized);
+  CHECK_EQ(sensor.ReadTemperatureC().error, Error::NotInitialized);
+  CHECK_EQ(sensor.Sleep().error, Error::NotInitialized);
+  CHECK_EQ(port.state.transfers, 0);
+}
+
+TEST_CASE("Initialize waits t_ON and checks the output range") {
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  REQUIRE(sensor.Initialize().ok());
+  CHECK(port.delayed_us >= xmpl100::kPowerOnTimeUs);
+  CHECK(sensor.IsInitialized());
+}
+
+TEST_CASE("No sensor on the channel is DeviceIdMismatch") {
+  MinimalPort port;
+  port.state.wired_channel = 3;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  CHECK_EQ(sensor.Initialize().error, Error::DeviceIdMismatch);
+  xmpl100::Config c{};
+  c.channel = 3;
+  CHECK(sensor.Initialize(c).ok());
+}
+
+TEST_CASE("A failing port is Bus, on bring-up and on every conversion") {
+  MinimalPort port;
+  port.state.bus_up_ok = false;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  CHECK_EQ(sensor.Initialize().error, Error::Bus);
+  port.state.bus_up_ok = true;
+  REQUIRE(sensor.Initialize().ok());
+  port.state.fail_transfer = port.state.transfers + 2;
+  CHECK_EQ(sensor.ReadTemperatureC().error, Error::Bus);
+}
+
+TEST_CASE("ReadTemperatureC applies the transfer function and averages") {
+  MinimalPort port;
+  port.state.temperature_c = 42.0F;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  REQUIRE(sensor.Initialize(xmpl100::LowNoisePreset()).ok());
+  const int before = port.state.transfers;
+  const auto t = sensor.ReadTemperatureC();
+  REQUIRE(t.ok());
+  CHECK(t.value == 42.0F);
+  CHECK_EQ(port.state.transfers - before, 32);
+}
+
+TEST_CASE("An open output is DeviceFault") {
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  REQUIRE(sensor.Initialize().ok());
+  port.state.open_output = true;
+  CHECK_EQ(sensor.ReadVoltageMv().error, Error::DeviceFault);
+}
+
+TEST_CASE("Validate rejects bad configurations before any I/O") {
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  xmpl100::Config c{};
+  c.samples = 0;
+  CHECK_EQ(sensor.Initialize(c).error, Error::InvalidArgument);
+  CHECK_EQ(port.state.transfers, 0);
+  CHECK_EQ(xmpl100::Validate(xmpl100::FastPreset()), Error::Ok);
+}
+
+TEST_CASE("Sleep uses SHDN_N, and is Unsupported without GpioSet") {
+  MinimalPort minimal;
+  xmpl100::XMPL100<MinimalPort> a(minimal);
+  REQUIRE(a.Initialize().ok());
+  CHECK_EQ(a.Sleep().error, Error::Unsupported);
+
+  FullPort full;
+  xmpl100::XMPL100<FullPort> b(full);
+  REQUIRE(b.Initialize().ok());
+  REQUIRE(b.Sleep().ok());
+  CHECK(!full.state.powered);
+  CHECK(!b.IsInitialized());
+  REQUIRE(b.EnsureInitialized().ok());
+  CHECK(full.state.powered);
+}
+
+TEST_CASE("Deinitialize is idempotent") {
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  CHECK(sensor.Deinitialize().ok());
+  REQUIRE(sensor.Initialize().ok());
+  CHECK(sensor.Deinitialize().ok());
+  CHECK_EQ(sensor.ReadVoltageMv().error, Error::NotInitialized);
+}

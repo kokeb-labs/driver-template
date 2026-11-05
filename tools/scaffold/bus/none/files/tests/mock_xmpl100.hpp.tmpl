@@ -1,0 +1,113 @@
+/**
+ * @file mock_xmpl100.hpp
+ * @brief A model of the XMPL100's OUT and SHDN_N pins, and the mock ports.
+ *
+ * The model follows the datasheet: OUT is asserted for t_POST after power-up (the self-test
+ * pulse) and while the die is at or above T_TRIP. Time advances only through `DelayUs()`. Faults
+ * are injected through public fields.
+ *
+ * | Port | Hooks |
+ * | --- | --- |
+ * | `MinimalPort` | the required ones plus `DelayUs()` (needed by every wait) |
+ * | `FullPort` | also `GpioSet()` (SHDN_N) and `Log()` |
+ */
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+#include "xmpl100_spi_interface.hpp"
+#include "xmpl100_types.hpp"
+
+namespace xmpl100_test {
+
+/// The part, its pins, fault injection and counters.
+struct MockBusState {
+  float temperature_c = 25.0F; ///< What the die sees.
+  bool present = true;         ///< False: nothing on the pins; the pull-up holds OUT deasserted.
+  bool powered = true;         ///< False while SHDN_N is asserted.
+  bool unstable = false;       ///< OUT floats: it changes on every read.
+  bool bus_up_ok = true;       ///< EnsureInitialized() result.
+  int fail_transfer = -1;      ///< Fail the pin read with this index (0-based); -1 never.
+  int transfers = 0;           ///< Pin reads so far.
+  int bus_up_calls = 0;        ///< EnsureInitialized() calls so far.
+  uint64_t now_us = 1000000;   ///< Model time; starts long after the board's power-up.
+  uint64_t powered_at_us = 0;  ///< When SHDN_N was last released.
+
+  void SetPowered(bool on) noexcept {
+    if (on && !powered) {
+      powered_at_us = now_us;
+    }
+    powered = on;
+  }
+
+  bool Read(xmpl100::InPin pin, xmpl100::GpioSignal& level) noexcept {
+    const int index = transfers++;
+    if (index == fail_transfer || pin != xmpl100::InPin::Out) {
+      return false;
+    }
+    bool active = false;
+    if (present && powered) {
+      const bool self_test = now_us - powered_at_us < xmpl100::kSelfTestTimeMinUs;
+      active = self_test || temperature_c >= xmpl100::kTripPointC;
+    }
+    if (unstable) {
+      active = (index % 2) == 0;
+    }
+    level = active ? xmpl100::GpioSignal::ACTIVE : xmpl100::GpioSignal::INACTIVE;
+    return true;
+  }
+};
+
+/// The required GPIO hooks over a MockBusState. Derive `class P : public MockPortBase<P>`.
+template <typename Self>
+class MockPortBase : public xmpl100::SpiInterface<Self> {
+public:
+  MockBusState state;
+
+  bool EnsureInitialized() noexcept {
+    state.bus_up_calls++;
+    return state.bus_up_ok;
+  }
+  bool GpioRead(xmpl100::InPin pin, xmpl100::GpioSignal& level) noexcept {
+    return state.Read(pin, level);
+  }
+};
+
+/// Required hooks plus the delay.
+class MinimalPort : public MockPortBase<MinimalPort> {
+public:
+  uint64_t delayed_us = 0; ///< Sum of DelayUs() arguments.
+
+  void DelayUs(uint32_t us) noexcept {
+    delayed_us += us;
+    state.now_us += us;
+  }
+};
+
+/// Every optional hook, with counters.
+class FullPort : public MockPortBase<FullPort> {
+public:
+  uint64_t delayed_us = 0; ///< Sum of DelayUs() arguments.
+  int log_lines = 0;       ///< Log() calls.
+  bool gpio_ok = true;     ///< GpioSet() result.
+
+  void DelayUs(uint32_t us) noexcept {
+    delayed_us += us;
+    state.now_us += us;
+  }
+  bool GpioSet(xmpl100::CtrlPin pin, xmpl100::GpioSignal signal) noexcept {
+    if (!gpio_ok || pin != xmpl100::CtrlPin::Enable) {
+      return false;
+    }
+    state.SetPowered(signal == xmpl100::GpioSignal::ACTIVE);
+    return true;
+  }
+  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+    (void)level;
+    (void)fmt;
+    log_lines++;
+  }
+};
+
+} // namespace xmpl100_test

@@ -1,0 +1,20 @@
+# @TITLE@ ESP32 examples
+
+ESP-IDF applications that run the library on an ESP32-C6, built by CI on every pull request. They need no wiring.
+
+## Build and flash
+
+```bash
+git submodule update --init scripts      # the ESP-IDF build scripts
+. $IDF_PATH/export.sh                     # ESP-IDF v5.5
+./scripts/build_app.sh xmpl100_basic_example Debug
+./scripts/flash_app.sh flash_monitor xmpl100_basic_example Debug
+```
+
+## Files
+
+| File | What it is |
+| --- | --- |
+| [`main/xmpl100_basic_example.cpp`](main/xmpl100_basic_example.cpp) | The example app |
+| [`CMakeLists.txt`](CMakeLists.txt) | The ESP-IDF project; `EXTRA_COMPONENT_DIRS` points at the repository root, which is the component |
+| [`app_config.yml`](app_config.yml) | The app matrix for the scripts, CI and the docs |

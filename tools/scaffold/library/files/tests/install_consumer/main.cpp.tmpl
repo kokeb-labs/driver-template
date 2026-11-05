@@ -1,0 +1,15 @@
+/**
+ * @file main.cpp
+ * @brief Builds the library from the installed package only (headers and the generated version
+ * header).
+ */
+#include "@ROOT@/MovingAverage.h"
+
+int main() {
+  xmpl100::MovingAverage<4> avg;
+  if (!avg.Initialize({4, 0.0F}) || !avg.Push(2.0F)) {
+    return 1;
+  }
+  const auto m = avg.Average();
+  return (m.ok() && m.value == 2.0F && xmpl100::GetVersion()[0] != '\0') ? 0 : 1;
+}

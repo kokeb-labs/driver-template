@@ -1,0 +1,27 @@
+# Configuration
+
+Every field of `xmpl100::Config`, the presets, and the optional Kconfig layer.
+
+| Field | Default | Range |
+| --- | --- | --- |
+| `channel` | 0 | The port's ADC channels |
+| `offset_mv` | 500 | up to 1750 |
+| `slope_uv_per_c` | 10000 | 1 or more |
+| `samples` | 4 | 1 to 64 |
+| `sample_interval_us` | 100 | any |
+
+| Preset | What it sets |
+| --- | --- |
+| `FastPreset()` | One conversion per reading |
+| `LowNoisePreset()` | 32 conversions, 200 µs apart |
+
+## Kconfig
+
+```cpp
+--8<-- "tests/docs/configuration.cpp:kconfig"
+```
+
+| Option | Default | `Config` field |
+| --- | --- | --- |
+| `CONFIG_XMPL100_ADC_CHANNEL` | 0 | `channel` |
+| `CONFIG_XMPL100_SAMPLES` | 4 | `samples` |

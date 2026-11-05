@@ -1,0 +1,44 @@
+---
+hide:
+  - navigation
+  - toc
+---
+
+<div class="kb-hero" markdown>
+<span class="kb-kicker">Driver</span>
+
+# XMPL100 Driver
+
+<p>A C++20 driver for the XMPL100 temperature switch, read through two GPIO pins of any MCU.</p>
+
+[Quickstart](quickstart.md){ .md-button .md-button--primary }
+[API guide](api-guide.md){ .md-button }
+[Source on GitHub](https://github.com/kokeb-labs/driver-template){ .md-button }
+</div>
+
+The driver has no platform code and the part has no data bus. You give it a small class that reads one pin (and,
+optionally, drives another); it does the rest: start-up timing, the self-test check and filtered readings.
+
+<div class="kb-chip" markdown>
+<div class="kb-chip__head">
+<span class="kb-chip__kicker">Temperature switch</span>
+<span class="kb-chip__name">XMPL100</span>
+<span class="kb-chip__vendor">Fill in the vendor</span>
+</div>
+
+Output
+:   OUT, open drain, active low, asserted above 85 °C (typical)
+
+Interface
+:   GPIO only: OUT to an MCU input; optional SHDN_N from an MCU output
+
+Supply
+:   Fill in from the datasheet
+</div>
+
+## What you get
+
+- **One object per part**, no I/O until `Initialize()`. See [API guide](api-guide.md).
+- **Errors you can act on**: `Result<T>` with an `Error`. See [Contract](contract.md).
+- **Zero-overhead portability**: a CRTP port checked by a concept. See [Porting](porting.md).
+- **Tested without hardware** against a model of the pins. See [Testing and CI](testing.md).

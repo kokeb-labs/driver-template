@@ -1,0 +1,34 @@
+# Quickstart
+
+Read the temperature from your MCU: wire three signals, write a small port class, call two driver functions.
+
+## 1. Wire it
+
+| MCU | XMPL100 | Notes |
+| --- | --- | --- |
+| ADC input | VOUT | An input range that covers 0 V to 1.8 V |
+| 3.3 V | VDD | 100 nF to GND close to the pin |
+| GND | GND | Same ground as the ADC reference |
+
+## 2. Add the driver
+
+```bash
+git submodule add https://github.com/kokeb-labs/driver-template.git external/driver-template
+```
+
+## 3. Write the port
+
+```cpp title="my_port.hpp"
+--8<-- "tests/docs/my_port.hpp:port"
+```
+
+## 4. Read the temperature
+
+```cpp title="main.cpp"
+--8<-- "tests/docs/quickstart.cpp:quickstart"
+```
+
+1. `Initialize()` brings the ADC up, waits t_ON and checks the output is inside 100 mV to 1750 mV.
+2. `ReadTemperatureC()` averages `Config::samples` conversions and applies the transfer function.
+
+Next: [API guide](api-guide.md).

@@ -1,0 +1,111 @@
+/**
+ * @file xmpl100.ipp
+ * @brief XMPL100 driver implementation, included by `xmpl100.hpp`.
+ * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ */
+#pragma once
+
+namespace xmpl100 {
+
+template <SpiPort Port>
+Result<void> XMPL100<Port>::Initialize(const Config& config) noexcept {
+  initialized_ = false;
+  if (Validate(config) != Error::Ok) {
+    return Result<void>::Failure(Error::InvalidArgument);
+  }
+  if (!port_.EnsureInitialized()) {
+    detail::Log(port_, LogLevel::Error, "xmpl100: the port could not bring the ADC up");
+    return Result<void>::Failure(Error::Bus);
+  }
+  if constexpr (detail::HasGpioSet<Port>) {
+    if (!port_.GpioSet(CtrlPin::Enable, GpioSignal::ACTIVE)) {
+      return Result<void>::Failure(Error::Bus);
+    }
+  }
+  detail::DelayUs(port_, kPowerOnTimeUs); // t_ON: the output settles after power-up
+  config_ = config;
+  const auto mv = readAveraged();
+  if (!mv) {
+    return Result<void>::Failure(mv.error);
+  }
+  if (mv.value < kOutputMinMv || mv.value > kOutputMaxMv) {
+    detail::Log(port_, LogLevel::Error, "xmpl100: output outside the sensor range: no sensor?");
+    return Result<void>::Failure(Error::DeviceIdMismatch);
+  }
+  initialized_ = true;
+  return Result<void>::Success();
+}
+
+template <SpiPort Port>
+Result<void> XMPL100<Port>::EnsureInitialized() noexcept {
+  return initialized_ ? Result<void>::Success() : Initialize(config_);
+}
+
+template <SpiPort Port>
+Result<void> XMPL100<Port>::Deinitialize() noexcept {
+  if (!initialized_) {
+    return Result<void>::Success();
+  }
+  initialized_ = false;
+  if constexpr (detail::HasGpioSet<Port>) {
+    if (!port_.GpioSet(CtrlPin::Enable, GpioSignal::INACTIVE)) {
+      return Result<void>::Failure(Error::Bus);
+    }
+  }
+  return Result<void>::Success();
+}
+
+template <SpiPort Port>
+Result<void> XMPL100<Port>::Sleep() noexcept {
+  if (!initialized_) {
+    return Result<void>::Failure(Error::NotInitialized);
+  }
+  if constexpr (!detail::HasGpioSet<Port>) {
+    return Result<void>::Failure(Error::Unsupported);
+  } else {
+    return Deinitialize();
+  }
+}
+
+template <SpiPort Port>
+Result<uint32_t> XMPL100<Port>::ReadVoltageMv() noexcept {
+  if (!initialized_) {
+    return Result<uint32_t>::Failure(Error::NotInitialized);
+  }
+  const auto mv = readAveraged();
+  if (!mv) {
+    return mv;
+  }
+  if (mv.value < kOutputMinMv || mv.value > kOutputMaxMv) {
+    return Result<uint32_t>::Failure(Error::DeviceFault);
+  }
+  return mv;
+}
+
+template <SpiPort Port>
+Result<float> XMPL100<Port>::ReadTemperatureC() noexcept {
+  const auto mv = ReadVoltageMv();
+  if (!mv) {
+    return Result<float>::Failure(mv.error);
+  }
+  const float delta_mv = static_cast<float>(mv.value) - static_cast<float>(config_.offset_mv);
+  return Result<float>::Success(delta_mv * 1000.0F / static_cast<float>(config_.slope_uv_per_c));
+}
+
+template <SpiPort Port>
+Result<uint32_t> XMPL100<Port>::readAveraged() noexcept {
+  uint64_t sum = 0;
+  for (uint16_t i = 0; i < config_.samples; ++i) {
+    uint32_t mv = 0;
+    if (!port_.ReadVoltageMv(config_.channel, mv)) {
+      return Result<uint32_t>::Failure(Error::Bus);
+    }
+    sum += mv;
+    if (i + 1U < config_.samples && config_.sample_interval_us > 0) {
+      detail::DelayUs(port_, config_.sample_interval_us);
+    }
+  }
+  return Result<uint32_t>::Success(static_cast<uint32_t>(sum / config_.samples));
+}
+
+} // namespace xmpl100

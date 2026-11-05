@@ -1,0 +1,31 @@
+/**
+ * @file api_tasks.cpp
+ * @brief The API guide's examples, compiled by the host build (never run).
+ */
+#include "my_port.hpp"
+#include "xmpl100.hpp"
+
+using Sensor = xmpl100::XMPL100<MyPort>;
+
+// --8<-- [start:calibrated]
+xmpl100::Error StartCalibrated(Sensor& sensor) {
+  xmpl100::Config c = xmpl100::LowNoisePreset();
+  c.channel = 2;
+  c.offset_mv = 497; // measured at 0 °C on this board
+  c.slope_uv_per_c = 10050;
+  return sensor.Initialize(c).error;
+}
+// --8<-- [end:calibrated]
+
+// --8<-- [start:errors]
+const char* Describe(xmpl100::Error e) {
+  switch (e) {
+  case xmpl100::Error::DeviceIdMismatch:
+    return "no sensor output on this channel";
+  case xmpl100::Error::DeviceFault:
+    return "output open or shorted";
+  default:
+    return xmpl100::ToString(e);
+  }
+}
+// --8<-- [end:errors]

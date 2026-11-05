@@ -1,0 +1,10 @@
+# Troubleshooting
+
+Symptoms, causes and fixes, cheapest check first.
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `Initialize()` returns `Bus` | The port could not configure the pins | Check the pin numbers and that no other code owns them |
+| `Initialize()` returns `DeviceIdMismatch` | No self-test pulse: no part, OUT not wired, or SHDN_N not wired | Check OUT and SHDN_N wiring and the pull-up |
+| Reads return `DeviceFault` | OUT floats or picks up noise | Fit the pull-up; use `DebouncedPreset()` on a long line |
+| Always "over temperature" | OUT polarity inverted in the port | OUT is active low: a low level is `GpioSignal::ACTIVE` |
