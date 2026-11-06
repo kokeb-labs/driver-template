@@ -1,8 +1,8 @@
 {
   "driver-layers": {
     "title": "The layers, one of them yours",
-    "alt": "Layer diagram: the application calls the hardware-agnostic XMPL100 core, which uses the CRTP SPI port contract, which calls the platform port you write, which drives the chip.",
-    "description": "From top to bottom. Your application calls one object, whose public calls are listed from the umbrella header in inc/. Each call becomes register transfers through the port contract (the CRTP base in inc/*_interface.hpp), which forwards them to the port class you write. A library without a port contract has only the first two layers.",
+    "alt": "Layer diagram: your application calls the XMPL100 core, which sends register reads and writes through the SPI port contract to the port class you write, which drives the chip; the core and the contract are the same on every MCU.",
+    "description": "Top to bottom, each arrow is a call. Your application calls one object, whose public calls are listed from the umbrella header in inc/. The core turns each call into register reads and writes and hands them to the port contract (the CRTP base in inc/*_interface.hpp), which forwards them, at compile time, to the hooks of the port class you write; your port moves the bytes on the bus. The notes on the right say which layers stay the same on every MCU and which one you write. A library without a port contract has only the first two layers.",
     "profile": "overview",
     "width": 1200,
     "source": "docs/diagrams/figures/driver-layers.py",
