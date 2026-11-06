@@ -12,7 +12,7 @@ permissions:
 jobs:
   quality:
     name: Quality gates
-    uses: kokeb-labs/ci-tools/.github/workflows/ru-host-quality.yml@host-quality-gates
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-host-quality.yml@v1
     permissions:
       contents: read
     with:
