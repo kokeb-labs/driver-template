@@ -42,7 +42,7 @@ public:
     if (level > xmpl100::LogLevel::Warning) {
       return;
     }
-    va_list args;
+    va_list args; // NOLINT(cppcoreguidelines-init-variables): va_start initialises it
     va_start(args, fmt);
     platform_vlog(fmt, args);
     va_end(args);

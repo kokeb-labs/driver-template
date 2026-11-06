@@ -84,9 +84,9 @@ public:
     case reg::kRevId:
       return rev_id;
     case reg::kStatus:
-      return ReadStatus();
+      return readStatus();
     case reg::kTempMsb:
-      LatchResultIfContinuous();
+      latchResultIfContinuous();
       return static_cast<uint8_t>(static_cast<uint16_t>(latched_) >> 8);
     case reg::kTempLsb:
       data_ready_ = false;
@@ -139,7 +139,7 @@ public:
   int one_shots = 0;
 
 private:
-  uint8_t ReadStatus() noexcept {
+  uint8_t readStatus() noexcept {
     uint8_t s = 0;
     bool busy = false;
     if (reset_stuck && busy_reads_left_ > 0) {
@@ -155,7 +155,7 @@ private:
       }
     } else if (conversion_reads_left_ == 0) {
       // One-shot finished: latch the result, set DRDY, go back to shutdown (CTRL.MODE = 0).
-      latched_ = Measured();
+      latched_ = measured();
       data_ready_ = true;
       conversion_reads_left_ = -1;
       regs_[reg::kCtrl] = static_cast<uint8_t>(regs_[reg::kCtrl] & ~reg::kCtrlModeMask);
@@ -179,16 +179,16 @@ private:
     return s;
   }
 
-  void LatchResultIfContinuous() noexcept {
+  void latchResultIfContinuous() noexcept {
     if ((regs_[reg::kCtrl] & reg::kCtrlModeMask) == 2) {
-      latched_ = Measured();
+      latched_ = measured();
     }
   }
 
-  [[nodiscard]] int16_t Measured() const noexcept {
+  [[nodiscard]] int16_t measured() const noexcept {
     const auto offset = static_cast<int8_t>(regs_[reg::kOffset]);
     // OFFSET counts are 1/16 °C, result counts 1/128 °C: 8 result counts per offset count.
-    return static_cast<int16_t>(temperature_counts + offset * 8);
+    return static_cast<int16_t>(temperature_counts + (offset * 8));
   }
 
   uint8_t regs_[reg::kLastRegister + 1] = {};

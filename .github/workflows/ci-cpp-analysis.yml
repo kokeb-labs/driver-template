@@ -20,4 +20,4 @@ jobs:
       std: "c++20"
       enable: "warning,style,performance,portability,information"
       force: true
-      strict: false
+      strict: true  # a cppcheck finding fails CI

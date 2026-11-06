@@ -10,6 +10,7 @@
  *   all (the XMPL100 does). Set it to false, and list the unreturned ones on the API guide, for a
  *   chip without, say, a CRC.
  */
+#include <array>
 #include <cstring>
 
 #include "mock_xmpl100.hpp"
@@ -34,7 +35,8 @@ namespace {
 constexpr bool kRequireEveryBaseValue = true;
 constexpr int kFirstChipSpecific = 16;
 
-bool g_seen[256] = {};
+// Which Error values some scenario returned; written by Record() while the scenarios run.
+std::array<bool, 256> g_seen{}; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 void Record(Error e) {
   g_seen[static_cast<uint8_t>(e)] = true;
@@ -130,11 +132,12 @@ TEST_CASE("Every chip-specific Error value is returned by some call") {
     }
     ++enumerators;
     const bool required = v >= kFirstChipSpecific || kRequireEveryBaseValue;
-    if (!g_seen[v]) {
+    const bool seen = g_seen[static_cast<std::size_t>(v)];
+    if (!seen) {
       std::printf("    %s: Error::%s is never returned\n", required ? "FAIL" : "note",
                   xmpl100::ToString(e));
     }
-    CHECK(g_seen[v] || !required);
+    CHECK(seen || !required);
     CHECK(v < 10 || v >= kFirstChipSpecific); // 10 to 15 are reserved for the base set
   }
   CHECK(enumerators >= 2);

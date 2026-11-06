@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "mock_xmpl100.hpp"
 #include "xmpl100_spi_interface.hpp"
 #include "xmpl100_types.hpp"
 
@@ -43,7 +44,8 @@ struct MockBusState {
     for (std::size_t i = 1; i < len; ++i) {
       const auto a = static_cast<uint8_t>(address + i - 1);
       if (read) {
-        const uint8_t v = chip.Read(a);
+        const uint8_t v =
+            chip.Read(a); // NOLINT(cppcoreguidelines-init-variables): initialised here
         if (rx != nullptr) {
           rx[i] = v;
         }

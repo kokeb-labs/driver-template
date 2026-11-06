@@ -22,8 +22,11 @@ jobs:
       clang_format_config: "_config/.clang-format"
       clang_tidy_config: "_config/.clang-tidy"
       extensions: "c,cpp,cc,cxx,h,hpp"
-      ignore: "build|.git|docs|_site|examples/esp32|tools/scaffold"  # examples/esp32 has its own lint job
+      # examples/esp32 has its own lint job; tests/compile_fail must not compile, by design.
+      ignore: "build|.git|docs|_site|examples/esp32|tools/scaffold|tests/compile_fail"
       files_changed_only: false
       lines_changed_only: false
       step_summary: true
       tidy_checks: ""
+      # compile_commands.json for clang-tidy: the host tests build every header and the docs snippets.
+      cmake_args: "-DXMPL100_BUILD_TESTS=ON"
