@@ -6,8 +6,9 @@ How the driver is built: three layers, one of them yours, and what happens in ea
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="diagrams/driver-layers.dark.svg">
   <img src="diagrams/driver-layers.svg"
-    alt="Layer diagram: the application calls the hardware-agnostic XMPL100 core, which uses the CRTP SPI
-    port contract, which calls the platform port you write, which drives the chip.">
+    alt="Layer diagram: your application calls the XMPL100 core, which sends register reads and writes
+    through the SPI port contract to the port class you write, which drives the chip; the core and the
+    contract are the same on every MCU.">
 </picture>
 <!-- /figure -->
 
