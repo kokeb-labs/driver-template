@@ -39,6 +39,12 @@ jobs:
     permissions:
       contents: write  # the publish job pushes gh-pages on main and tags; pull requests never publish
 
+  quality:
+    name: Host quality
+    uses: ./.github/workflows/ci-host-quality.yml
+    permissions:
+      contents: read
+
   lint:
     name: C++ lint
     uses: ./.github/workflows/ci-cpp-lint.yml
@@ -84,6 +90,7 @@ jobs:
     name: CI gate
     needs:
       - host-tests
+      - quality
       # scaffold:platform-esp32-gate
       - esp32
       # /scaffold:platform-esp32-gate
