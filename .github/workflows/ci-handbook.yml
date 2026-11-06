@@ -12,6 +12,6 @@ permissions:
 jobs:
   handbook:
     name: Handbook rules
-    uses: kokeb-labs/ci-tools/.github/workflows/ru-handbook-check.yml@handbook-check
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-handbook-check.yml@v1
     permissions:
       contents: read
