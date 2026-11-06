@@ -1,11 +1,13 @@
 ---
-# On a vX.Y.Z (or vX.Y.Z-rc.N) tag: create the GitHub Release with the firmware artifacts of the CI run
-# for the tagged commit. Steps before tagging: standards/release.md and .claude/skills/release.
+# A vX.Y.Z (or vX.Y.Z-rc.N) release is published only after CI passed on the tagged commit: this runs when the CI
+# workflow finishes, and releases that run's firmware artifacts for the tag. Steps before tagging:
+# standards/release.md and .claude/skills/release.
 name: Release
 
 on:
-  push:
-    tags: ['v*']
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
 
 permissions:
   contents: write
@@ -13,8 +15,18 @@ permissions:
 jobs:
   release:
     name: Create release with artifacts
+    # Only a successful CI run for a pushed v* tag releases; branch pushes and pull requests never do.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      startsWith(github.event.workflow_run.head_branch, 'v')
     uses: kokeb-labs/ci-tools/.github/workflows/ru-release-with-artifacts.yml@v1
     with:
       build_workflow: 'ci.yml'
       artifact_pattern: 'fw-.*'
-      fail_on_no_artifacts: false
+      tag_name: ${{ github.event.workflow_run.head_branch }}
+      commit: ${{ github.event.workflow_run.head_sha }}
+      prerelease: ${{ contains(github.event.workflow_run.head_branch, '-') }}
+      # scaffold:platform-esp32
+      fail_on_no_artifacts: true  # the ESP32 example firmware must be in the release
+      # /scaffold:platform-esp32
