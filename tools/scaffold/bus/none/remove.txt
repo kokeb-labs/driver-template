@@ -1,2 +1,3 @@
 inc/xmpl100_registers.hpp
 tests/mock_xmpl100_bus.hpp
+tests/test_bus_faults.cpp
