@@ -13,7 +13,7 @@ permissions:
 jobs:
   test-cpp-lint:
     name: clang-format and clang-tidy
-    uses: kokeb-labs/ci-tools/.github/workflows/ru-cpp-lint.yml@v1
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-cpp-lint.yml@lint-findings-fail
     permissions:
       contents: read
       pull-requests: write
