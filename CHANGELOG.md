@@ -6,6 +6,14 @@ version bump (a minor bump before 1.0).
 
 ## [Unreleased]
 
+### Added
+
+- `.kokeb/handbook.yml` declares the handbook release, kind and assurance level (high), and `driver.yml` the
+  driver's metadata (name, version, bus, MCUs, peripheral, minimum kb-core). The scaffold writes the generated
+  repository's kind and bus into them; a library has no `driver.yml`.
+- CI checks the handbook rules a script can decide (ci-tools `ru-handbook-check`) and compiles every test source,
+  and so every operation of the driver, for Cortex-M0+, M4F and M7F (`ru-cross-build`); both are in the CI gate.
+
 ### Breaking
 
 - None yet.
