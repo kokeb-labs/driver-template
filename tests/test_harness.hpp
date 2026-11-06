@@ -21,7 +21,7 @@ struct TestCase {
 inline constexpr int kMaxTests = 256;
 
 struct Registry {
-  TestCase tests[kMaxTests];
+  TestCase tests[kMaxTests]{};
   int count = 0;
   int failures = 0;
 };

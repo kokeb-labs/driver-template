@@ -27,7 +27,7 @@ public:
   /// Driver messages (they carry their own `xmpl100:` prefix) go to the console, one line each.
   void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
     (void)level;
-    std::va_list args;
+    std::va_list args; // NOLINT(cppcoreguidelines-init-variables): va_start initialises it
     va_start(args, fmt);
     std::vprintf(fmt, args);
     std::fputs("\n", stdout);

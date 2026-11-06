@@ -1,0 +1,5 @@
+# The example port keeps its hooks as instance methods: the driver calls a port object (the port contract), even
+# when a hook such as Log does not touch the port's state.
+InheritParentConfig: true
+Checks: >-
+  -readability-convert-member-functions-to-static
