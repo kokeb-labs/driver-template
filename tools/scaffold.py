@@ -119,6 +119,7 @@ LIBRARY_REMOVE = [
     "tests/docs",
     "tests/mock_xmpl100.hpp",
     "tests/mock_xmpl100_bus.hpp",
+    "tests/test_bus_faults.cpp",
     "tests/test_errors.cpp",
     "tests/test_xmpl100.cpp",
     "tests/test_kconfig.cpp",

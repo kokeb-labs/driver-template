@@ -1,0 +1,21 @@
+---
+name: Host quality
+
+# Complexity, coverage and sanitizer gates at this repository's assurance level (handbook ADR-0020).
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Quality gates
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-host-quality.yml@v1
+    permissions:
+      contents: read
+    with:
+      level: high
+      cmake_args: "-DXMPL100_BUILD_TESTS=ON"
+      library_paths: "inc src"
