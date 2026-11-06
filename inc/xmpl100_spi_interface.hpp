@@ -20,6 +20,7 @@
  */
 #pragma once
 
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -100,10 +101,10 @@ public:
     if (len == 0 || len > kMaxBurst) {
       return Error::InvalidArgument;
     }
-    uint8_t tx[1 + kMaxBurst] = {};
-    uint8_t rx[1 + kMaxBurst] = {};
+    std::array<uint8_t, 1 + kMaxBurst> tx{};
+    std::array<uint8_t, 1 + kMaxBurst> rx{};
     tx[0] = static_cast<uint8_t>(kReadFlag | (reg & kAddressMask));
-    if (!port_.Transfer(tx, rx, len + 1)) {
+    if (!port_.Transfer(tx.data(), rx.data(), len + 1)) {
       return Error::Bus;
     }
     for (std::size_t i = 0; i < len; ++i) {
@@ -117,12 +118,12 @@ public:
     if (len == 0 || len > kMaxBurst) {
       return Error::InvalidArgument;
     }
-    uint8_t tx[1 + kMaxBurst] = {};
+    std::array<uint8_t, 1 + kMaxBurst> tx{};
     tx[0] = static_cast<uint8_t>(reg & kAddressMask);
     for (std::size_t i = 0; i < len; ++i) {
       tx[1 + i] = data[i];
     }
-    return port_.Transfer(tx, nullptr, len + 1) ? Error::Ok : Error::Bus;
+    return port_.Transfer(tx.data(), nullptr, len + 1) ? Error::Ok : Error::Bus;
   }
 
 private:

@@ -308,10 +308,13 @@ constexpr Error Validate(const Config& config) noexcept {
           static_cast<uint8_t>(AlertPolarity::ActiveHigh)) {
     return Error::InvalidArgument;
   }
+  // Written as "not in range" on purpose: a NaN fails every comparison, so it is rejected here.
+  // NOLINTNEXTLINE(readability-simplify-boolean-expr)
   if (!(config.alert_low_c >= kAlertMinC && config.alert_high_c <= kAlertMaxC &&
         config.alert_low_c < config.alert_high_c)) {
     return Error::InvalidArgument;
   }
+  // NOLINTNEXTLINE(readability-simplify-boolean-expr): "not in range" rejects NaN too
   if (!(config.offset_c >= kOffsetMinC && config.offset_c <= kOffsetMaxC)) {
     return Error::InvalidArgument;
   }

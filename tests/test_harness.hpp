@@ -65,7 +65,8 @@ inline void ReportFailureValues(const char* file, int line, const char* what, lo
 /// Non-fatal check.
 #define CHECK(cond)                                                                                \
   do {                                                                                             \
-    if (!(cond)) {                                                                                 \
+    const bool ut_ok = static_cast<bool>(cond); /* one name, so `a || b` is not rewritten */       \
+    if (!ut_ok) {                                                                                  \
       ::ut::ReportFailure(__FILE__, __LINE__, #cond);                                              \
     }                                                                                              \
   } while (0)

@@ -14,7 +14,7 @@
  */
 #pragma once
 
-#if defined(__has_include)
+#ifdef __has_include
 #if __has_include("sdkconfig.h")
 #include "sdkconfig.h"
 #endif
@@ -42,7 +42,7 @@ namespace xmpl100 {
  */
 constexpr Config KconfigDefaults() noexcept {
   Config c{};
-#if defined(CONFIG_XMPL100_ODR_1HZ)
+#ifdef CONFIG_XMPL100_ODR_1HZ
   c.odr = OutputDataRate::Hz1;
 #elif defined(CONFIG_XMPL100_ODR_2HZ)
   c.odr = OutputDataRate::Hz2;
@@ -53,11 +53,16 @@ constexpr Config KconfigDefaults() noexcept {
 #else
   c.odr = OutputDataRate::Hz4;
 #endif
-  constexpr int samples = CONFIG_XMPL100_AVERAGING_SAMPLES;
-  c.averaging = samples >= 8   ? Averaging::X8
-                : samples >= 4 ? Averaging::X4
-                : samples >= 2 ? Averaging::X2
-                               : Averaging::X1;
+  constexpr int kSamples = CONFIG_XMPL100_AVERAGING_SAMPLES;
+  if constexpr (kSamples >= 8) {
+    c.averaging = Averaging::X8;
+  } else if constexpr (kSamples >= 4) {
+    c.averaging = Averaging::X4;
+  } else if constexpr (kSamples >= 2) {
+    c.averaging = Averaging::X2;
+  } else {
+    c.averaging = Averaging::X1;
+  }
 #if defined(CONFIG_XMPL100_CRC_ENABLE) && CONFIG_XMPL100_CRC_ENABLE
   c.crc_enable = true;
 #endif

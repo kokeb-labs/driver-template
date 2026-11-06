@@ -158,12 +158,12 @@ Result<int16_t> XMPL100<Port>::ReadRawTemperature() noexcept {
   }
   // TEMP_MSB, TEMP_LSB and TEMP_CRC in one burst: the chip latches the pair on the first byte
   // (section 7.6).
-  uint8_t bytes[3] = {};
+  std::array<uint8_t, 3> bytes{};
   const std::size_t len = config_.crc_enable ? 3 : 2;
-  if (const Error e = bus_.Read(reg::kTempMsb, bytes, len); e != Error::Ok) {
+  if (const Error e = bus_.Read(reg::kTempMsb, bytes.data(), len); e != Error::Ok) {
     return Result<int16_t>::Failure(e);
   }
-  if (config_.crc_enable && reg::Crc8(bytes, 2) != bytes[2]) {
+  if (config_.crc_enable && reg::Crc8(bytes.data(), 2) != bytes[2]) {
     return Result<int16_t>::Failure(Error::Crc);
   }
   const auto counts = static_cast<int16_t>(static_cast<uint16_t>((bytes[0] << 8) | bytes[1]));
@@ -318,9 +318,10 @@ Result<void> XMPL100<Port>::writeConfigRegisters(const Config& config) noexcept 
   }
   const auto high = static_cast<uint16_t>(toCounts(config.alert_high_c, kCountsPerDegreeC));
   const auto low = static_cast<uint16_t>(toCounts(config.alert_low_c, kCountsPerDegreeC));
-  const uint8_t thresholds[4] = {static_cast<uint8_t>(high >> 8), static_cast<uint8_t>(high & 0xFF),
-                                 static_cast<uint8_t>(low >> 8), static_cast<uint8_t>(low & 0xFF)};
-  if (const Error e = bus_.Write(reg::kAlertHighMsb, thresholds, sizeof(thresholds));
+  const std::array<uint8_t, 4> thresholds = {
+      static_cast<uint8_t>(high >> 8), static_cast<uint8_t>(high & 0xFF),
+      static_cast<uint8_t>(low >> 8), static_cast<uint8_t>(low & 0xFF)};
+  if (const Error e = bus_.Write(reg::kAlertHighMsb, thresholds.data(), thresholds.size());
       e != Error::Ok) {
     return Result<void>::Failure(e);
   }

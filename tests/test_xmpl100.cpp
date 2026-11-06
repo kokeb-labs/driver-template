@@ -354,7 +354,8 @@ TEST_CASE("A conversion that never finishes times out after conversion_timeout_m
   const uint64_t before = port.delayed_us;
   CHECK_EQ(sensor.MeasureOnceC().error, Error::Timeout);
   const uint64_t waited = port.delayed_us - before;
-  CHECK(waited >= 20000 && waited <= 22000);
+  CHECK(waited >= 20000);
+  CHECK(waited <= 22000);
 }
 
 TEST_CASE(
@@ -380,5 +381,6 @@ TEST_CASE("A bus error during a read is reported as Bus") {
 
 TEST_CASE("Error names come from ToString") {
   CHECK(xmpl100::ToString(Error::Ok)[0] == 'O');
+  // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange): an unknown value on purpose
   CHECK(xmpl100::ToString(static_cast<Error>(200))[0] == 'U');
 }

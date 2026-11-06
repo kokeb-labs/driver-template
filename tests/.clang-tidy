@@ -1,0 +1,6 @@
+# The tests follow the org clang-tidy configuration (_config/.clang-tidy, linked to the root by CI), with one
+# exception: the mock and example ports keep their hooks as instance methods, because a port is an object the
+# driver calls through (the port contract), even when a mock's hook happens not to touch its state.
+InheritParentConfig: true
+Checks: >-
+  -readability-convert-member-functions-to-static

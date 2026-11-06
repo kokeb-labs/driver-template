@@ -63,7 +63,7 @@ jobs:
       clean_build: ${{ github.event.inputs.clean_build == 'true' }}
 
   lint:
-    uses: kokeb-labs/ci-tools/.github/workflows/ru-cpp-lint.yml@v1
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-cpp-lint.yml@lint-findings-fail
     permissions:
       contents: read
       pull-requests: write
@@ -78,3 +78,6 @@ jobs:
       files_changed_only: false
       step_summary: true
       file_annotations: true
+      # clang-format only: clang-tidy would need the ESP-IDF headers and sdkconfig, which only the IDF build has.
+      # The driver code these examples use is tidied by the host lint job.
+      tidy_checks: "-*"
