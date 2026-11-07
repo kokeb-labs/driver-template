@@ -4,13 +4,39 @@
 
 [![CI](https://github.com/@ORG@/@REPO@/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/@ORG@/@REPO@/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-informational)](docs/integration.md)
 
 **Documentation: <https://@ORG@.github.io/@REPO@/>**
 
-## In 30 seconds
+This library gives firmware a small, predictable building block: `MovingAverage<N>` (the template's example
+utility) keeps the last samples in fixed storage and returns their mean in constant time. It needs no MCU, SDK or
+RTOS: the same code runs on any microcontroller and on your PC, and every call that can fail says why.
+
+## At a glance
+
+| | |
+| --- | --- |
+| **What it is** | A platform-free C++20 library: `xmpl100::MovingAverage<N>` and `Result<T>` |
+| **Does** | The mean of the last `N` samples in fixed storage, O(1) per sample; refuses NaN |
+| **Library** | Header-only C++20; no heap, exceptions, RTTI or virtual calls; every fallible call returns `Result<T>` |
+| **Runs on** | Any MCU with a C++20 compiler, and the host ([Platforms](docs/platforms.md)) |
+| **Status** | 0.1.0, host-tested on GCC and Clang |
+
+## Try it on your PC
+
+[`examples/host`](examples/host/README.md) smooths a series of samples and prints the mean after each one.
+
+```bash
+cmake -S examples/host -B build-example && cmake --build build-example && ./build-example/xmpl100_host_example
+```
+
+## Use it
 
 <!-- generated: quickstart-code -->
 <!-- /generated -->
+
+`EnsureInitialized()` checks the window and clears the samples; every other call returns `Error::NotInitialized`
+until it has succeeded.
 
 ## What it does
 
@@ -30,22 +56,28 @@ add_subdirectory(external/@REPO@)
 target_link_libraries(my_app PRIVATE xmpl100::xmpl100)
 ```
 
+Details: [Integration](docs/integration.md) and [Platforms](docs/platforms.md).
+
 ## Documentation
 
-| | |
+| Page | Read it when you want to |
 | --- | --- |
-| [Quickstart](https://@ORG@.github.io/@REPO@/latest/quickstart/) | The smallest use |
-| [Concepts](https://@ORG@.github.io/@REPO@/latest/concepts/) | The model the library implements |
-| [Contract](https://@ORG@.github.io/@REPO@/latest/contract/) | Promises, dependencies, threading, errors |
-| [API guide](https://@ORG@.github.io/@REPO@/latest/api-guide/) | The API by task |
-| [Integration](https://@ORG@.github.io/@REPO@/latest/integration/) | CMake on any MCU, Kconfig |
-| [API reference](https://@ORG@.github.io/@REPO@/latest/api/) | Doxygen, every class and member |
+| [Quickstart](docs/quickstart.md) | Add the library and make the first call |
+| [Concepts](docs/concepts.md) | Understand the model the library implements |
+| [API guide](docs/api-guide.md) | Use each call, task by task, and handle errors |
+| [Integration](docs/integration.md) | Add it with CMake on any MCU, or choose its defaults with Kconfig |
+| [Contract](docs/contract.md) | Know exactly what the library promises, needs and returns |
+| [API reference](https://@ORG@.github.io/@REPO@/latest/api/) | Look up a class or member (Doxygen) |
 
-## Tests
+## Tests and quality
 
 ```bash
 cmake -S . -B build -DXMPL100_BUILD_TESTS=ON && cmake --build build && ctest --test-dir build
 ```
+
+The host tests cover every call and every error it can return, with the firmware's flags (`-fno-exceptions
+-fno-rtti`, warnings as errors). CI also checks coverage, complexity, sanitizers, clang-tidy and the handbook rules
+(`.kokeb/handbook.yml`). See [Testing and CI](docs/testing.md).
 
 ## License
 

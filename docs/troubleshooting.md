@@ -2,6 +2,21 @@
 
 Symptoms, causes and fixes, cheapest check first.
 
+<!-- generated: datasheet-refs -->
+??? abstract "Datasheet sections this page relies on"
+
+    From Example Corp (fictional) XMPL100-DS A:
+
+    - Chip ID and silicon revision: 7.1 CHIP_ID and REV_ID, p. 11
+    - Status flags: 7.3 STATUS, p. 12
+    - Offset correction: 7.8 OFFSET, p. 15
+    - CRC-8 of the result: 7.9 CRC, p. 16
+    - Soft reset and t_RST: 8.2 Soft reset, p. 17
+    - Conversion time t_CONV: 8.4 Conversion timing, p. 18
+
+    All of them, with the driver API for each: [Datasheet map](datasheet.md).
+<!-- /generated -->
+
 ## EnsureInitialized returns Bus
 
 The port reported a failure: either `EnsureInitialized()` returned `false` or a transfer did.

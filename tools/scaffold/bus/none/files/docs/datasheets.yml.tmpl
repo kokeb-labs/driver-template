@@ -1,0 +1,61 @@
+---
+# The vendor documents this driver was written against (handbook ADR-0019), and where the driver relies on them.
+# Never commit a PDF: `sha256` identifies the exact file that was used, so a reader can confirm they hold the same
+# revision. `pdf` is a stable direct link when the vendor publishes one (page links are built from it, adding
+# `page_offset` when the printed page numbers differ from the PDF's); otherwise readers download from `url`.
+#
+# The README card, docs/datasheet.md and the "Datasheet" box on each page are generated from this file by
+# tools/docs/generators/datasheet.py (`kokeb-docs gen`).
+#
+# PLACEHOLDER: the XMPL100 is a fictional part and so is this datasheet. Every value below (vendor, number,
+# revision, date, url, pdf, sha256, and the topics with their sections and pages) is an example. tools/setup.py
+# leaves them for you to replace with the real datasheet's (it only writes `url` from `--datasheet`), and
+# `kokeb-docs gen` keeps working with them meanwhile. Take `sha256` from the PDF you used (`shasum -a 256`).
+documents:
+  - id: ds
+    vendor: Example Corp (fictional)
+    title: XMPL100 Temperature Switch
+    kind: Datasheet
+    number: XMPL100-DS
+    revision: A
+    date: 2026-11-06
+    # scaffold:datasheet-url
+    url: https://example.com/xmpl100
+    # /scaffold:datasheet-url
+    pdf: null
+    page_offset: 0
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+
+# One row per thing the driver takes from a document: the datasheet's own section names and printed page
+# numbers, the driver API that implements it, and the docs pages that explain it (file names in docs/).
+topics:
+  - topic: Pins and package
+    doc: ds
+    section: 3 Pin configuration
+    page: 3
+    driver: "`InPin::Out`, `CtrlPin::Enable`"
+    docs: [hardware, quickstart]
+  - topic: Trip point T_TRIP
+    doc: ds
+    section: 6.1 Trip point
+    page: 5
+    driver: "`kTripPointC`, `IsOverTemperature()`"
+    docs: [hardware, api-guide]
+  - topic: OUT, open drain and active low
+    doc: ds
+    section: 6.2 Output stage
+    page: 5
+    driver: "`ReadOutput()`, `Config::samples`, `sample_interval_us`"
+    docs: [api-guide, configuration, porting, troubleshooting]
+  - topic: Shutdown (SHDN_N) and t_SD
+    doc: ds
+    section: 7.1 Shutdown
+    page: 7
+    driver: "`Sleep()`, `Deinitialize()`, `kShutdownTimeUs`"
+    docs: [hardware, porting]
+  - topic: Power-on self-test pulse t_POST
+    doc: ds
+    section: 7.2 Power-on self-test
+    page: 7
+    driver: "`EnsureInitialized()`, `kSelfTestTimeMinUs`, `kSelfTestTimeMaxUs`, `kSelfTestCheckUs`"
+    docs: [hardware, troubleshooting]

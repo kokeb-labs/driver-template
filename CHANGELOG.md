@@ -13,6 +13,17 @@ version bump (a minor bump before 1.0).
   repository's kind and bus into them; a library has no `driver.yml`.
 - CI checks the handbook rules a script can decide (ci-tools `ru-handbook-check`) and compiles every test source,
   and so every operation of the driver, for Cortex-M0+, M4F and M7F (`ru-cross-build`); both are in the CI gate.
+- `docs/datasheets.yml` (handbook ADR-0019) records the datasheet the driver follows and every topic it takes from
+  it; `tools/docs/generators/datasheet.py` builds from it the README and home-page card, a Datasheet map page and a
+  box after the intro of each page that relies on the datasheet. The XMPL100's record is a fictional placeholder;
+  `--datasheet` writes its `url`, and the checklist and the `new-driver-from-template` and `datasheet-conformance`
+  skills say to fill in the rest. Every bus gets it; a library gets none of it.
+
+### Changed
+
+- The README is a complete front door for every bus and the library: what the part is and what the driver gives,
+  an At a glance table, the datasheet card, the wiring, the port and the first read, and a documentation table
+  that says when to read each page. Links to docs pages are relative, so they work before the site is published.
 
 ### Fixed
 

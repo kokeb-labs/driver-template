@@ -2,6 +2,17 @@
 
 How the driver is built: three layers, one of them yours, and what happens in each when you read a temperature.
 
+<!-- generated: datasheet-refs -->
+??? abstract "Datasheet sections this page relies on"
+
+    From Example Corp (fictional) XMPL100-DS A:
+
+    - SPI mode, clock and register framing: 6.2 SPI interface, p. 8
+    - Register map and reset values: 7 Register map, p. 11
+
+    All of them, with the driver API for each: [Datasheet map](datasheet.md).
+<!-- /generated -->
+
 <!-- figure: driver-layers -->
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="diagrams/driver-layers.dark.svg">

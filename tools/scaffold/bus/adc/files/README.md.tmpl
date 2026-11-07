@@ -4,19 +4,66 @@ C++20 driver for the XMPL100, a fictional example SPI temperature sensor: chip I
 
 [![CI](https://github.com/kokeb-labs/driver-template/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kokeb-labs/driver-template/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-informational)](docs/installation.md#requirements)
 
 **Documentation: <https://kokeb-labs.github.io/driver-template/>**
+
+The XMPL100 is an analog temperature sensor: its output voltage rises 10 mV for every degree, from 500 mV at 0 °C.
+This driver powers it up, checks that a sensor is really on the ADC channel, averages several conversions and turns
+the voltage into degrees with the datasheet's transfer function or your calibration. It runs on any MCU: you give it
+a small class that reads one ADC channel in millivolts, and it does the rest.
 
 <!-- figure: driver-layers -->
 <!-- /figure -->
 
-## In 30 seconds
+## At a glance
 
-Write a small port class for your MCU (ADC bring-up and one conversion in millivolts;
-[Porting](https://kokeb-labs.github.io/driver-template/latest/porting/)), then:
+| | |
+| --- | --- |
+| **Chip** | XMPL100 analog temperature sensor |
+| **Measures** | Temperature, -40 °C to +125 °C, as 500 mV at 0 °C plus 10 mV/°C (typical) |
+| **Bus** | None: one analog output to an MCU ADC channel |
+| **Also drives** | SHDN_N, when your port has `GpioSet()` |
+| **Driver** | Header-only C++20; no heap, exceptions, RTTI or virtual calls; every call returns `Result<T>` |
+| **Runs on** | Any MCU with an ADC and a C++20 compiler; the host example runs on any PC ([Platforms](docs/platforms.md)) |
+| **Status** | 0.1.0, not yet verified on hardware: host-tested against a model of the output |
+
+## Datasheet
+
+<!-- generated: datasheet-card -->
+<!-- /generated -->
+
+Every docs page lists the datasheet sections it relies on.
+
+## Try it on your PC
+
+No hardware needed: [`examples/host`](examples/host/README.md) runs the driver against a simulated part.
+
+```bash
+cmake -S examples/host -B build-example && cmake --build build-example && ./build-example/xmpl100_host_example
+```
+
+## Use it on your MCU
+
+**1. Wire it** ([Hardware](docs/hardware.md) has every pin, the transfer function and the power):
+
+| MCU | XMPL100 | Notes |
+| --- | --- | --- |
+| ADC input | VOUT | An input range that covers 0 V to 1.8 V |
+| 3.3 V | VDD | 100 nF to GND close to the pin |
+| GND | GND | Same ground as the ADC reference |
+
+**2. Write the port**: a class with `EnsureInitialized()` (bring the ADC up), `ReadVoltageMv()` (one calibrated
+conversion) and `DelayUs()`, about 20 lines on most SDKs. [Porting](docs/porting.md) has the contract and a
+complete example.
+
+**3. Read the temperature:**
 
 <!-- generated: quickstart-code -->
 <!-- /generated -->
+
+`EnsureInitialized()` is the only call that starts the sensor. Every other call returns `Error::NotInitialized`
+until it has succeeded, and no read ever starts the sensor on its own.
 
 ## What it does
 
@@ -36,22 +83,36 @@ add_subdirectory(external/driver-template)
 target_link_libraries(my_app PRIVATE xmpl100::xmpl100)
 ```
 
+Plain CMake covers any MCU (STM32, RP2040, nRF, ...) and the host.
+<!-- scaffold:platform-esp32 -->
+Under ESP-IDF the repository root is itself a component: add it to `EXTRA_COMPONENT_DIRS`, check it out under
+`components/`, or use it as a component-manager git dependency.
+<!-- /scaffold:platform-esp32 -->
+Details: [Installation](docs/installation.md) and [Platforms](docs/platforms.md).
+
 ## Documentation
 
-| | |
+| Page | Read it when you want to |
 | --- | --- |
-| [Quickstart](https://kokeb-labs.github.io/driver-template/latest/quickstart/) | Wire it, write the port, read a temperature |
-| [Hardware](https://kokeb-labs.github.io/driver-template/latest/hardware/) | Pins, transfer function, power |
-| [Contract](https://kokeb-labs.github.io/driver-template/latest/contract/) | Promises, dependencies, threading, errors |
-| [API guide](https://kokeb-labs.github.io/driver-template/latest/api-guide/) | Initialise, read, handle errors |
-| [Porting](https://kokeb-labs.github.io/driver-template/latest/porting/) | The port and its optional hooks |
-| [API reference](https://kokeb-labs.github.io/driver-template/latest/api/) | Doxygen, every class and member |
+| [Quickstart](docs/quickstart.md) | Go from a bare sensor to a temperature on your MCU |
+| [Hardware](docs/hardware.md) | Wire it, check the transfer function, the output range and the power |
+| [Porting](docs/porting.md) | Write the port class for your MCU's SDK |
+| [API guide](docs/api-guide.md) | Use each call: start, read, calibrate, handle errors |
+| [Configuration](docs/configuration.md) | Choose the channel, the averaging and the calibration |
+| [Troubleshooting](docs/troubleshooting.md) | Find the cause of an error or a wrong reading |
+| [Contract](docs/contract.md) | Know exactly what the driver promises, needs and returns |
+| [Datasheet map](docs/datasheet.md) | Find the datasheet section behind each part of the driver |
+| [API reference](https://kokeb-labs.github.io/driver-template/latest/api/) | Look up a class or member (Doxygen) |
 
-## Tests
+## Tests and quality
 
 ```bash
 cmake -S . -B build -DXMPL100_BUILD_TESTS=ON && cmake --build build && ctest --test-dir build
 ```
+
+The host tests run the driver against a model of the sensor's output and produce each error the driver can return. CI
+also builds for Cortex-M and checks coverage, complexity, sanitizers, clang-tidy and the handbook rules
+(`.kokeb/handbook.yml`). See [Testing and CI](docs/testing.md).
 
 ## License
 

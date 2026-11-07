@@ -40,8 +40,13 @@ Use the `datasheet-conformance` skill for every step, one subsystem at a time:
 
 ## 3. Docs and metadata
 
-1. Every page in `docs/`: the chip card, pins, timing, power, errors; the datasheet link on the Hardware page (never
-   commit the vendor PDF). Remove every statement about the XMPL100.
-2. `kokeb-docs figures && kokeb-docs gen`, `mkdocs build -f _config/mkdocs.yml --strict`.
-3. `CHANGELOG.md`: `## [Unreleased]` / `### Added` describing the first version.
-4. Run `verify`, open the PR, and give the owner `docs/repo-setup.md` for the org settings.
+1. `docs/datasheets.yml`: it still holds the fictional XMPL100 placeholder (only `url` is set, by `--datasheet`).
+   Fill in the real datasheet's vendor, number, revision, date, `url`, `pdf` (a stable direct link or `null`) and
+   the `sha256` of the PDF you used (never commit the PDF), and one topic per section the driver uses (section,
+   printed page, driver API, the docs pages that explain it). Every docs page a topic names keeps its
+   `<!-- generated: datasheet-refs -->` box; remove the box from a page no topic names. A library has none of this.
+2. Every page in `docs/`: the chip card, pins, timing, power, errors; the README's paragraph, At a glance table,
+   wiring and documentation table. Remove every statement about the XMPL100.
+3. `kokeb-docs figures && kokeb-docs gen`, `mkdocs build -f _config/mkdocs.yml --strict`.
+4. `CHANGELOG.md`: `## [Unreleased]` / `### Added` describing the first version.
+5. Run `verify`, open the PR, and give the owner `docs/repo-setup.md` for the org settings.

@@ -69,6 +69,17 @@ Supply
 - **Tested without hardware.** Host tests run the driver against a register model of the chip. See
   [Testing and CI](testing.md).
 
+## Datasheet
+
+<!-- generated: datasheet-card -->
+| Document | Revision | Get it |
+| --- | --- | --- |
+| Datasheet: XMPL100 Digital Temperature Sensor (Example Corp (fictional) XMPL100-DS) | A, 2026-11-06 | [vendor page](https://example.com/xmpl100) |
+
+Written against these revisions; the SHA-256 of each file is in [`docs/datasheets.yml`](datasheets.yml). Where each part
+of the driver is in the datasheet: [Datasheet map](datasheet.md).
+<!-- /generated -->
+
 ## Where to go next
 
 <div class="grid cards" markdown>

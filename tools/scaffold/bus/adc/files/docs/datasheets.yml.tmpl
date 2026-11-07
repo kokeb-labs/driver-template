@@ -1,0 +1,67 @@
+---
+# The vendor documents this driver was written against (handbook ADR-0019), and where the driver relies on them.
+# Never commit a PDF: `sha256` identifies the exact file that was used, so a reader can confirm they hold the same
+# revision. `pdf` is a stable direct link when the vendor publishes one (page links are built from it, adding
+# `page_offset` when the printed page numbers differ from the PDF's); otherwise readers download from `url`.
+#
+# The README card, docs/datasheet.md and the "Datasheet" box on each page are generated from this file by
+# tools/docs/generators/datasheet.py (`kokeb-docs gen`).
+#
+# PLACEHOLDER: the XMPL100 is a fictional part and so is this datasheet. Every value below (vendor, number,
+# revision, date, url, pdf, sha256, and the topics with their sections and pages) is an example. tools/setup.py
+# leaves them for you to replace with the real datasheet's (it only writes `url` from `--datasheet`), and
+# `kokeb-docs gen` keeps working with them meanwhile. Take `sha256` from the PDF you used (`shasum -a 256`).
+documents:
+  - id: ds
+    vendor: Example Corp (fictional)
+    title: XMPL100 Analog Temperature Sensor
+    kind: Datasheet
+    number: XMPL100-DS
+    revision: A
+    date: 2026-11-06
+    # scaffold:datasheet-url
+    url: https://example.com/xmpl100
+    # /scaffold:datasheet-url
+    pdf: null
+    page_offset: 0
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+
+# One row per thing the driver takes from a document: the datasheet's own section names and printed page
+# numbers, the driver API that implements it, and the docs pages that explain it (file names in docs/).
+topics:
+  - topic: Pins and package
+    doc: ds
+    section: 3 Pin configuration
+    page: 3
+    driver: "`CtrlPin::Enable`"
+    docs: [hardware, quickstart]
+  - topic: Accuracy and calibration
+    doc: ds
+    section: 5 Electrical characteristics
+    page: 4
+    driver: "`Config::offset_mv`, `slope_uv_per_c`"
+    docs: [api-guide, troubleshooting]
+  - topic: Transfer function (V_0, T_C)
+    doc: ds
+    section: 6.1 Transfer function
+    page: 6
+    driver: "`Config::offset_mv`, `slope_uv_per_c`, `ReadTemperatureC()`"
+    docs: [hardware, configuration, api-guide]
+  - topic: Output range and fault detection
+    doc: ds
+    section: 6.2 Output range
+    page: 6
+    driver: "`kOutputMinMv`, `kOutputMaxMv`, `Error::DeviceIdMismatch`, `Error::DeviceFault`"
+    docs: [hardware, troubleshooting]
+  - topic: Driving an ADC input
+    doc: ds
+    section: 6.3 Output load and ADC sampling
+    page: 7
+    driver: "`Config::channel`, `samples`, `sample_interval_us`, `ReadVoltageMv()`"
+    docs: [configuration, porting]
+  - topic: Shutdown (SHDN_N) and power-on time t_ON
+    doc: ds
+    section: 7 Shutdown
+    page: 8
+    driver: "`Sleep()`, `Deinitialize()`, `kPowerOnTimeUs`"
+    docs: [hardware, porting]

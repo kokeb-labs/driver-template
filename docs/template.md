@@ -28,8 +28,10 @@ python3 tools/setup.py --non-interactive --kind library --name ring_buffer --nam
   --description "Fixed-capacity ring buffer, no heap."
 ```
 
-`--datasheet <url>` puts the datasheet link on the Hardware page and in the `datasheet-conformance` skill. Only the
-link: the setup never downloads the PDF, and no vendor PDF is committed.
+`--datasheet <url>` writes the datasheet link into `docs/datasheets.yml` (`url`), the Hardware page and the
+`datasheet-conformance` skill. Only the link: the setup never downloads the PDF, and no vendor PDF is committed.
+Everything else in `docs/datasheets.yml` (vendor, number, revision, date, `pdf`, `sha256` and the topics) stays the
+fictional XMPL100 placeholder, which `kokeb-docs gen` accepts, until you fill it in; the checklist says so.
 
 The first push to a new repository runs `.github/workflows/template-init.yml`, which opens one issue, "Finish
 setup", with the exact `tools/setup.py` command for that repository. It cannot run the setup itself, because the bus
@@ -57,7 +59,7 @@ settings an owner applies.
 | `--repo` | the remote's repository name, else `driver-<name>` / `<name>` | The repository name in links |
 | `--author` | `The <Org> Authors` (`The Kokeb Labs Authors` for `kokeb-labs`) | The copyright holder in `LICENSE` and the source headers. Organisations with a display name are listed in `ORGS` at the top of `tools/scaffold.py` |
 | `--license MIT\|Apache-2.0` | `MIT` | `LICENSE` gets the full text (`tools/scaffold/license/`); the SPDX identifiers, the README badge and the licence line follow |
-| `--datasheet` | none | Driver only: the datasheet URL, linked on the Hardware page and in the `datasheet-conformance` skill; never fetched |
+| `--datasheet` | none | Driver only: the datasheet URL, written into `docs/datasheets.yml` and linked on the Hardware page and in the `datasheet-conformance` skill; never fetched |
 | `--out DIR` | in place | `scaffold.py` only: write a scaffolded copy instead of rewriting this checkout |
 | `--selftest` | | `scaffold.py` only: scaffold every case into temporary directories and check each (what CI runs) |
 
@@ -82,7 +84,9 @@ settings an owner applies.
    `none` with a GPIO-only one (a temperature switch read on one pin, with a self-test pulse instead of the chip
    ID). Neither has a register map.
 4. **Library.** It drops the chip: the port, the register map and mock, the chip-ID logic, the ESP32 port, and the
-   driver-only pages (hardware, porting, configuration, troubleshooting, architecture) and skills. It adds
+   driver-only pages (hardware, porting, configuration, troubleshooting, architecture) and skills, and the
+   datasheet record: `docs/datasheets.yml`, the Datasheet map, its generator and every datasheet region (the
+   library README has no Datasheet section). It adds
    `inc/<root>/` with a `MovingAverage` example utility, `Result.h`, `Kconfig.h` and a CMake-configured `Version.h`,
    host tests in `tests/host/`, the library page set (concepts, integration, platforms), a host example and, with
    `--platforms host,esp32`, a no-hardware ESP32 example.
@@ -142,6 +146,7 @@ manifest or a wrapper folder. `--selftest` fails when a scaffolded root holds an
 | `docs/`, `_config/mkdocs.yml`, `docs/.nav.yml` | The driver page set on the shared theme (`kokeb-mkdocs-theme`), with `contract.md` under Concepts, `platforms.md` and `repo-setup.md`; this page is template only | docs.md |
 | `docs/diagrams/` | The layer figure (figkit), drawn from the headers | docs.md |
 | `tools/docs/generators/snippets.py` | The README's quickstart region, copied from the compiled snippet | docs.md: README |
+| `docs/datasheets.yml`, `docs/datasheet.md`, `tools/docs/generators/datasheet.py` | The datasheet record (document, revision, SHA-256, and each topic with its section, page, driver API and docs pages); the generator builds the README and home-page card (`datasheet-card`), the Datasheet map (`datasheet-map`) and the box after each page's intro (`datasheet-refs`). The template's is a fictional placeholder; drivers only | ADR-0019 |
 | `.github/workflows/ci.yml` | Runs every check, DCO (pull requests only) and the org-standard check, and ends in `CI gate` (`CI gate / gate`) | repo-governance.md: The required check |
 | `.github/workflows/ci-*.yml`, `esp32-examples-build-ci.yml` | One check each, calling the shared workflows in `kokeb-labs/ci-tools` at `@v1`; callable alone | |
 | `.github/workflows/release.yml`, `.github/dependabot.yml` | Release on a `v*` tag; Actions updates | release.md, repo-governance.md |

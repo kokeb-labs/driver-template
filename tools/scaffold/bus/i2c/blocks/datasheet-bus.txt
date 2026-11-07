@@ -1,0 +1,6 @@
+  - topic: I2C address, clock and register framing
+    doc: ds
+    section: 6.1 I2C interface
+    page: 7
+    driver: "`SpiInterface`, `SpiPort`, `kDefaultI2cAddress`, every register access"
+    docs: [hardware, porting, architecture]
