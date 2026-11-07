@@ -334,6 +334,8 @@ class Names:
             ("@ROOT@", self.root),
             ("@NS@", self.ns),
             ("@TITLE@", self.title),
+            # A sentence in running text: AGENTS.md goes on with "It follows the ...".
+            ("@DESCRIPTION_SENTENCE@", self.description.rstrip(".") + "."),
             ("@DESCRIPTION@", self.description),
             ("@ORG@", self.org),
             ("@REPO@", self.repo),
