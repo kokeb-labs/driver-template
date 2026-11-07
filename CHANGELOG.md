@@ -8,6 +8,17 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- A fuzz scaffold in `tests/fuzz/`: `fuzz_<chip>.cpp` runs the driver over its host-test model while the fuzzer
+  passes, fails, corrupts or replaces every transfer, and checks the driver's promises after each call (known
+  `Error` values, `T{}` on failure, no transfer before `EnsureInitialized()`, nothing sent on `InvalidArgument`,
+  value ranges). Its corpus replays as a CTest on every compiler; `-D<CHIP>_BUILD_FUZZERS=ON` builds the libFuzzer
+  target, and `Host quality` fuzzes it on every pull request (ci-tools 1.6.0 `fuzz_cmake_args`). The i2c and uart
+  overlays swap in their bus hooks, adc and none fuzz the ADC reading and the OUT pin; a library has no untrusted
+  input and gets no fuzz target.
+- clang-tidy runs the CERT C++ checks (`cert-*`) as well; neither the template nor any scaffolded bus had a finding.
+- `docs/testing.md`: a Fuzz tests section, a Quality gates section with every gate at level `high`, its limit, how
+  it is measured and how to run it locally, and the Host quality, Cross-compile and Handbook check jobs in the CI
+  table.
 - `.kokeb/handbook.yml` declares the handbook release, kind and assurance level (high), and `driver.yml` the
   driver's metadata (name, version, bus, MCUs, peripheral, minimum kb-core). The scaffold writes the generated
   repository's kind and bus into them; a library has no `driver.yml`.
@@ -21,6 +32,12 @@ version bump (a minor bump before 1.0).
 
 ### Changed
 
+- The `Log()` hook is `void Log(LogLevel, const char* message) noexcept`: the message is plain text, and the
+  examples print it with `puts` or `"%s"` instead of using it as a format string (no C variadic function, CERT
+  DCL50-CPP; no format string from data). A port with the old variadic signature still compiles.
+- README: "Try it on your PC" is numbered steps with the expected output; "Install" is "Add it to your project",
+  with a picker table and the CMake, ESP-IDF (left out without the esp32 platform) and installed-package steps. The
+  documentation link points to `docs/index.md`, and the API reference row to `docs/api-reference.md`.
 - The README is a complete front door for every bus and the library: what the part is and what the driver gives,
   an At a glance table, the datasheet card, the wiring, the port and the first read, and a documentation table
   that says when to read each page. Links to docs pages are relative, so they work before the site is published.

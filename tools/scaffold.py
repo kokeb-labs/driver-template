@@ -125,6 +125,8 @@ LIBRARY_REMOVE = [
     "tests/test_xmpl100.cpp",
     "tests/test_kconfig.cpp",
     "tests/test_version.cpp",
+    # A library has no bus, so no untrusted input to fuzz: no tests/fuzz/ and no fuzz job.
+    "tests/fuzz",
     "docs/architecture.md",
     "docs/configuration.md",
     "docs/diagrams",

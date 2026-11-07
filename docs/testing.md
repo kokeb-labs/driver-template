@@ -1,7 +1,8 @@
 # Testing and CI
 
-How the driver is checked: host tests against a model of the chip, compiled documentation, an install test,
-ESP32 builds and static analysis, on every pull request.
+How the driver is checked: host tests against a model of the chip, a fuzzer that corrupts what the chip sends
+back, compiled documentation, an install test, ESP32 and Cortex-M builds, static analysis and measured quality
+gates, on every pull request.
 
 ## Host tests
 
@@ -20,6 +21,7 @@ ctest --test-dir build --output-on-failure
 | File | Covers |
 | --- | --- |
 | [`tests/test_xmpl100.cpp`](../tests/test_xmpl100.cpp) | Lifecycle, configuration, measurement, optional hooks, bus errors |
+| [`tests/fuzz/`](../tests/fuzz/fuzz_xmpl100.cpp) | The fuzz target; CTest replays its corpus (`xmpl100_fuzz_xmpl100_corpus`), see below |
 | [`tests/test_errors.cpp`](../tests/test_errors.cpp) | The base `Error` values are 0 to 9; every chip-specific value (16 and up) is returned by some call |
 | [`tests/test_version.cpp`](../tests/test_version.cpp) | The version getters follow the generated header (also against a 9.8.7 probe) |
 | [`tests/test_kconfig.cpp`](../tests/test_kconfig.cpp) | `KconfigDefaults()` with and without `CONFIG_` values |
@@ -29,6 +31,77 @@ ctest --test-dir build --output-on-failure
 | [`examples/host/`](../examples/host/README.md) | The host example, built with the test flags and run (`xmpl100_host_example`) |
 | [`tests/check_install.cmake`](../tests/check_install.cmake) | Installs into a scratch prefix and builds [`tests/install_consumer/`](../tests/install_consumer/CMakeLists.txt) with `find_package(xmpl100)` |
 | [`tests/check_doxygen.cmake`](../tests/check_doxygen.cmake) | Doxygen with `_config/Doxyfile` and warnings as errors, when `doxygen` is installed |
+
+## Fuzz tests
+
+Everything the driver reads comes from the chip over the bus, so the data read is what a noisy cable, a wrong part
+or a broken chip controls. [`tests/fuzz/fuzz_xmpl100.cpp`](../tests/fuzz/fuzz_xmpl100.cpp) lets libFuzzer choose a
+configuration, then up to 64 driver calls, and on every bus transfer what the bus does: pass it to the model, fail
+it, flip bits of the data read or replace it (and, on a bus that acknowledges writes, lose an acknowledged write).
+Between calls it can change the chip: a wrong CHIP_ID, revision A silicon, a sensor fault, a stuck reset or
+conversion, a corrupted CRC, any temperature, a brown-out. After every call it checks the driver's promises and
+aborts, naming the line, when one breaks:
+
+- a failed call returns an `Error` the enum defines and `T{}`; a temperature is inside the range of the 16-bit
+  result;
+- before `EnsureInitialized()` no call makes a transfer, and `InvalidArgument` means nothing was sent;
+- a started driver with CRC enabled runs on revision B silicon, and `UnexpectedReset` leaves it uninitialised;
+- every log line is a non-empty plain-text message.
+
+When the model becomes your chip's, keep the target and turn its checks into your chip's promises: every value range
+the datasheet defines, and every state the driver must never reach.
+
+```bash
+# libFuzzer needs Clang (on macOS, Homebrew's LLVM)
+cmake -S . -B build-fuzz -DCMAKE_CXX_COMPILER=clang++ -DXMPL100_BUILD_TESTS=ON -DXMPL100_BUILD_FUZZERS=ON
+cmake --build build-fuzz --target fuzz_xmpl100
+./build-fuzz/tests/fuzz/fuzz_xmpl100 -max_total_time=120 tests/fuzz/corpus/fuzz_xmpl100
+```
+
+The same file also builds without libFuzzer as `fuzz_replay_fuzz_xmpl100`, and CTest replays every input in
+[`tests/fuzz/corpus/fuzz_xmpl100/`](../tests/fuzz/corpus/fuzz_xmpl100) on GCC and Clang
+(`xmpl100_fuzz_xmpl100_corpus`): the seeds, and every input that ever broke a promise (name it `regress-*`), so a
+fixed bug stays fixed. CI fuzzes for 120 s on every pull request, from the seeds plus a corpus it keeps between runs
+(job `Host quality / fuzz`).
+
+## Quality gates
+
+The `Host quality` job measures the library code, `inc/` and `src/` only (tests and examples are left out), and
+fails when a value is over the limits of this repository's assurance level, `high` (set in
+[`.kokeb/handbook.yml`](../.kokeb/handbook.yml), defined by the handbook's ADR-0020):
+
+| Gate | Tool and how it is measured | Limit at `high` |
+| --- | --- | --- |
+| Complexity | lizard 1.24.1, modified cyclomatic complexity (`-m`: a `switch` counts once) per function | CCN at most 15 |
+| Function length | lizard, lines of code per function | at most 60 |
+| Parameters | lizard, per function | at most 6 |
+| Line coverage | GCC 14 `--coverage -O0`, every CTest, gcovr 8.7 `--merge-lines` (a template's lines count once across its instances), `--exclude-unreachable-branches --exclude-throw-branches` | at least 85 % |
+| Branch coverage | same run | at least 75 % |
+| MC/DC | GCC `-fcondition-coverage`, same run | measured, not gated at `high` (100 % at `safety`) |
+| Sanitizers | Clang, `-fsanitize=address,undefined -fno-sanitize-recover=all`, every CTest | no report |
+| Fuzzing | libFuzzer with ASan and UBSan, 120 s per target | no broken promise |
+
+The reports are in the run's `host-quality-reports` artifact and its step summary. To run the gates locally:
+
+```bash
+# Coverage (GCC 14 or later), then the complexity limits
+cmake -S . -B build-cov -DCMAKE_CXX_COMPILER=g++-14 -DXMPL100_BUILD_TESTS=ON \
+  -DCMAKE_CXX_FLAGS="--coverage -O0 -fcondition-coverage"
+cmake --build build-cov && ctest --test-dir build-cov
+gcovr --root . --filter inc/ --filter src/ --merge-lines --exclude-unreachable-branches --txt build-cov
+lizard -m -C 15 -L 60 -a 6 inc src
+
+# Sanitizers (Clang)
+cmake -S . -B build-san -DCMAKE_CXX_COMPILER=clang++ -DXMPL100_BUILD_TESTS=ON \
+  -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -O1 -g"
+cmake --build build-san && ctest --test-dir build-san --output-on-failure
+```
+
+The fuzz gate runs locally as shown in [Fuzz tests](#fuzz-tests).
+
+clang-tidy 20 ([`_config/.clang-tidy`](../_config/.clang-tidy): bugprone, CERT, clang-analyzer,
+cppcoreguidelines, modernize, performance, portability and readability, each disabled check with its reason) and
+cppcheck (strict) run in the `C++ lint` and `C++ analysis` jobs and fail on any finding.
 
 ## Documentation snippets
 
@@ -45,6 +118,9 @@ the `CI gate` job, the single required check (`CI gate / gate`).
 | Job | What it checks |
 | --- | --- |
 | Host tests | GCC and Clang build and run every test above, then build and run `examples/host` on its own |
+| Host quality | The gates above: complexity, coverage, sanitizers, fuzzing |
+| Cross-compile | `arm-none-eabi-g++` for Cortex-M0+, M4F and M7F with the strict flags, warnings as errors (nothing linked) |
+| Handbook check | The [Kokeb Labs handbook](https://github.com/kokeb-labs/handbook) rules for `.kokeb/handbook.yml`, reported by rule ID |
 | C++ lint, cppcheck | clang-format, clang-tidy and cppcheck over `inc/` and `src/` |
 | Docs | Strict site build (`_config/mkdocs.yml`), figure and generated-region drift, Doxygen (`_config/Doxyfile`), offline link check, Lighthouse |
 | Markdown lint, YAML lint | Repository text files |

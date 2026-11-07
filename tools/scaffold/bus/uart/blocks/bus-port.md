@@ -8,7 +8,7 @@
 | `bool FlushInput() noexcept` | yes | Drop every received byte not read yet |
 | `void DelayUs(uint32_t us) noexcept` | yes, for every wait | Wait at least `us` microseconds |
 | `bool GpioSet(CtrlPin, GpioSignal) noexcept` | no | Drive RESET_N; `false` if the pin write failed |
-| `void Log(LogLevel, const char* fmt, ...) noexcept` | no | Format and print one line; the driver never formats |
+| `void Log(LogLevel, const char* message) noexcept` | no | Print one line; `message` is plain text, never a format string |
 
 ## The port
 

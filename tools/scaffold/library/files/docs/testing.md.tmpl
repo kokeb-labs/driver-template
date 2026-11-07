@@ -1,7 +1,7 @@
 # Testing and CI
 
-How the library is checked: host tests, compiled documentation, an install test, the examples and static analysis,
-on every pull request.
+How the library is checked: host tests, compiled documentation, an install test, the examples, static analysis
+and measured quality gates, on every pull request.
 
 ## Host tests
 
@@ -22,8 +22,66 @@ ctest --test-dir build --output-on-failure
 The tests build with `-fno-exceptions -fno-rtti` and warnings as errors, on GCC and Clang. Every C++ block on this
 site is included from [`tests/docs/`](../tests/docs/quickstart.cpp), which the same build compiles.
 
+## Fuzz tests
+
+None: the library takes no input from outside the program (no bus, no parser), so there is nothing untrusted
+to fuzz, and the `Host quality` job has no fuzz step. A library that parses data from outside (a protocol, a file
+format) adds `tests/fuzz/` as the drivers do: a libFuzzer target, a corpus that CTest replays, and
+`fuzz_cmake_args` in `.github/workflows/ci-host-quality.yml`.
+
+## Quality gates
+
+The `Host quality` job measures the library code, `inc/` only (tests and examples are left out), and
+fails when a value is over the limits of this repository's assurance level, `high` (set in
+[`.kokeb/handbook.yml`](../.kokeb/handbook.yml), defined by the handbook's ADR-0020):
+
+| Gate | Tool and how it is measured | Limit at `high` |
+| --- | --- | --- |
+| Complexity | lizard 1.24.1, modified cyclomatic complexity (`-m`: a `switch` counts once) per function | CCN at most 15 |
+| Function length | lizard, lines of code per function | at most 60 |
+| Parameters | lizard, per function | at most 6 |
+| Line coverage | GCC 14 `--coverage -O0`, every CTest, gcovr 8.7 `--merge-lines` (a template's lines count once across its instances), `--exclude-unreachable-branches --exclude-throw-branches` | at least 85 % |
+| Branch coverage | same run | at least 75 % |
+| MC/DC | GCC `-fcondition-coverage`, same run | measured, not gated at `high` (100 % at `safety`) |
+| Sanitizers | Clang, `-fsanitize=address,undefined -fno-sanitize-recover=all`, every CTest | no report |
+| Fuzzing | libFuzzer with ASan and UBSan, when the library has a fuzz target | not run (no fuzz target) |
+
+The reports are in the run's `host-quality-reports` artifact and its step summary. To run the gates locally:
+
+```bash
+# Coverage (GCC 14 or later), then the complexity limits
+cmake -S . -B build-cov -DCMAKE_CXX_COMPILER=g++-14 -DXMPL100_BUILD_TESTS=ON \
+  -DCMAKE_CXX_FLAGS="--coverage -O0 -fcondition-coverage"
+cmake --build build-cov && ctest --test-dir build-cov
+gcovr --root . --filter inc/ --merge-lines --exclude-unreachable-branches --txt build-cov
+lizard -m -C 15 -L 60 -a 6 inc
+
+# Sanitizers (Clang)
+cmake -S . -B build-san -DCMAKE_CXX_COMPILER=clang++ -DXMPL100_BUILD_TESTS=ON \
+  -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -O1 -g"
+cmake --build build-san && ctest --test-dir build-san --output-on-failure
+```
+
+clang-tidy 20 ([`_config/.clang-tidy`](../_config/.clang-tidy): bugprone, CERT, clang-analyzer,
+cppcoreguidelines, modernize, performance, portability and readability, each disabled check with its reason) and
+cppcheck (strict) run in the `C++ lint` and `C++ analysis` jobs and fail on any finding.
+
 ## CI workflows
 
-[`ci.yml`](../.github/workflows/ci.yml) runs the host tests and the host example, the MCU example builds, the docs
-build, clang-format and clang-tidy, cppcheck, Markdown and YAML lint, then the `CI gate` job: the one required check,
-`CI gate / gate`.
+Everything runs from [`ci.yml`](../.github/workflows/ci.yml), which calls one workflow file per check and ends in
+the `CI gate` job, the single required check (`CI gate / gate`).
+
+| Job | What it checks |
+| --- | --- |
+| Host tests | GCC and Clang build and run every test above, then build and run `examples/host` on its own |
+| Host quality | The gates above: complexity, coverage, sanitizers |
+| Cross-compile | `arm-none-eabi-g++` for Cortex-M0+, M4F and M7F with the strict flags, warnings as errors (nothing linked) |
+| Handbook check | The [Kokeb Labs handbook](https://github.com/kokeb-labs/handbook) rules for `.kokeb/handbook.yml`, reported by rule ID |
+| C++ lint, cppcheck | clang-format, clang-tidy and cppcheck over `inc/` |
+| Docs | Strict site build (`_config/mkdocs.yml`), generated-region drift, Doxygen (`_config/Doxyfile`), offline link check |
+| Markdown lint, YAML lint | Repository text files |
+| CI gate | Passes only if every job above passed: the one required check |
+<!-- scaffold:platform-esp32 -->
+
+The **MCU examples** job builds every app in `examples/esp32/app_config.yml`. The gate needs it too.
+<!-- /scaffold:platform-esp32 -->

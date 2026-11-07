@@ -1,0 +1,261 @@
+/**
+ * @file fuzz_xmpl100.cpp
+ * @brief Fuzz target: the driver over GPIO pins whose levels the fuzzer controls.
+ *
+ * What the driver reads is the level of OUT, so the pin level is the untrusted input. The fuzzer's
+ * bytes choose a configuration, then a sequence of driver calls; on every pin access they also
+ * choose what the pin does: pass the part model's level, fail the access, invert the level (noise)
+ * or force a level. They can also change the part between calls.
+ *
+ * After every call the target checks the driver's promises (docs/contract.md), and aborts, naming
+ * the line, when one breaks:
+ *
+ * - a failed call returns an `Error` the enum defines and this driver returns (never `Timeout`,
+ *   `Crc` or `Busy`), and `T{}`;
+ * - before `EnsureInitialized()` succeeds, no call reads or drives a pin: reads return
+ *   `NotInitialized`;
+ * - `InvalidArgument` means no pin was touched;
+ * - a reading is `ACTIVE` or `INACTIVE`;
+ * - every log line is a non-empty plain-text message.
+ *
+ * Built two ways (tests/fuzz/CMakeLists.txt): with libFuzzer (Clang, `-DXMPL100_BUILD_FUZZERS=ON`),
+ * and as a plain executable that replays the corpus in tests/fuzz/corpus/ as a CTest on any
+ * compiler.
+ */
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+
+#include "mock_xmpl100.hpp"
+#include "xmpl100.hpp"
+
+namespace {
+
+using xmpl100::Error;
+using xmpl100::GpioSignal;
+
+/// The fuzzer's bytes, read front to back; zeros once they run out.
+class Input {
+public:
+  Input(const uint8_t* data, std::size_t size) noexcept : data_(data), size_(size) {}
+
+  [[nodiscard]] bool Empty() const noexcept {
+    return pos_ >= size_;
+  }
+  uint8_t Byte() noexcept {
+    return pos_ < size_ ? data_[pos_++] : uint8_t{0};
+  }
+  uint16_t Word() noexcept {
+    const auto high = Byte();
+    return static_cast<uint16_t>((high << 8U) | Byte());
+  }
+
+private:
+  const uint8_t* data_;
+  std::size_t size_;
+  std::size_t pos_ = 0;
+};
+
+/// A broken promise: name the line and abort, so libFuzzer saves the input as a crash.
+void Check(bool promise, int line = __builtin_LINE()) noexcept {
+  if (!promise) {
+    (void)std::fprintf(stderr, "fuzz_xmpl100: promise broken at line %d\n", line);
+    std::abort();
+  }
+}
+
+/// What a pin access does, chosen by the fuzzer; any other value passes it.
+constexpr uint8_t kFail = 0xFF;    ///< The access fails.
+constexpr uint8_t kFlip = 0xFE;    ///< The level read is inverted (noise).
+constexpr uint8_t kReplace = 0xFD; ///< The level read is the next bit of the input.
+
+/// The port: the part model of the host tests behind pins the fuzzer controls.
+class FuzzPort : public xmpl100::SpiInterface<FuzzPort> {
+public:
+  explicit FuzzPort(Input& in) noexcept : in_(in) {}
+
+  [[nodiscard]] bool EnsureInitialized() const noexcept {
+    return bus_up_ok_;
+  }
+
+  bool GpioRead(xmpl100::InPin pin, GpioSignal& level) noexcept {
+    Check(pin == xmpl100::InPin::Out);
+    const uint8_t action = nextAction();
+    if (action == kFail || !part_.Read(pin, level)) {
+      return false;
+    }
+    if (action == kFlip) {
+      level = level == GpioSignal::ACTIVE ? GpioSignal::INACTIVE : GpioSignal::ACTIVE;
+    } else if (action == kReplace) {
+      level = (in_.Byte() & 1U) != 0U ? GpioSignal::ACTIVE : GpioSignal::INACTIVE;
+    }
+    return true;
+  }
+
+  void DelayUs(uint32_t us) noexcept {
+    part_.now_us += us;
+  }
+
+  /// SHDN_N of the model; the fuzzer may fail the pin write.
+  bool GpioSet(xmpl100::CtrlPin pin, GpioSignal signal) noexcept {
+    Check(pin == xmpl100::CtrlPin::Enable);
+    if (nextAction() == kFail) {
+      return false;
+    }
+    part_.SetPowered(signal == GpioSignal::ACTIVE);
+    return true;
+  }
+
+  /// The driver logs plain text: one non-empty line, never a format string.
+  void Log(xmpl100::LogLevel level, const char* message) noexcept {
+    (void)level;
+    Check(message != nullptr && message[0] != '\0');
+  }
+
+  xmpl100_test::MockBusState& Part() noexcept {
+    return part_;
+  }
+  /// Pin reads and writes so far.
+  [[nodiscard]] int Transfers() const noexcept {
+    return transfers_;
+  }
+  void SetBusUp(bool ok) noexcept {
+    bus_up_ok_ = ok;
+  }
+
+private:
+  /// Count one pin access and let the fuzzer decide what happens to it.
+  uint8_t nextAction() noexcept {
+    transfers_++;
+    return in_.Byte();
+  }
+
+  Input& in_;
+  xmpl100_test::MockBusState part_;
+  int transfers_ = 0;
+  bool bus_up_ok_ = true;
+};
+
+using Driver = xmpl100::XMPL100<FuzzPort>;
+
+/// The errors this driver returns; `Timeout`, `Crc` and `Busy` never.
+bool KnownError(Error e) noexcept {
+  switch (e) {
+  case Error::Ok:
+  case Error::NotInitialized:
+  case Error::InvalidArgument:
+  case Error::Bus:
+  case Error::DeviceIdMismatch:
+  case Error::DeviceFault:
+  case Error::Unsupported:
+    return true;
+  case Error::Timeout:
+  case Error::Crc:
+  case Error::Busy:
+    return false;
+  }
+  return false;
+}
+
+/// A configuration from the fuzzer's bytes; sometimes invalid on purpose.
+xmpl100::Config FuzzConfig(Input& in) noexcept {
+  xmpl100::Config c{};
+  if ((in.Byte() & 0x01U) != 0U) {
+    c.samples = static_cast<uint16_t>(in.Byte() % 20U); // 0 and above kMaxSamples are invalid
+    c.sample_interval_us = static_cast<uint32_t>(in.Word()) * 2U; // above 100 ms is invalid
+  }
+  return c;
+}
+
+/// Change the part between two calls.
+void FuzzPart(xmpl100_test::MockBusState& part, Input& in) noexcept {
+  switch (in.Byte() % 3U) {
+  case 0:
+    part.temperature_c = static_cast<float>(static_cast<int8_t>(in.Byte()));
+    break;
+  case 1:
+    part.present = !part.present;
+    break;
+  default:
+    part.unstable = !part.unstable;
+    break;
+  }
+}
+
+/// The promises of a call that needs a started driver.
+template <typename R>
+void CheckCommon(const Driver& d, const R& r, bool was_up, int sent) noexcept {
+  Check(KnownError(r.error));
+  if (!was_up) {
+    Check(r.error == Error::NotInitialized && sent == 0 && !d.IsInitialized());
+  }
+  if (r.error == Error::InvalidArgument) {
+    Check(sent == 0);
+  }
+}
+
+void RunOne(Driver& d, FuzzPort& port, Input& in) noexcept {
+  const uint8_t op = in.Byte() % 6U;
+  const bool was_up = d.IsInitialized();
+  const int before = port.Transfers();
+  const auto sent = [&] { return port.Transfers() - before; };
+
+  switch (op) {
+  case 0: {
+    const auto r = d.EnsureInitialized();
+    Check(KnownError(r.error) && r.ok() == d.IsInitialized());
+    if (was_up || r.error == Error::InvalidArgument) {
+      Check(r.ok() == was_up && sent() == 0);
+    }
+    break;
+  }
+  case 1: {
+    const auto r = d.Deinitialize();
+    Check(KnownError(r.error) && !d.IsInitialized());
+    if (!was_up) {
+      Check(r.ok() && sent() == 0);
+    }
+    break;
+  }
+  case 2: {
+    const auto r = d.Sleep();
+    CheckCommon(d, r, was_up, sent());
+    Check(!d.IsInitialized() || !r.ok());
+    break;
+  }
+  case 3: {
+    const auto r = d.ReadOutput();
+    CheckCommon(d, r, was_up, sent());
+    Check(r.value == GpioSignal::ACTIVE || r.value == GpioSignal::INACTIVE);
+    if (!r) {
+      Check(r.value == GpioSignal{});
+    }
+    break;
+  }
+  case 4: {
+    const auto r = d.IsOverTemperature();
+    CheckCommon(d, r, was_up, sent());
+    if (!r) {
+      Check(!r.value);
+    }
+    break;
+  }
+  default:
+    FuzzPart(port.Part(), in);
+    port.SetBusUp((in.Byte() & 0x07U) != 0U);
+    break;
+  }
+}
+
+} // namespace
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
+  Input in(data, size);
+  FuzzPort port(in);
+  Driver driver(port, FuzzConfig(in));
+  for (int calls = 0; calls < 64 && !in.Empty(); ++calls) {
+    RunOne(driver, port, in);
+  }
+  return 0;
+}

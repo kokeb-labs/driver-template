@@ -77,6 +77,7 @@ endif()
 # Host tests, documentation snippets, install check (tests/)
 #===============================================================================
 option(XMPL100_BUILD_TESTS "Build the host tests in tests/" OFF)
+option(XMPL100_BUILD_FUZZERS "Also build the libFuzzer targets in tests/fuzz/ (Clang only)" OFF)
 if(XMPL100_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)

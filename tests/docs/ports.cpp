@@ -2,7 +2,6 @@
  * @file ports.cpp
  * @brief The port with every optional hook, as shown on the Porting page. Compiled, never run.
  */
-#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 
@@ -12,7 +11,7 @@ bool platform_spi_init() noexcept;
 bool platform_spi_transfer(const uint8_t* tx, uint8_t* rx, std::size_t len) noexcept;
 void platform_delay_us(uint32_t us) noexcept;
 bool platform_gpio_write(int pin, bool high) noexcept;
-void platform_vlog(const char* fmt, va_list args) noexcept;
+void platform_log(const char* line) noexcept;
 
 // --8<-- [start:full-port]
 class FullPort : public xmpl100::SpiInterface<FullPort> {
@@ -38,14 +37,11 @@ public:
   }
 
   // Optional: one line per lifecycle event or failure. The driver never formats; the port does.
-  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+  void Log(xmpl100::LogLevel level, const char* message) noexcept {
     if (level > xmpl100::LogLevel::Warning) {
       return;
     }
-    va_list args; // NOLINT(cppcoreguidelines-init-variables): va_start initialises it
-    va_start(args, fmt);
-    platform_vlog(fmt, args);
-    va_end(args);
+    platform_log(message); // plain text: never use it as a format string
   }
 
 private:

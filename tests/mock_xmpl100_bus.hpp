@@ -109,8 +109,8 @@ public:
     reset_asserted = assert_reset;
     return true;
   }
-  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
-    (void)fmt;
+  void Log(xmpl100::LogLevel level, const char* message) noexcept {
+    (void)message;
     log_lines++;
     if (level == xmpl100::LogLevel::Error) {
       error_lines++;

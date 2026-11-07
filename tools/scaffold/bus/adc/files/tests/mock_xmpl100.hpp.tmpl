@@ -41,7 +41,10 @@ struct MockBusState {
     } else if (channel != wired_channel || !powered) {
       mv = 0;
     } else {
-      mv = static_cast<uint32_t>(500.0F + 10.0F * temperature_c + 0.5F);
+      // The output cannot go below 0 V: below -50 °C it sits at the rail (a negative float cast to
+      // an unsigned integer would be undefined behaviour, which the fuzzer found).
+      const float out_mv = 500.0F + 10.0F * temperature_c;
+      mv = out_mv <= 0.0F ? 0U : static_cast<uint32_t>(out_mv + 0.5F);
     }
     return true;
   }
@@ -89,9 +92,9 @@ public:
     state.powered = signal == xmpl100::GpioSignal::ACTIVE;
     return true;
   }
-  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+  void Log(xmpl100::LogLevel level, const char* message) noexcept {
     (void)level;
-    (void)fmt;
+    (void)message;
     log_lines++;
   }
 };

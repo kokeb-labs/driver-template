@@ -29,7 +29,7 @@ of use.
 | `bool Transfer(const uint8_t* tx, uint8_t* rx, std::size_t len) noexcept` | yes | One full-duplex transfer of `len` bytes with CS_N low for all of them. `rx` is `nullptr` for writes. `false` on any bus error |
 | `void DelayUs(uint32_t us) noexcept` | yes, for every wait | Wait at least `us` microseconds |
 | `bool GpioSet(CtrlPin, GpioSignal) noexcept` | no | Drive RESET_N; `false` if the pin write failed |
-| `void Log(LogLevel, const char* fmt, ...) noexcept` | no | Format and print one line; the driver never formats |
+| `void Log(LogLevel, const char* message) noexcept` | no | Print one line; `message` is plain text, never a format string |
 
 ## The port
 

@@ -32,6 +32,9 @@ add_library(xmpl100_optimised_build OBJECT ${XMPL100_UNIT_TESTS})
 xmpl100_test_target(xmpl100_optimised_build)
 target_compile_options(xmpl100_optimised_build PRIVATE -O2)
 
+# --- Fuzz targets: the corpus replays here; libFuzzer builds with XMPL100_BUILD_FUZZERS ---
+add_subdirectory(fuzz)
+
 # --- Kconfig layer: without and with CONFIG_ values ---------------------------
 add_executable(xmpl100_kconfig_defaults test_main.cpp test_kconfig.cpp)
 xmpl100_test_target(xmpl100_kconfig_defaults)

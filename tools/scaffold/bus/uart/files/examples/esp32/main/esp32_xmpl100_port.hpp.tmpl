@@ -8,7 +8,6 @@
  */
 #pragma once
 
-#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 
@@ -90,16 +89,12 @@ public:
     return gpio_set_level(static_cast<gpio_num_t>(pins_.reset_n), level) == ESP_OK;
   }
 
-  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+  void Log(xmpl100::LogLevel level, const char* message) noexcept {
     const esp_log_level_t esp_level = level == xmpl100::LogLevel::Error     ? ESP_LOG_ERROR
                                       : level == xmpl100::LogLevel::Warning ? ESP_LOG_WARN
                                       : level == xmpl100::LogLevel::Info    ? ESP_LOG_INFO
                                                                             : ESP_LOG_DEBUG;
-    va_list args;
-    va_start(args, fmt);
-    esp_log_writev(esp_level, kTag, fmt, args);
-    va_end(args);
-    esp_log_write(esp_level, kTag, "\n");
+    esp_log_write(esp_level, kTag, "%s\n", message); // plain text, never a format
   }
 
 private:
