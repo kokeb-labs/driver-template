@@ -1,7 +1,10 @@
 # Testing and CI
 
-How the driver is checked: host tests against a model of the sensor, compiled documentation, an install test, ESP32
-builds and static analysis.
+How the driver is checked: host tests against a model of the sensor, a fuzzer that controls what the driver
+reads, compiled documentation, an install test, ESP32 and Cortex-M builds, static analysis and measured quality
+gates, on every pull request.
+
+## Host tests
 
 ```bash
 cmake -S . -B build -DXMPL100_BUILD_TESTS=ON
@@ -12,10 +15,101 @@ ctest --test-dir build --output-on-failure
 | File | Covers |
 | --- | --- |
 | [`tests/test_xmpl100.cpp`](../tests/test_xmpl100.cpp) | Lifecycle, range checks, averaging, hooks, port failures |
+| [`tests/fuzz/`](../tests/fuzz/fuzz_xmpl100.cpp) | The fuzz target; CTest replays its corpus (`xmpl100_fuzz_xmpl100_corpus`), see below |
 | [`tests/test_errors.cpp`](../tests/test_errors.cpp) | The base `Error` values; every chip-specific value is returned |
 | [`tests/mock_xmpl100.hpp`](../tests/mock_xmpl100.hpp) | The model of the analog output and the mock ports |
 | [`tests/compile_fail/`](../tests/compile_fail/port_without_delay.cpp) | Ports that must not compile |
 | [`tests/check_install.cmake`](../tests/check_install.cmake) | `find_package(xmpl100)` from an installed package |
 
-The tests build with `-fno-exceptions -fno-rtti` and warnings as errors, on GCC and Clang. CI runs them with the
-ESP32 build, the docs, lint and cppcheck, then the `CI gate` job (`CI gate / gate`).
+The tests build with `-fno-exceptions -fno-rtti` and warnings as errors, on GCC and Clang.
+
+## Fuzz tests
+
+Everything the driver reads is a voltage from the port's ADC, so the reading is what a floating input, a short or a
+wrong channel controls. [`tests/fuzz/fuzz_xmpl100.cpp`](../tests/fuzz/fuzz_xmpl100.cpp) lets libFuzzer choose a
+configuration, then up to 64 driver calls, and on every conversion what the ADC does: pass the sensor model's
+output, fail, or return any voltage. Between calls it can change the temperature, open the output, rewire the
+channel or power the sensor down. After every call it checks the driver's promises and aborts, naming the line, when
+one breaks:
+
+- a failed call returns an `Error` this driver returns (never `Timeout`, `Crc` or `Busy`) and `T{}`;
+- before `EnsureInitialized()` no call converts or drives a pin, and `InvalidArgument` means nothing was read;
+- a voltage is inside the sensor's output range, `kOutputMinMv` to `kOutputMaxMv`, and a temperature is that
+  range through the configured transfer function;
+- every log line is a non-empty plain-text message.
+
+When the model becomes your part's, keep the target and turn its checks into your part's promises: every value range
+the datasheet defines, and every state the driver must never reach.
+
+```bash
+# libFuzzer needs Clang (on macOS, Homebrew's LLVM)
+cmake -S . -B build-fuzz -DCMAKE_CXX_COMPILER=clang++ -DXMPL100_BUILD_TESTS=ON -DXMPL100_BUILD_FUZZERS=ON
+cmake --build build-fuzz --target fuzz_xmpl100
+./build-fuzz/tests/fuzz/fuzz_xmpl100 -max_total_time=120 tests/fuzz/corpus/fuzz_xmpl100
+```
+
+The same file also builds without libFuzzer as `fuzz_replay_fuzz_xmpl100`, and CTest replays every input in
+[`tests/fuzz/corpus/fuzz_xmpl100/`](../tests/fuzz/corpus/fuzz_xmpl100) on GCC and Clang
+(`xmpl100_fuzz_xmpl100_corpus`): the seeds, and every input that ever broke a promise (name it `regress-*`), so a
+fixed bug stays fixed. CI fuzzes for 120 s on every pull request, from the seeds plus a corpus it keeps between runs
+(job `Host quality / fuzz`).
+
+## Quality gates
+
+The `Host quality` job measures the library code, `inc/` and `src/` only (tests and examples are left out), and
+fails when a value is over the limits of this repository's assurance level, `high` (set in
+[`.kokeb/handbook.yml`](../.kokeb/handbook.yml), defined by the handbook's ADR-0020):
+
+| Gate | Tool and how it is measured | Limit at `high` |
+| --- | --- | --- |
+| Complexity | lizard 1.24.1, modified cyclomatic complexity (`-m`: a `switch` counts once) per function | CCN at most 15 |
+| Function length | lizard, lines of code per function | at most 60 |
+| Parameters | lizard, per function | at most 6 |
+| Line coverage | GCC 14 `--coverage -O0`, every CTest, gcovr 8.7 `--merge-lines` (a template's lines count once across its instances), `--exclude-unreachable-branches --exclude-throw-branches` | at least 85 % |
+| Branch coverage | same run | at least 75 % |
+| MC/DC | GCC `-fcondition-coverage`, same run | measured, not gated at `high` (100 % at `safety`) |
+| Sanitizers | Clang, `-fsanitize=address,undefined -fno-sanitize-recover=all`, every CTest | no report |
+| Fuzzing | libFuzzer with ASan and UBSan, 120 s per target | no broken promise |
+
+The reports are in the run's `host-quality-reports` artifact and its step summary. To run the gates locally:
+
+```bash
+# Coverage (GCC 14 or later), then the complexity limits
+cmake -S . -B build-cov -DCMAKE_CXX_COMPILER=g++-14 -DXMPL100_BUILD_TESTS=ON \
+  -DCMAKE_CXX_FLAGS="--coverage -O0 -fcondition-coverage"
+cmake --build build-cov && ctest --test-dir build-cov
+gcovr --root . --filter inc/ --filter src/ --merge-lines --exclude-unreachable-branches --txt build-cov
+lizard -m -C 15 -L 60 -a 6 inc src
+
+# Sanitizers (Clang)
+cmake -S . -B build-san -DCMAKE_CXX_COMPILER=clang++ -DXMPL100_BUILD_TESTS=ON \
+  -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -O1 -g"
+cmake --build build-san && ctest --test-dir build-san --output-on-failure
+```
+
+The fuzz gate runs locally as shown in [Fuzz tests](#fuzz-tests).
+
+clang-tidy 20 ([`_config/.clang-tidy`](../_config/.clang-tidy): bugprone, CERT, clang-analyzer,
+cppcoreguidelines, modernize, performance, portability and readability, each disabled check with its reason) and
+cppcheck (strict) run in the `C++ lint` and `C++ analysis` jobs and fail on any finding.
+
+## CI workflows
+
+Everything runs from [`ci.yml`](../.github/workflows/ci.yml), which calls one workflow file per check and ends in
+the `CI gate` job, the single required check (`CI gate / gate`).
+
+| Job | What it checks |
+| --- | --- |
+| Host tests | GCC and Clang build and run every test above, then build and run `examples/host` on its own |
+| Host quality | The gates above: complexity, coverage, sanitizers, fuzzing |
+| Cross-compile | `arm-none-eabi-g++` for Cortex-M0+, M4F and M7F with the strict flags, warnings as errors (nothing linked) |
+| Handbook check | The [Kokeb Labs handbook](https://github.com/kokeb-labs/handbook) rules for `.kokeb/handbook.yml`, reported by rule ID |
+| C++ lint, cppcheck | clang-format, clang-tidy and cppcheck over `inc/` and `src/` |
+| Docs | Strict site build (`_config/mkdocs.yml`), generated-region drift, Doxygen (`_config/Doxyfile`), offline link check |
+| Markdown lint, YAML lint | Repository text files |
+| CI gate | Passes only if every job above passed: the one required check |
+<!-- scaffold:platform-esp32 -->
+
+The **ESP32 examples** job builds every app in `examples/esp32/app_config.yml` with the repository root as the
+driver's component. The gate needs it too.
+<!-- /scaffold:platform-esp32 -->
