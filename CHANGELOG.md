@@ -6,6 +6,11 @@ version bump (a minor bump before 1.0).
 
 ## [Unreleased]
 
+### Fixed
+
+- The scaffold ends the description with a full stop in `AGENTS.md`, where the next sentence follows it
+  (driver-at25040b read "EEPROMs It follows").
+
 ### Added
 
 - A fuzz scaffold in `tests/fuzz/`: `fuzz_<chip>.cpp` runs the driver over its host-test model while the fuzzer
