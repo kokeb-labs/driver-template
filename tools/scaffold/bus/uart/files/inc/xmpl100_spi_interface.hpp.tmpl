@@ -22,6 +22,7 @@
 // clang-format on
 #pragma once
 
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -119,14 +120,14 @@ public:
         e != Error::Ok) {
       return e;
     }
-    uint8_t reply[1 + kMaxBurst + 1] = {};
-    if (!port_.Read(reply, len + 2, kReplyTimeoutMs)) {
+    std::array<uint8_t, 1 + kMaxBurst + 1> reply{};
+    if (!port_.Read(reply.data(), len + 2, kReplyTimeoutMs)) {
       return Error::Timeout;
     }
     if (reply[0] != kSync) {
       return Error::Bus;
     }
-    if (reg::Crc8(reply + 1, len) != reply[1 + len]) {
+    if (reg::Crc8(reply.data() + 1, len) != reply[1 + len]) {
       return Error::Crc;
     }
     for (std::size_t i = 0; i < len; ++i) {
@@ -143,8 +144,8 @@ public:
     if (const Error e = request(reg, data, len); e != Error::Ok) {
       return e;
     }
-    uint8_t reply[2] = {};
-    if (!port_.Read(reply, sizeof(reply), kReplyTimeoutMs)) {
+    std::array<uint8_t, 2> reply{};
+    if (!port_.Read(reply.data(), reply.size(), kReplyTimeoutMs)) {
       return Error::Timeout;
     }
     return reply[0] == kSync && reply[1] == kAck ? Error::Ok : Error::Bus;
@@ -152,14 +153,14 @@ public:
 
 private:
   Error request(uint8_t cmd, const uint8_t* data, std::size_t len) noexcept {
-    uint8_t frame[3 + kMaxBurst + 1] = {kSync, cmd, static_cast<uint8_t>(len)};
+    std::array<uint8_t, 3 + kMaxBurst + 1> frame{kSync, cmd, static_cast<uint8_t>(len)};
     std::size_t n = 3;
     for (std::size_t i = 0; data != nullptr && i < len; ++i) {
       frame[n++] = data[i];
     }
-    frame[n] = reg::Crc8(frame + 1, n - 1);
+    frame[n] = reg::Crc8(frame.data() + 1, n - 1);
     ++n;
-    if (!port_.FlushInput() || !port_.Write(frame, n)) {
+    if (!port_.FlushInput() || !port_.Write(frame.data(), n)) {
       return Error::Bus;
     }
     return Error::Ok;

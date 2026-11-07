@@ -21,6 +21,8 @@ version bump (a minor bump before 1.0).
 - The hook tables in the Doxygen comments of the driver header and every port header keep one row per line:
   clang-format had reflowed each table into a single paragraph, which Doxygen does not render as a table. The
   comment blocks are wrapped in `// clang-format off` / `// clang-format on`.
+- The I2C and UART port headers of the scaffold build their frames in `std::array` instead of C arrays, which
+  clang-tidy (`cppcoreguidelines-avoid-c-arrays`, `modernize-avoid-c-arrays`) rejected in a scaffolded driver.
 
 ### Breaking
 
