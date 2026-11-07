@@ -10,7 +10,6 @@
  */
 #pragma once
 
-#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 
@@ -25,12 +24,8 @@ public:
   }
 
   /// Driver messages (they carry their own `xmpl100:` prefix) go to the console, one line each.
-  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+  void Log(xmpl100::LogLevel level, const char* message) noexcept {
     (void)level;
-    std::va_list args; // NOLINT(cppcoreguidelines-init-variables): va_start initialises it
-    va_start(args, fmt);
-    std::vprintf(fmt, args);
-    std::fputs("\n", stdout);
-    va_end(args);
+    (void)std::puts(message); // plain text: never pass it as a format string
   }
 };

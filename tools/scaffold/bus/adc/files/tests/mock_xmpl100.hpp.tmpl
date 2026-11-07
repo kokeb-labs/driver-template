@@ -89,9 +89,9 @@ public:
     state.powered = signal == xmpl100::GpioSignal::ACTIVE;
     return true;
   }
-  void Log(xmpl100::LogLevel level, const char* fmt, ...) noexcept {
+  void Log(xmpl100::LogLevel level, const char* message) noexcept {
     (void)level;
-    (void)fmt;
+    (void)message;
     log_lines++;
   }
 };

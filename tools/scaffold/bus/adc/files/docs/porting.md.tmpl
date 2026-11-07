@@ -17,7 +17,7 @@ is constrained by the `xmpl100::SpiPort` concept, so a missing or misdeclared ho
 | `bool ReadVoltageMv(uint8_t channel, uint32_t& voltage_mv) noexcept` | yes | One calibrated conversion in millivolts; `false` on an error |
 | `void DelayUs(uint32_t us) noexcept` | yes, for every wait | Wait at least `us` microseconds |
 | `bool GpioSet(CtrlPin, GpioSignal) noexcept` | no | Drive SHDN_N; without it `Sleep()` returns `Unsupported` |
-| `void Log(LogLevel, const char* fmt, ...) noexcept` | no | Format and print one line |
+| `void Log(LogLevel, const char* message) noexcept` | no | Print one line; `message` is plain text, never a format string |
 
 ## The port
 

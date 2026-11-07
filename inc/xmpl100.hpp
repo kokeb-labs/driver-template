@@ -35,7 +35,7 @@ concept HasGpioSet = requires(Port& port) {
   { port.GpioSet(CtrlPin::Reset, GpioSignal::ACTIVE) } -> std::same_as<bool>;
 };
 
-/// The port takes log lines: `void Log(LogLevel, const char* fmt, ...) noexcept`.
+/// The port takes log lines: `void Log(LogLevel, const char* message) noexcept`.
 template <typename Port>
 concept HasLog = requires(Port& port, const char* fmt) { port.Log(LogLevel::Info, fmt); };
 
@@ -86,7 +86,7 @@ void Log(Port& port, LogLevel level, const char* message) noexcept {
  * | --- | --- | --- |
  * | `void DelayUs(uint32_t us) noexcept` | t_RST after a reset, 1 ms between result polls | Compile error: the waits are required |
  * | `bool GpioSet(CtrlPin, GpioSignal) noexcept` | RESET_N: hardware reset in `EnsureInitialized()` and `HardwareReset()` | Soft reset in `EnsureInitialized()`; `HardwareReset()` returns `Unsupported` |
- * | `void Log(LogLevel, const char* fmt, ...) noexcept` | One line per lifecycle event or failure | Nothing is logged |
+ * | `void Log(LogLevel, const char* message) noexcept` | One line per lifecycle event or failure | Nothing is logged |
  *
  * A hook declared with the wrong signature (for example `void GpioSet(...)`) is a compile error.
  *

@@ -72,7 +72,7 @@ void Log(Port& port, LogLevel level, const char* message) noexcept {
  *
  * Optional hooks: `void DelayUs(uint32_t)` (required by every wait: a missing one is a compile
  * error), `bool GpioSet(CtrlPin, GpioSignal)` (SHDN_N; without it `Sleep()` returns `Unsupported`),
- * `void Log(LogLevel, const char* fmt, ...)`.
+ * `void Log(LogLevel, const char* message)`.
  *
  * @tparam Port Your class derived from `SpiInterface<Port>`.
  */
