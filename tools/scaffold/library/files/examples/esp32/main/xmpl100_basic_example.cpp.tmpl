@@ -15,10 +15,10 @@ constexpr const char* kTag = "xmpl100_example";
 }
 
 extern "C" void app_main(void) {
-  static xmpl100::MovingAverage<64> avg;
+  static xmpl100::MovingAverage<64> avg(xmpl100::KconfigDefaults());
   ESP_LOGI(kTag, "@TITLE@ %s", xmpl100::GetVersion());
-  if (const auto r = avg.Initialize(xmpl100::KconfigDefaults()); !r) {
-    ESP_LOGE(kTag, "Initialize failed: %s", xmpl100::ToString(r.error));
+  if (const auto r = avg.EnsureInitialized(); !r) {
+    ESP_LOGE(kTag, "EnsureInitialized failed: %s", xmpl100::ToString(r.error));
     return;
   }
   while (true) {

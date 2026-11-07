@@ -28,7 +28,7 @@ git submodule add https://github.com/kokeb-labs/driver-template.git external/dri
 --8<-- "tests/docs/quickstart.cpp:quickstart"
 ```
 
-1. `Initialize()` brings the ADC up, waits t_ON and checks the output is inside 100 mV to 1750 mV.
+1. `EnsureInitialized()` brings the ADC up, waits t_ON and checks the output is inside 100 mV to 1750 mV.
 2. `ReadTemperatureC()` averages `Config::samples` conversions and applies the transfer function.
 
 Next: [API guide](api-guide.md).

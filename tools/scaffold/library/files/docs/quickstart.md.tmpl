@@ -27,7 +27,8 @@ target_link_libraries(my_app PRIVATE xmpl100::xmpl100)
 --8<-- "tests/docs/quickstart.cpp:quickstart"
 ```
 
-1. `Initialize()` sets the window; a window of 0 or above the capacity is `InvalidArgument`.
+1. The constructor stores the window; `EnsureInitialized()` checks it and clears the samples. A window of 0 or above
+   the capacity is `InvalidArgument`.
 2. `Push()` adds a sample; NaN is refused with `InvalidArgument` and changes nothing.
 3. `Average()` is the mean of the window, or `Empty` before the first sample.
 

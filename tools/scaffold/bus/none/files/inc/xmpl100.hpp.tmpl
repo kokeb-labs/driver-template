@@ -65,6 +65,11 @@ void Log(Port& port, LogLevel level, const char* message) noexcept {
 /**
  * @brief Driver for one XMPL100 temperature switch on a GPIO port.
  *
+ * Lifecycle: construct with the configuration (no I/O), then `EnsureInitialized()`, the one way
+ * to start, use, optionally `Deinitialize()`. Every call that touches the part returns
+ * `Error::NotInitialized` until `EnsureInitialized()` has succeeded; no call starts it as a side
+ * effect.
+ *
  * Optional hooks: `void DelayUs(uint32_t)` (required by every wait: a missing one is a compile
  * error), `bool GpioSet(CtrlPin, GpioSignal)` (SHDN_N; without it `Sleep()` returns `Unsupported`),
  * `void Log(LogLevel, const char* fmt, ...)`.
@@ -79,10 +84,12 @@ class XMPL100 {
 
 public:
   /**
-   * @brief Bind the driver to a port. No I/O.
+   * @brief Bind the driver to a port and store the configuration. No I/O, cannot fail.
    * @param port The port; it must outlive the driver.
+   * @param config The sampling, applied by `EnsureInitialized()` and checked there, before any
+   * I/O.
    */
-  explicit XMPL100(Port& port) noexcept : port_(port) {}
+  explicit XMPL100(Port& port, const Config& config = {}) noexcept : port_(port), config_(config) {}
 
   /** @brief One driver object per sensor. */
   XMPL100(const XMPL100&) = delete;
@@ -90,33 +97,33 @@ public:
   XMPL100& operator=(const XMPL100&) = delete;
 
   /**
-   * @brief Configure the pins and start the part. With `GpioSet()` the driver power-cycles it
-   * through SHDN_N and checks the self-test pulse on OUT (the closest equivalent of a chip-ID
-   * check); without it, it waits out the pulse of the board's power-up.
-   * @param config The sampling; checked with `Validate()` first.
-   * @return `Ok`, `InvalidArgument`, `Bus` or `DeviceIdMismatch` (no self-test pulse).
-   */
-  Result<void> Initialize(const Config& config = {}) noexcept;
-
-  /**
-   * @brief `Initialize()` with the last configuration, unless already initialised.
-   * @return `Ok` at once when initialised; otherwise what `Initialize()` returns.
+   * @brief Start the part, once: the only way to initialise the driver.
+   *
+   * The first call configures the pins and starts the part. With `GpioSet()` the driver
+   * power-cycles it through SHDN_N and checks the self-test pulse on OUT (the closest equivalent
+   * of a chip-ID check); without it, it waits out the pulse of the board's power-up. After it
+   * succeeds, later calls return `Ok` at once with no I/O. After it fails, the driver stays
+   * uninitialised and the next call starts again from the beginning.
+   *
+   * @return `Ok`, `InvalidArgument` (the stored configuration fails `Validate()`; no I/O), `Bus`
+   *         or `DeviceIdMismatch` (no self-test pulse).
    */
   Result<void> EnsureInitialized() noexcept;
 
-  /** @return true after a successful `Initialize()`. No I/O. */
+  /** @return true after a successful `EnsureInitialized()`. No I/O. */
   [[nodiscard]] bool IsInitialized() const noexcept {
     return initialized_;
   }
 
   /**
-   * @brief Shut the part down when the port drives SHDN_N, and mark the driver uninitialised.
+   * @brief Shut the part down when the port drives SHDN_N, and mark the driver uninitialised;
+   * the next `EnsureInitialized()` starts it again (the recovery after a fault).
    * @return `Ok` or `Bus` (the pin write failed).
    */
   Result<void> Deinitialize() noexcept;
 
   /**
-   * @brief Shut the part down; `Initialize()` powers it again.
+   * @brief Shut the part down; `EnsureInitialized()` powers it again.
    * @return `Ok`, `NotInitialized`, `Unsupported` (no `GpioSet()`) or `Bus`.
    */
   Result<void> Sleep() noexcept;
@@ -134,12 +141,13 @@ public:
    */
   Result<bool> IsOverTemperature() noexcept;
 
-  /** @return The configuration last applied. No I/O. */
+  /** @return The configuration stored or last applied. No I/O. */
   [[nodiscard]] const Config& GetConfig() const noexcept {
     return config_;
   }
 
 private:
+  Result<void> initialize() noexcept;
   Result<GpioSignal> readStable() noexcept;
 
   Port& port_;

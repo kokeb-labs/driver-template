@@ -42,8 +42,8 @@ Write a small port class for your MCU (bus bring-up and byte transfers;
 int read_board_temperature(MyPort& port, float& celsius) {
   xmpl100::XMPL100<MyPort> sensor(port); // no I/O yet
 
-  if (auto r = sensor.Initialize(); !r) { // 1. bus up, reset, CHIP_ID, Config{}
-    return static_cast<int>(r.error);     //    Bus, Timeout or DeviceIdMismatch: check wiring
+  if (auto r = sensor.EnsureInitialized(); !r) { // 1. bus up, reset, CHIP_ID, Config{}
+    return static_cast<int>(r.error); //    Bus, Timeout or DeviceIdMismatch: check wiring
   }
   const auto t = sensor.ReadTemperatureC(); // 2. latest continuous result
   if (!t) {

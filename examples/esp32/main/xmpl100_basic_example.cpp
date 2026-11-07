@@ -19,12 +19,12 @@ constexpr const char* kTag = "xmpl100_example";
 
 extern "C" void app_main(void) {
   static Esp32Xmpl100Port port; // static: the driver keeps a reference
-  static xmpl100::XMPL100<Esp32Xmpl100Port> sensor(port);
+  static xmpl100::XMPL100<Esp32Xmpl100Port> sensor(port, xmpl100::KconfigDefaults()); // no I/O
 
   ESP_LOGI(kTag, "XMPL100 driver %s", xmpl100::GetDriverVersion());
-  const auto init = sensor.Initialize(xmpl100::KconfigDefaults());
+  const auto init = sensor.EnsureInitialized();
   if (!init) {
-    ESP_LOGE(kTag, "Initialize failed: %s", xmpl100::ToString(init.error));
+    ESP_LOGE(kTag, "EnsureInitialized failed: %s", xmpl100::ToString(init.error));
     return;
   }
   ESP_LOGI(kTag, "initialised, silicon revision 0x%02X", sensor.GetRevision());
@@ -37,6 +37,8 @@ extern "C" void app_main(void) {
       ESP_LOGW(kTag, "read failed: %s", xmpl100::ToString(t.error));
       if (t.error == xmpl100::Error::Bus) {
         (void)sensor.SoftReset(); // recover after a bus glitch; next read reports again
+      } else if (t.error == xmpl100::Error::UnexpectedReset) {
+        (void)sensor.EnsureInitialized(); // the chip lost its configuration: start it again
       }
     }
     vTaskDelay(pdMS_TO_TICKS(500));

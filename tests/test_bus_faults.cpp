@@ -25,8 +25,8 @@ void SweepBusFaults(const char* name, const xmpl100::Config& config, Op op) {
   int transfers = 0;
   {
     Port clean;
-    xmpl100::XMPL100<Port> sensor(clean);
-    REQUIRE(sensor.Initialize(config).ok());
+    xmpl100::XMPL100<Port> sensor(clean, config);
+    REQUIRE(sensor.EnsureInitialized().ok());
     const int before = clean.state.transfers;
     CHECK_EQ(op(sensor), Error::Ok);
     transfers = clean.state.transfers - before;
@@ -34,8 +34,8 @@ void SweepBusFaults(const char* name, const xmpl100::Config& config, Op op) {
   CHECK(transfers > 0);
   for (int i = 0; i < transfers; ++i) {
     Port port;
-    xmpl100::XMPL100<Port> sensor(port);
-    REQUIRE(sensor.Initialize(config).ok());
+    xmpl100::XMPL100<Port> sensor(port, config);
+    REQUIRE(sensor.EnsureInitialized().ok());
     port.state.fail_transfer = port.state.transfers + i;
     const Error e = op(sensor);
     if (e != Error::Bus) {

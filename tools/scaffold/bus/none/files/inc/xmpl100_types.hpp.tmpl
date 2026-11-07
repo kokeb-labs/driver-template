@@ -30,7 +30,7 @@ namespace xmpl100 {
  */
 enum class Error : uint8_t {
   Ok = 0,               ///< The call succeeded.
-  NotInitialized = 1,   ///< `Initialize()` has not succeeded yet, or `Deinitialize()` ran since.
+  NotInitialized = 1,   ///< `EnsureInitialized()` has not succeeded, or `Deinitialize()` ran since.
   InvalidArgument = 2,  ///< A `Config` field is out of range; nothing was read.
   Bus = 3,              ///< A pin read or write of the port failed.
   Timeout = 4,          ///< Not returned by this driver.
@@ -160,7 +160,7 @@ inline constexpr uint16_t kMaxSamples = 16;
 /// Longest wait between two samples, in microseconds.
 inline constexpr uint32_t kMaxSampleIntervalUs = 100000;
 
-/** @brief Everything `Initialize()` uses. Defaults filter contact-style noise on OUT. */
+/** @brief Everything `EnsureInitialized()` uses. Defaults filter contact-style noise on OUT. */
 struct Config {
   uint16_t samples{3}; ///< Reads of OUT per reading, 1 to `kMaxSamples`; all must agree.
   uint32_t sample_interval_us{1000}; ///< Wait between two reads, up to `kMaxSampleIntervalUs`.

@@ -21,10 +21,19 @@ version bump (a minor bump before 1.0).
 - The hook tables in the Doxygen comments of the driver header and every port header keep one row per line:
   clang-format had reflowed each table into a single paragraph, which Doxygen does not render as a table. The
   comment blocks are wrapped in `// clang-format off` / `// clang-format on`.
+- The I2C and UART port headers of the scaffold build their frames in `std::array` instead of C arrays, which
+  clang-tidy (`cppcoreguidelines-avoid-c-arrays`, `modernize-avoid-c-arrays`) rejected in a scaffolded driver.
 
 ### Breaking
 
-- None yet.
+- `EnsureInitialized()` is the only way to start the driver. The constructor takes the configuration,
+  `XMPL100(port, config = {})` (after the bus argument, such as the I2C address, where there is one), stores it and
+  does no I/O; `Initialize(config)` is gone (now private). The first `EnsureInitialized()` checks the stored
+  configuration, brings the bus up, resets the chip, checks CHIP_ID and writes the configuration; later calls return
+  `Ok` with no I/O, and after a failure the next call starts again from the beginning. Recovery after a fault is
+  `Deinitialize()`, then `EnsureInitialized()`. `ApplyConfig()`, `SetMode()` and `SetAlertThresholdsC()` before the
+  start store the configuration with no I/O instead of returning `NotInitialized`; no read or write starts the chip
+  as a side effect. Replace `sensor.Initialize(c)` with `XMPL100 sensor(port, c);` and `sensor.EnsureInitialized()`.
 
 ### Added
 

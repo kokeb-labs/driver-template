@@ -28,7 +28,7 @@ git submodule add https://github.com/kokeb-labs/driver-template.git external/dri
 --8<-- "tests/docs/quickstart.cpp:quickstart"
 ```
 
-1. `Initialize()` configures the pins and waits out the self-test pulse of the part's power-up.
+1. `EnsureInitialized()` configures the pins and waits out the self-test pulse of the part's power-up.
 2. `IsOverTemperature()` reads OUT `Config::samples` times and returns the level they agree on.
 
 Next: [API guide](api-guide.md).

@@ -38,7 +38,7 @@ I (318) xmpl100_example: initialised, silicon revision 0x20
 I (820) xmpl100_example: 23.45 C
 ```
 
-An `Initialize failed: DeviceIdMismatch` line means CHIP_ID did not read 0xA1: check CS, the SPI mode and
+An `EnsureInitialized failed: DeviceIdMismatch` line means CHIP_ID did not read 0xA1: check CS, the SPI mode and
 the MISO wire first.
 
 ## Files

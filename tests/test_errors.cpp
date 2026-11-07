@@ -47,45 +47,45 @@ void RunScenarios() {
     MinimalPort port;
     xmpl100::XMPL100<MinimalPort> s(port);
     Record(s.ReadTemperatureC().error);
-    Record(s.Initialize().error);
+    Record(s.EnsureInitialized().error);
   }
   { // InvalidArgument
     MinimalPort port;
-    xmpl100::XMPL100<MinimalPort> s(port);
     xmpl100::Config c{};
     c.conversion_timeout_ms = 0;
-    Record(s.Initialize(c).error);
+    xmpl100::XMPL100<MinimalPort> s(port, c);
+    Record(s.EnsureInitialized().error);
   }
   { // Bus
     MinimalPort port;
     port.state.bus_up_ok = false;
     xmpl100::XMPL100<MinimalPort> s(port);
-    Record(s.Initialize().error);
+    Record(s.EnsureInitialized().error);
   }
   { // Timeout
     MinimalPort port;
     port.state.chip.reset_stuck = true;
     xmpl100::XMPL100<MinimalPort> s(port);
-    Record(s.Initialize().error);
+    Record(s.EnsureInitialized().error);
   }
   { // DeviceIdMismatch
     MinimalPort port;
     port.state.chip.chip_id = 0x00;
     xmpl100::XMPL100<MinimalPort> s(port);
-    Record(s.Initialize().error);
+    Record(s.EnsureInitialized().error);
   }
   { // Crc
     MinimalPort port;
     port.state.chip.corrupt_crc = true;
-    xmpl100::XMPL100<MinimalPort> s(port);
-    if (s.Initialize(xmpl100::HighAccuracyPreset()).ok()) {
+    xmpl100::XMPL100<MinimalPort> s(port, xmpl100::HighAccuracyPreset());
+    if (s.EnsureInitialized().ok()) {
       Record(s.ReadTemperatureC().error);
     }
   }
   { // Busy
     MinimalPort port;
     xmpl100::XMPL100<MinimalPort> s(port);
-    if (s.Initialize().ok()) {
+    if (s.EnsureInitialized().ok()) {
       Record(s.TriggerOneShot().error);
     }
   }
@@ -93,27 +93,27 @@ void RunScenarios() {
     MinimalPort port;
     port.state.chip.fault = true;
     xmpl100::XMPL100<MinimalPort> s(port);
-    if (s.Initialize().ok()) {
+    if (s.EnsureInitialized().ok()) {
       Record(s.ReadTemperatureC().error);
     }
   }
   { // Unsupported
     MinimalPort port;
     port.state.chip.rev_id = xmpl100::kRevisionA;
-    xmpl100::XMPL100<MinimalPort> s(port);
-    Record(s.Initialize(xmpl100::HighAccuracyPreset()).error);
+    xmpl100::XMPL100<MinimalPort> s(port, xmpl100::HighAccuracyPreset());
+    Record(s.EnsureInitialized().error);
   }
   { // Unsupported, through the missing GpioSet hook
     MinimalPort port;
     xmpl100::XMPL100<MinimalPort> s(port);
-    if (s.Initialize().ok()) {
+    if (s.EnsureInitialized().ok()) {
       Record(s.HardwareReset().error);
     }
   }
   { // UnexpectedReset (chip-specific)
     MinimalPort port;
     xmpl100::XMPL100<MinimalPort> s(port);
-    if (s.Initialize().ok()) {
+    if (s.EnsureInitialized().ok()) {
       port.state.chip.PowerOn();
       Record(s.ReadTemperatureC().error);
     }

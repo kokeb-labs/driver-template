@@ -9,30 +9,47 @@
 
 using xmpl100::Error;
 
-TEST_CASE("Every call returns NotInitialized before Initialize") {
+TEST_CASE("Every call returns NotInitialized before EnsureInitialized") {
   xmpl100::MovingAverage<8> avg;
   CHECK(!avg.IsInitialized());
   CHECK_EQ(avg.Push(1.0F).error, Error::NotInitialized);
   CHECK_EQ(avg.Average().error, Error::NotInitialized);
+  CHECK(!avg.IsInitialized()); // no call starts it as a side effect
 }
 
-TEST_CASE("Initialize checks the window against the capacity") {
-  xmpl100::MovingAverage<4> avg;
+TEST_CASE("EnsureInitialized checks the window against the capacity") {
   xmpl100::Config c{};
   c.window_samples = 0;
-  CHECK_EQ(avg.Initialize(c).error, Error::InvalidArgument);
+  xmpl100::MovingAverage<4> zero(c);
+  CHECK_EQ(zero.EnsureInitialized().error, Error::InvalidArgument);
+  CHECK(!zero.IsInitialized());
   c.window_samples = 5;
-  CHECK_EQ(avg.Initialize(c).error, Error::InvalidArgument);
+  xmpl100::MovingAverage<4> wide(c);
+  CHECK_EQ(wide.EnsureInitialized().error, Error::InvalidArgument);
   c.window_samples = 4;
-  CHECK(avg.Initialize(c).ok());
+  xmpl100::MovingAverage<4> avg(c);
+  CHECK(avg.EnsureInitialized().ok());
   CHECK(avg.IsInitialized());
 }
 
+TEST_CASE("EnsureInitialized starts once and keeps the samples on later calls") {
+  xmpl100::MovingAverage<4> avg(xmpl100::Config{4, 0.0F});
+  REQUIRE(avg.EnsureInitialized().ok());
+  REQUIRE(avg.Push(2.0F).ok());
+  CHECK(avg.EnsureInitialized().ok()); // already started: nothing changes
+  CHECK_EQ(avg.GetCount(), 1);
+  REQUIRE(avg.Deinitialize().ok());
+  CHECK_EQ(avg.Push(1.0F).error, Error::NotInitialized);
+  REQUIRE(avg.EnsureInitialized().ok()); // starts again, from empty
+  CHECK_EQ(avg.Average().error, Error::Empty);
+  CHECK_EQ(avg.GetConfig().window_samples, 4);
+}
+
 TEST_CASE("The average follows the last window_samples samples") {
-  xmpl100::MovingAverage<8> avg;
   xmpl100::Config c{};
   c.window_samples = 3;
-  REQUIRE(avg.Initialize(c).ok());
+  xmpl100::MovingAverage<8> avg(c);
+  REQUIRE(avg.EnsureInitialized().ok());
   CHECK_EQ(avg.Average().error, Error::Empty);
   REQUIRE(avg.Push(1.0F).ok());
   REQUIRE(avg.Push(2.0F).ok());
@@ -44,10 +61,10 @@ TEST_CASE("The average follows the last window_samples samples") {
 }
 
 TEST_CASE("NaN and samples above the limit are refused and change nothing") {
-  xmpl100::MovingAverage<8> avg;
   xmpl100::Config c{};
   c.reject_above_abs = 100.0F;
-  REQUIRE(avg.Initialize(c).ok());
+  xmpl100::MovingAverage<8> avg(c);
+  REQUIRE(avg.EnsureInitialized().ok());
   REQUIRE(avg.Push(4.0F).ok());
   const float nan = std::numeric_limits<float>::quiet_NaN();
   CHECK_EQ(avg.Push(nan).error, Error::InvalidArgument);
@@ -56,8 +73,8 @@ TEST_CASE("NaN and samples above the limit are refused and change nothing") {
 }
 
 TEST_CASE("Deinitialize forgets everything") {
-  xmpl100::MovingAverage<2> avg;
-  REQUIRE(avg.Initialize({2, 0.0F}).ok());
+  xmpl100::MovingAverage<2> avg(xmpl100::Config{2, 0.0F});
+  REQUIRE(avg.EnsureInitialized().ok());
   REQUIRE(avg.Push(1.0F).ok());
   REQUIRE(avg.Deinitialize().ok());
   CHECK_EQ(avg.Average().error, Error::NotInitialized);

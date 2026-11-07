@@ -45,7 +45,7 @@ The [`verify` skill](../.claude/skills/verify/SKILL.md) lists every check CI run
 - [ ] Every CI check passes locally: host tests, doc snippets, `clang-format` and `clang-tidy` on changed files,
       markdownlint, `kokeb-docs check`, `mkdocs build -f _config/mkdocs.yml --strict`.
 - [ ] New behaviour has host tests, including the failure paths (a failing port hook, a call before
-      `Initialize()`).
+      `EnsureInitialized()`).
 - [ ] The README or `docs/` page and the Doxygen comments describe the change.
 - [ ] `CHANGELOG.md` has an entry under `## [Unreleased]`.
 - [ ] CI is green, including `CI gate / gate`.

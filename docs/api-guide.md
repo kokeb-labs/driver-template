@@ -6,7 +6,7 @@ The driver's API by task, with code that compiles: initialise, configure, measur
 
 | Group | Calls |
 | --- | --- |
-| Lifecycle | `Initialize()`, `EnsureInitialized()`, `IsInitialized()`, `Deinitialize()`, `SoftReset()`, `HardwareReset()` |
+| Lifecycle | `EnsureInitialized()`, `IsInitialized()`, `Deinitialize()`, `SoftReset()`, `HardwareReset()` |
 | Configuration | `ApplyConfig()`, `GetConfig()`, `SetMode()`, `SetAlertThresholdsC()` |
 | Measurement | `ReadTemperatureC()`, `ReadRawTemperature()`, `ReadStatus()`, `TriggerOneShot()`, `WaitDataReady()`, `MeasureOnceC()` |
 | Identification | `GetRevision()`, `xmpl100::GetDriverVersion()` |
@@ -20,8 +20,15 @@ read `error`. `Result` is `[[nodiscard]]`, so an unchecked call is a compiler wa
 --8<-- "tests/docs/api_tasks.cpp:lifecycle"
 ```
 
-`Initialize()` is safe to call again: it resets and reconfigures the chip each time. `EnsureInitialized()` runs it
-only when the driver is not initialised yet, with the last configuration.
+The constructor stores the port and the configuration (`Config{}` unless you pass one) and does no I/O.
+`EnsureInitialized()` is the one way to start the chip. Its first call brings the bus up, resets the chip (RESET_N
+when the port has `GpioSet()`, otherwise a soft reset), checks CHIP_ID and writes the configuration.
+
+Once it has succeeded, `EnsureInitialized()` returns `Ok` at once with no I/O, so a caller (or a handler that owns
+the driver) can call it before every use. After a failure the driver stays uninitialised and the next call starts
+again from the beginning. No other call starts the chip: before `EnsureInitialized()` succeeds every read and write
+returns `NotInitialized` and sends nothing. `ApplyConfig()`, `SetMode()` and `SetAlertThresholdsC()` before the
+start only store the configuration for the first `EnsureInitialized()`.
 
 ## Measure on demand
 
@@ -57,7 +64,7 @@ crossed (`alert_high`, `alert_low`).
 
 | Signal | Meaning | What to do |
 | --- | --- | --- |
-| `Error::Bus` | The port failed a transfer | Check the port and the wiring; retry or `SoftReset()` |
+| `Error::Bus` | The port failed a transfer or the bus bring-up | Check the port and the wiring; retry, `SoftReset()`, or `Deinitialize()` and `EnsureInitialized()` |
 | `Error::Timeout` | Reset or conversion did not finish | Check VDD and RESET_N; raise `conversion_timeout_ms` with heavy averaging |
 | `Error::DeviceFault` / `Status::fault` | The sensing element is open or shorted | Replace the part |
 | `Error::Crc` | A result was corrupted on the bus | Lower the bus clock; check grounding |
@@ -73,6 +80,7 @@ Every value, with the calls that return it, is on the [Contract](contract.md#err
 --8<-- "tests/docs/api_tasks.cpp:deinit"
 ```
 
-After `Deinitialize()` every call returns `NotInitialized` until the next `Initialize()`.
+After `Deinitialize()` every call returns `NotInitialized` until the next `EnsureInitialized()`, which starts the
+chip again from the beginning: `Deinitialize()` then `EnsureInitialized()` is also the recovery after a fault.
 
 Next: [Configuration](configuration.md).

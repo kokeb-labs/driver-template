@@ -42,8 +42,9 @@ XMPL100, a fictional example sensor on SPI. It follows the
 - The port base declares no hook; the driver is constrained by the `SpiPort` concept. Optional hooks are
   detected with `requires` in `xmpl100::detail` only.
 - `Error` keeps the base set at values 0 to 9; chip-specific values start at 16 and each is returned somewhere.
-- Every fallible call returns `Result<T>`; every port failure propagates; every I/O call returns
-  `NotInitialized` before `Initialize()`.
+- Every fallible call returns `Result<T>`; every port failure propagates. The constructor stores the configuration
+  with no I/O; `EnsureInitialized()` is the only start-up call, and every I/O call returns `NotInitialized` before it
+  has succeeded.
 - Public and protected methods PascalCase, private methods camelBack, members `snake_case_`, constants
   `kPascalCase`, units as suffixes. 100 columns (`_config/.clang-format`).
 - Kconfig values are read only in `inc/xmpl100_kconfig.hpp`.

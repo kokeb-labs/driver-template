@@ -57,7 +57,7 @@ Supply
 ## What you get
 
 - **One object per chip.** `XMPL100<YourPort>` takes a reference to your port and does no I/O until
-  `Initialize()`. See [API guide](api-guide.md).
+  `EnsureInitialized()`. See [API guide](api-guide.md).
 - **Errors you can act on.** Every call returns `Result<T>` with an `Error` such as `Bus`, `Timeout` or
   `DeviceIdMismatch`. See [API guide](api-guide.md#handle-errors).
 - **Datasheet defaults.** `Config{}` holds the chip's reset values, with units in the field names, plus three

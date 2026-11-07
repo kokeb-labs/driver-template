@@ -39,7 +39,8 @@ public:
 int main() {
   SilentPort port;
   xmpl100::XMPL100<SilentPort> sensor(port);
-  // No reply ever arrives, so Initialize() must time out: proof the template compiled and ran.
-  const auto r = sensor.Initialize();
+  // No reply ever arrives, so EnsureInitialized() must time out: proof the template compiled and
+  // ran.
+  const auto r = sensor.EnsureInitialized();
   return (r.error == xmpl100::Error::Timeout && xmpl100::GetDriverVersion()[0] != '\0') ? 0 : 1;
 }

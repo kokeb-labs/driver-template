@@ -27,7 +27,7 @@ namespace xmpl100 {
  */
 enum class Error : uint8_t {
   Ok = 0,              ///< The call succeeded.
-  NotInitialized = 1,  ///< `Initialize()` has not succeeded yet, or `Deinitialize()` ran since.
+  NotInitialized = 1,  ///< `EnsureInitialized()` has not succeeded, or `Deinitialize()` ran since.
   InvalidArgument = 2, ///< An argument or a `Config` field is out of range; nothing changed.
   Empty = 16,          ///< There is no sample to compute a result from.
 };

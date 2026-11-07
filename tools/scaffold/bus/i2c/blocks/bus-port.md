@@ -2,7 +2,7 @@
 
 | Method | Required | Contract |
 | --- | --- | --- |
-| `bool EnsureInitialized() noexcept` | yes | Bring the bus up on the first call; return `true` at once afterwards. `false` makes `Initialize()` return `Bus` |
+| `bool EnsureInitialized() noexcept` | yes | Bring the bus up on the first call; return `true` at once afterwards. `false` makes the driver's `EnsureInitialized()` return `Bus` |
 | `bool Write(uint8_t addr, const uint8_t* data, std::size_t len) noexcept` | yes | START, `addr` + W, `len` bytes, STOP. `false` on a NACK or any bus error |
 | `bool WriteRead(uint8_t addr, const uint8_t* tx, std::size_t tx_len, uint8_t* rx, std::size_t rx_len) noexcept` | yes | START, `addr` + W, `tx`, repeated START, `addr` + R, `rx_len` bytes, STOP |
 | `void DelayUs(uint32_t us) noexcept` | yes, for every wait | Wait at least `us` microseconds |

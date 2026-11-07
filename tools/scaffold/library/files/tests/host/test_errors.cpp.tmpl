@@ -16,13 +16,14 @@ static_assert(static_cast<int>(Error::Ok) == 0 && static_cast<int>(Error::NotIni
 TEST_CASE("Every Error value is returned by some call") {
   bool seen[256] = {};
   {
-    xmpl100::MovingAverage<4> avg;
-    seen[static_cast<uint8_t>(avg.Push(1.0F).error)] = true;            // NotInitialized
-    seen[static_cast<uint8_t>(avg.Initialize({0, 0.0F}).error)] = true; // InvalidArgument
-    seen[static_cast<uint8_t>(avg.Initialize().error)] =
-        true; // window 8 > capacity 4: InvalidArgument
-    seen[static_cast<uint8_t>(avg.Initialize({4, 0.0F}).error)] = true; // Ok
-    seen[static_cast<uint8_t>(avg.Average().error)] = true;             // Empty
+    xmpl100::MovingAverage<4> zero(xmpl100::Config{0, 0.0F});
+    seen[static_cast<uint8_t>(zero.Push(1.0F).error)] = true;          // NotInitialized
+    seen[static_cast<uint8_t>(zero.EnsureInitialized().error)] = true; // InvalidArgument
+    xmpl100::MovingAverage<4> wide;                                    // window 8 > capacity 4
+    seen[static_cast<uint8_t>(wide.EnsureInitialized().error)] = true; // InvalidArgument
+    xmpl100::MovingAverage<4> avg(xmpl100::Config{4, 0.0F});
+    seen[static_cast<uint8_t>(avg.EnsureInitialized().error)] = true; // Ok
+    seen[static_cast<uint8_t>(avg.Average().error)] = true;           // Empty
   }
   for (int v = 0; v < 256; ++v) {
     const auto e = static_cast<Error>(v);

@@ -15,5 +15,5 @@ struct NotAPort {
 int main() {
   NotAPort port;
   xmpl100::XMPL100<NotAPort> sensor(port);
-  return static_cast<int>(sensor.Initialize().error);
+  return static_cast<int>(sensor.EnsureInitialized().error);
 }

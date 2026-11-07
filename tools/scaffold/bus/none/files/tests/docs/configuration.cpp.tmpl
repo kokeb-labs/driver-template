@@ -7,7 +7,8 @@
 #include "xmpl100_kconfig.hpp"
 
 // --8<-- [start:kconfig]
-xmpl100::Error StartFromMenuconfig(xmpl100::XMPL100<MyPort>& sw) {
-  return sw.Initialize(xmpl100::KconfigDefaults()).error;
+xmpl100::Error StartFromMenuconfig(MyPort& port) {
+  static xmpl100::XMPL100<MyPort> sw(port, xmpl100::KconfigDefaults());
+  return sw.EnsureInitialized().error;
 }
 // --8<-- [end:kconfig]

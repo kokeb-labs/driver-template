@@ -7,11 +7,13 @@ this page states only what is specific to it.
 
 ## Promises
 
-- The constructor is `noexcept`, does no I/O and cannot fail.
-- `Initialize()` configures the pins. With `GpioSet()` it power-cycles the part through SHDN_N and checks the
+- The constructor is `noexcept`, stores the configuration, does no I/O and cannot fail.
+- `EnsureInitialized()` configures the pins. With `GpioSet()` it power-cycles the part through SHDN_N and checks the
   self-test pulse on OUT (the closest equivalent of a chip-ID check, since the part has no ID); without it, it waits
   out the pulse of the board's power-up and cannot tell a missing part.
-- Every read returns `Error::NotInitialized` before `Initialize()` succeeds.
+- Every read returns `Error::NotInitialized` before `EnsureInitialized()` succeeds. No call starts the part as
+  a side effect: `EnsureInitialized()` is the only start-up call, and after it has succeeded it returns `Ok` with no
+  I/O.
 - Every port failure propagates as `Error::Bus`.
 - A reading is never a guess: if the samples of one reading disagree, it is `Error::DeviceFault`.
 
@@ -33,10 +35,10 @@ waits between its samples.
 | `Error` | Value | Returned when |
 | --- | --- | --- |
 | `Ok` | 0 | The call succeeded |
-| `NotInitialized` | 1 | Before `Initialize()` succeeded |
+| `NotInitialized` | 1 | Before `EnsureInitialized()` succeeded |
 | `InvalidArgument` | 2 | `Validate()` failed |
 | `Bus` | 3 | A pin read or write of the port failed |
-| `DeviceIdMismatch` | 5 | No self-test pulse on OUT at `Initialize()` (with `GpioSet()` only) |
+| `DeviceIdMismatch` | 5 | No self-test pulse on OUT at `EnsureInitialized()` (with `GpioSet()` only) |
 | `DeviceFault` | 8 | OUT changed between the samples of one reading |
 | `Unsupported` | 9 | `Sleep()` without `GpioSet()` |
 

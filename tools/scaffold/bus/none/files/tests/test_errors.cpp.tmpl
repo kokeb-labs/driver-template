@@ -34,13 +34,14 @@ void Record(Error e) {
 void RunScenarios() {
   {
     MinimalPort port;
-    xmpl100::XMPL100<MinimalPort> s(port);
-    Record(s.ReadOutput().error); // NotInitialized
     xmpl100::Config c{};
     c.samples = 0;
-    Record(s.Initialize(c).error); // InvalidArgument
-    Record(s.Initialize().error);  // Ok
-    Record(s.Sleep().error);       // Unsupported
+    xmpl100::XMPL100<MinimalPort> bad(port, c);
+    Record(bad.EnsureInitialized().error); // InvalidArgument
+    xmpl100::XMPL100<MinimalPort> s(port);
+    Record(s.ReadOutput().error);        // NotInitialized
+    Record(s.EnsureInitialized().error); // Ok
+    Record(s.Sleep().error);             // Unsupported
     port.state.unstable = true;
     Record(s.ReadOutput().error); // DeviceFault
   }
@@ -48,13 +49,13 @@ void RunScenarios() {
     MinimalPort port;
     port.state.bus_up_ok = false;
     xmpl100::XMPL100<MinimalPort> s(port);
-    Record(s.Initialize().error); // Bus
+    Record(s.EnsureInitialized().error); // Bus
   }
   {
     FullPort port;
     port.state.present = false;
     xmpl100::XMPL100<FullPort> s(port);
-    Record(s.Initialize().error); // DeviceIdMismatch
+    Record(s.EnsureInitialized().error); // DeviceIdMismatch
   }
 }
 

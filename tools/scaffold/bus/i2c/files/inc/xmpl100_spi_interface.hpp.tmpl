@@ -21,6 +21,7 @@
 // clang-format on
 #pragma once
 
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -111,12 +112,12 @@ public:
     if (len == 0 || len > kMaxBurst) {
       return Error::InvalidArgument;
     }
-    uint8_t frame[1 + kMaxBurst] = {};
+    std::array<uint8_t, 1 + kMaxBurst> frame{};
     frame[0] = reg;
     for (std::size_t i = 0; i < len; ++i) {
       frame[1 + i] = data[i];
     }
-    return port_.Write(address_, frame, len + 1) ? Error::Ok : Error::Bus;
+    return port_.Write(address_, frame.data(), len + 1) ? Error::Ok : Error::Bus;
   }
 
 private:

@@ -29,11 +29,11 @@ namespace xmpl100 {
  */
 enum class Error : uint8_t {
   Ok = 0,               ///< The call succeeded.
-  NotInitialized = 1,   ///< `Initialize()` has not succeeded yet, or `Deinitialize()` ran since.
+  NotInitialized = 1,   ///< `EnsureInitialized()` has not succeeded, or `Deinitialize()` ran since.
   InvalidArgument = 2,  ///< A `Config` field is out of range; nothing was read.
   Bus = 3,              ///< The port's ADC read failed.
   Timeout = 4,          ///< Not returned by this driver.
-  DeviceIdMismatch = 5, ///< The output at `Initialize()` is outside the sensor's range: no sensor,
+  DeviceIdMismatch = 5, ///< The output at the start is outside the sensor's range: no sensor,
                         ///< or wrong channel.
   Crc = 6,              ///< Not returned by this driver.
   Busy = 7,             ///< Not returned by this driver.
@@ -152,7 +152,7 @@ inline constexpr uint32_t kOutputMaxMv = 1750;
 /// Most samples one reading may average.
 inline constexpr uint16_t kMaxSamples = 64;
 
-/** @brief Everything `Initialize()` uses. Defaults are the datasheet's typical values. */
+/** @brief Everything `EnsureInitialized()` uses. Defaults are the datasheet's typical values. */
 struct Config {
   uint8_t channel{0};               ///< The port's ADC channel the output is wired to.
   uint32_t offset_mv{500};          ///< Output at 0 °C, mV (datasheet V_0, typical).

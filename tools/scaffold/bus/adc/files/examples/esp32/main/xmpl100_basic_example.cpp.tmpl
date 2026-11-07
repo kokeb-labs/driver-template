@@ -16,11 +16,11 @@ constexpr const char* kTag = "xmpl100_example";
 
 extern "C" void app_main(void) {
   static Esp32Xmpl100Port port;
-  static xmpl100::XMPL100<Esp32Xmpl100Port> sensor(port);
+  static xmpl100::XMPL100<Esp32Xmpl100Port> sensor(port, xmpl100::KconfigDefaults()); // no I/O
 
   ESP_LOGI(kTag, "XMPL100 driver %s", xmpl100::GetDriverVersion());
-  if (const auto init = sensor.Initialize(xmpl100::KconfigDefaults()); !init) {
-    ESP_LOGE(kTag, "Initialize failed: %s", xmpl100::ToString(init.error));
+  if (const auto init = sensor.EnsureInitialized(); !init) {
+    ESP_LOGE(kTag, "EnsureInitialized failed: %s", xmpl100::ToString(init.error));
     return;
   }
   while (true) {

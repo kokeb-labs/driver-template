@@ -51,4 +51,4 @@ Linux `spidev` (`ioctl(SPI_IOC_MESSAGE)`), `i2c-dev` (`I2C_RDWR`) or a serial `t
 ## Check it
 
 1. Compile a copy of the port in `tests/docs/` if it should appear on the Porting page.
-2. On hardware: `Initialize()` returns `Ok` (writes, reads and the chip ID work), then the Porting page's checks.
+2. On hardware: `EnsureInitialized()` returns `Ok` (writes, reads and the chip ID work), then the Porting page's checks.

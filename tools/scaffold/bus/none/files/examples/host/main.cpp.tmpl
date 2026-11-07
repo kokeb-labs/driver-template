@@ -18,8 +18,8 @@ int main() {
   xmpl100::XMPL100<HostXmpl100Port> sw(port); // no I/O yet
 
   std::printf("XMPL100 driver %s on the host\n", xmpl100::GetDriverVersion());
-  if (const auto r = sw.Initialize(); !r) {
-    std::printf("Initialize failed: %s\n", xmpl100::ToString(r.error));
+  if (const auto r = sw.EnsureInitialized(); !r) {
+    std::printf("EnsureInitialized failed: %s\n", xmpl100::ToString(r.error));
     return 1;
   }
 

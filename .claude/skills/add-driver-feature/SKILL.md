@@ -13,7 +13,7 @@ One feature per PR, branch `feat/<feature>`. Cite the datasheet section for ever
    values, read-only bits, self-clearing bits, timing (through `Elapse()`), and a fault-injection field for each
    failure the feature can hit.
 3. **Write the failing tests** in `tests/test_xmpl100.cpp`: the register traffic of the feature, a call before
-   `Initialize()` (`NotInitialized`), a failing port hook on every path (`Bus`), argument checks
+   `EnsureInitialized()` (`NotInitialized`), a failing port hook on every path (`Bus`), argument checks
    (`InvalidArgument`, nothing sent), and each new error. Run them: they fail.
 4. **Add the registers** to `inc/xmpl100_registers.hpp` and the types (enums, `Config` fields with unit suffixes
    and datasheet defaults, a `Status` field) to `inc/xmpl100_types.hpp`; extend `Validate()`.

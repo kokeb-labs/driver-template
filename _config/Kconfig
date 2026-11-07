@@ -41,7 +41,7 @@ config XMPL100_CRC_ENABLE
     bool "CRC-checked temperature reads (revision B silicon)"
     default n
     help
-      CONFIG.CRC_EN. Initialize() returns Unsupported on revision A silicon.
+      CONFIG.CRC_EN. EnsureInitialized() returns Unsupported on revision A silicon.
 
 config XMPL100_CONVERSION_TIMEOUT_MS
     int "One-shot conversion timeout (ms)"
