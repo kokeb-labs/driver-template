@@ -173,8 +173,8 @@ xmpl100::Config FuzzConfig(Input& in) noexcept {
 void FuzzSensor(xmpl100_test::MockBusState& sensor, Input& in) noexcept {
   switch (in.Byte() % 4U) {
   case 0:
-    // -40 to +125 °C, where the model's output is defined; kReplace covers every other voltage.
-    sensor.temperature_c = static_cast<float>(in.Byte() % 166U) - 40.0F;
+    // -128 to +127 °C: beyond the -40 to +125 °C rating on both sides, the output clamped at 0 V.
+    sensor.temperature_c = static_cast<float>(static_cast<int8_t>(in.Byte()));
     break;
   case 1:
     sensor.open_output = !sensor.open_output;
