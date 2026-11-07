@@ -6,7 +6,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-informational)](docs/integration.md)
 
-**Documentation: <https://@ORG@.github.io/@REPO@/>**
+**Documentation: [`docs/`](docs/index.md)**, with the API reference built by Doxygen ([how](docs/api-reference.md)).
+The site at <https://@ORG@.github.io/@REPO@/> opens when the repository is public.
 
 This library gives firmware a small, predictable building block: `MovingAverage<N>` (the template's example
 utility) keeps the last samples in fixed storage and returns their mean in constant time. It needs no MCU, SDK or
@@ -24,11 +25,37 @@ RTOS: the same code runs on any microcontroller and on your PC, and every call t
 
 ## Try it on your PC
 
-[`examples/host`](examples/host/README.md) smooths a series of samples and prints the mean after each one.
+No hardware needed: [`examples/host`](examples/host/README.md) smooths a series of samples and prints the mean after
+each one.
+You need git, CMake 3.16+ and a C++20 compiler (GCC 10+, Clang 13+ or MSVC 2022).
 
-```bash
-cmake -S examples/host -B build-example && cmake --build build-example && ./build-example/xmpl100_host_example
-```
+1. Get the source:
+
+   ```bash
+   git clone https://github.com/@ORG@/@REPO@.git && cd @REPO@
+   ```
+
+2. Build and run the example:
+
+   ```bash
+   cmake -S examples/host -B build-example
+   cmake --build build-example
+   ./build-example/xmpl100_host_example
+   ```
+
+3. You should see the mean after each sample:
+
+   ```text
+   @TITLE@ 0.1.0 on the host
+   sample 24.00, average 24.00
+   sample 25.00, average 24.50
+   sample 26.00, average 25.00
+   sample 25.00, average 25.00
+   sample 30.00, average 26.50
+   ```
+
+To run the whole test suite instead: `cmake -S . -B build -DXMPL100_BUILD_TESTS=ON && cmake --build build && ctest
+--test-dir build`.
 
 ## Use it
 
@@ -45,18 +72,68 @@ until it has succeeded.
 - Every fallible call returns `Result<T>` with an `Error`: no exceptions, no heap, no RTTI.
 - MCU-agnostic: the same code on any MCU and on the host (`examples/host`).
 
-## Install
+## Add it to your project
 
-```bash
-git submodule add https://github.com/@ORG@/@REPO@.git external/@REPO@
-```
+Pick the row that matches your build; each is a few steps, and [Integration](docs/integration.md) has the
+details.
 
-```cmake
-add_subdirectory(external/@REPO@)
-target_link_libraries(my_app PRIVATE xmpl100::xmpl100)
-```
+<!-- scaffold:readme-picker -->
+| Your build | Steps below |
+| --- | --- |
+| Plain CMake: STM32 (CubeMX), RP2040 (Pico SDK), nRF Connect, a host app | [A](#a-cmake-any-mcu) |
+| ESP-IDF | [B](#b-esp-idf) |
+| An SDK or OS image that installs libraries | [C](#c-installed-package) |
+<!-- /scaffold:readme-picker -->
 
-Details: [Integration](docs/integration.md) and [Platforms](docs/platforms.md).
+### A. CMake, any MCU
+
+1. Add the library as a submodule, pinned to the version you chose:
+
+   ```bash
+   git submodule add https://github.com/@ORG@/@REPO@.git external/@REPO@
+   ```
+
+2. In your `CMakeLists.txt`, after `project()`:
+
+   ```cmake
+   add_subdirectory(external/@REPO@)
+   target_link_libraries(my_app PRIVATE xmpl100::xmpl100)   # brings the headers and C++20
+   ```
+
+3. In your code, `#include "@ROOT@/MovingAverage.h"` and build. A first build
+   that compiles the quickstart above is the check that the library is wired in.
+<!-- scaffold:platform-esp32 -->
+
+### B. ESP-IDF
+
+1. Add the library under your project's `components/`; ESP-IDF finds it there and names it after the folder:
+
+   ```bash
+   git submodule add https://github.com/@ORG@/@REPO@.git components/xmpl100
+   ```
+
+2. In `main/CMakeLists.txt`, list it: `idf_component_register(SRCS "main.cpp" REQUIRES xmpl100)`.
+3. `idf.py menuconfig` now has a **@TITLE@** menu (the moving average window),
+   and `idf.py build` builds the library with your app. [`examples/esp32`](examples/esp32) is a complete
+   project.
+<!-- /scaffold:platform-esp32 -->
+
+### C. Installed package
+
+1. Install it once into a prefix:
+
+   ```bash
+   cmake -S external/@REPO@ -B build-xmpl100 && cmake --install build-xmpl100 --prefix /opt/sdk
+   ```
+
+2. In your project, with `CMAKE_PREFIX_PATH=/opt/sdk`:
+
+   ```cmake
+   find_package(xmpl100 0.1 REQUIRED)
+   target_link_libraries(my_app PRIVATE xmpl100::xmpl100)
+   ```
+
+The target is `xmpl100::xmpl100` every way, so switching later changes nothing else.
 
 ## Documentation
 
@@ -67,7 +144,7 @@ Details: [Integration](docs/integration.md) and [Platforms](docs/platforms.md).
 | [API guide](docs/api-guide.md) | Use each call, task by task, and handle errors |
 | [Integration](docs/integration.md) | Add it with CMake on any MCU, or choose its defaults with Kconfig |
 | [Contract](docs/contract.md) | Know exactly what the library promises, needs and returns |
-| [API reference](https://@ORG@.github.io/@REPO@/latest/api/) | Look up a class or member (Doxygen) |
+| [API reference](docs/api-reference.md) | Look up a class or member (Doxygen; built by CI and locally) |
 
 ## Tests and quality
 
@@ -76,8 +153,9 @@ cmake -S . -B build -DXMPL100_BUILD_TESTS=ON && cmake --build build && ctest --t
 ```
 
 The host tests cover every call and every error it can return, with the firmware's flags (`-fno-exceptions
--fno-rtti`, warnings as errors). CI also checks coverage, complexity, sanitizers, clang-tidy and the handbook rules
-(`.kokeb/handbook.yml`). See [Testing and CI](docs/testing.md).
+-fno-rtti`, warnings as errors). There is no fuzz target: the library reads no untrusted input. CI also gates
+coverage, complexity and sanitizers, and runs clang-tidy, cppcheck and the handbook rules (`.kokeb/handbook.yml`).
+See [Testing and CI](docs/testing.md), which lists every gate and its limit.
 
 ## License
 
