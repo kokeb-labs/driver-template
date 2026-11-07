@@ -33,7 +33,7 @@ public:
   }
 
   // Optional: SHDN_N on a GPIO. ACTIVE means "powered", which is a high level on the pin. With it,
-  // Initialize() power-cycles the part and checks its self-test pulse.
+  // EnsureInitialized() power-cycles the part and checks its self-test pulse.
   bool GpioSet(xmpl100::CtrlPin pin, xmpl100::GpioSignal signal) noexcept {
     if (pin != xmpl100::CtrlPin::Enable) {
       return false;

@@ -17,7 +17,7 @@ register block).
    section, table or figure number. Use the maximum for waits and the minimum for pulses.
 2. **Write the model first.** Make `tests/mock_<chip>.hpp` follow the table: reset values, read-only and
    self-clearing bits, clear-on-read flags, timing, invalid writes.
-3. **Write the tests** that pin each fact: reset values read back after `Initialize()`, the exact bytes of each
+3. **Write the tests** that pin each fact: reset values read back after `EnsureInitialized()`, the exact bytes of each
    frame, the waits (sum of `DelayUs()` against the datasheet maximum), every documented error condition.
 4. **Then change the driver** until the tests pass. Each register access and wait carries a comment with the
    section (`// t_RST, section 8.2`).

@@ -24,7 +24,14 @@ version bump (a minor bump before 1.0).
 
 ### Breaking
 
-- None yet.
+- `EnsureInitialized()` is the only way to start the driver. The constructor takes the configuration,
+  `XMPL100(port, config = {})` (after the bus argument, such as the I2C address, where there is one), stores it and
+  does no I/O; `Initialize(config)` is gone (now private). The first `EnsureInitialized()` checks the stored
+  configuration, brings the bus up, resets the chip, checks CHIP_ID and writes the configuration; later calls return
+  `Ok` with no I/O, and after a failure the next call starts again from the beginning. Recovery after a fault is
+  `Deinitialize()`, then `EnsureInitialized()`. `ApplyConfig()`, `SetMode()` and `SetAlertThresholdsC()` before the
+  start store the configuration with no I/O instead of returning `NotInitialized`; no read or write starts the chip
+  as a side effect. Replace `sensor.Initialize(c)` with `XMPL100 sensor(port, c);` and `sensor.EnsureInitialized()`.
 
 ### Added
 

@@ -12,5 +12,5 @@ class NoDelayPort : public xmpl100_test::MockPortBase<NoDelayPort> {};
 int main() {
   NoDelayPort port;
   xmpl100::XMPL100<NoDelayPort> sensor(port);
-  return static_cast<int>(sensor.Initialize().error);
+  return static_cast<int>(sensor.EnsureInitialized().error);
 }

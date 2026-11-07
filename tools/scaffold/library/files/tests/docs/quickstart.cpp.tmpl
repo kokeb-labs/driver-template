@@ -6,9 +6,9 @@
 #include "@ROOT@/MovingAverage.h"
 
 int smooth(const float* samples, int n, float& mean) {
-  xmpl100::MovingAverage<16> avg; // fixed storage for 16 samples, no heap
+  xmpl100::MovingAverage<16> avg(xmpl100::Config{8, 0.0F}); // 16 samples of storage, window 8
 
-  if (auto r = avg.Initialize({8, 0.0F}); !r) { // 1. window of 8 samples
+  if (auto r = avg.EnsureInitialized(); !r) { // 1. window checked, samples cleared
     return static_cast<int>(r.error);
   }
   for (int i = 0; i < n; ++i) {

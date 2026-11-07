@@ -67,8 +67,8 @@ SDK's.
 
 What each step does:
 
-1. `Initialize()` calls your port's `EnsureInitialized()`, soft-resets the chip, waits for it, checks that CHIP_ID
-   reads `0xA1` and writes `Config{}`, the datasheet reset values: continuous conversions at 4 Hz.
+1. `EnsureInitialized()` calls your port's `EnsureInitialized()`, soft-resets the chip, waits for it, checks that
+   CHIP_ID reads `0xA1` and writes `Config{}`, the datasheet reset values: continuous conversions at 4 Hz.
 2. `ReadTemperatureC()` checks STATUS for a sensor fault, then reads the latest result in one burst.
 3. The value is in degrees Celsius with 1/128 °C resolution.
 
@@ -78,9 +78,9 @@ This example is built by the host CI, so it compiles against the current headers
 
 | Symptom | First thing to check |
 | --- | --- |
-| `Initialize()` returns `Bus` | Your port's `EnsureInitialized()`: the bus did not come up |
-| `Initialize()` returns `DeviceIdMismatch` | The bus wiring ([Troubleshooting](troubleshooting.md#initialize-returns-deviceidmismatch)) |
-| `Initialize()` returns `Timeout` | VDD and RESET_N: the chip never finished its reset |
+| `EnsureInitialized()` returns `Bus` | Your port's `EnsureInitialized()`: the bus did not come up |
+| `EnsureInitialized()` returns `DeviceIdMismatch` | The bus wiring ([Troubleshooting](troubleshooting.md#ensureinitialized-returns-deviceidmismatch)) |
+| `EnsureInitialized()` returns `Timeout` | VDD and RESET_N: the chip never finished its reset |
 | `ReadTemperatureC()` returns `DeviceFault` | The sensing element is damaged: replace the part |
 
 ## Next

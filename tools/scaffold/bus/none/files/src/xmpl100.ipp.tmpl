@@ -8,9 +8,20 @@
 namespace xmpl100 {
 
 template <SpiPort Port>
-Result<void> XMPL100<Port>::Initialize(const Config& config) noexcept {
-  initialized_ = false;
-  if (Validate(config) != Error::Ok) {
+Result<void> XMPL100<Port>::EnsureInitialized() noexcept {
+  if (initialized_) {
+    return Result<void>::Success();
+  }
+  if (auto r = initialize(); !r) {
+    return r;
+  }
+  initialized_ = true;
+  return Result<void>::Success();
+}
+
+template <SpiPort Port>
+Result<void> XMPL100<Port>::initialize() noexcept {
+  if (Validate(config_) != Error::Ok) {
     return Result<void>::Failure(Error::InvalidArgument);
   }
   if (!port_.EnsureInitialized()) {
@@ -41,14 +52,7 @@ Result<void> XMPL100<Port>::Initialize(const Config& config) noexcept {
     // just now.
     detail::DelayUs(port_, kSelfTestTimeMaxUs);
   }
-  config_ = config;
-  initialized_ = true;
   return Result<void>::Success();
-}
-
-template <SpiPort Port>
-Result<void> XMPL100<Port>::EnsureInitialized() noexcept {
-  return initialized_ ? Result<void>::Success() : Initialize(config_);
 }
 
 template <SpiPort Port>

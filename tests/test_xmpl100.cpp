@@ -23,7 +23,7 @@ TEST_CASE("The constructor does no I/O") {
   CHECK_EQ(port.state.bus_up_calls, 0);
 }
 
-TEST_CASE("Every I/O call returns NotInitialized before Initialize") {
+TEST_CASE("Every I/O call returns NotInitialized before EnsureInitialized, and does no I/O") {
   MinimalPort port;
   xmpl100::XMPL100<MinimalPort> sensor(port);
   CHECK_EQ(sensor.ReadStatus().error, Error::NotInitialized);
@@ -32,44 +32,43 @@ TEST_CASE("Every I/O call returns NotInitialized before Initialize") {
   CHECK_EQ(sensor.TriggerOneShot().error, Error::NotInitialized);
   CHECK_EQ(sensor.WaitDataReady().error, Error::NotInitialized);
   CHECK_EQ(sensor.MeasureOnceC().error, Error::NotInitialized);
-  CHECK_EQ(sensor.ApplyConfig({}).error, Error::NotInitialized);
-  CHECK_EQ(sensor.SetMode(xmpl100::Mode::Shutdown).error, Error::NotInitialized);
-  CHECK_EQ(sensor.SetAlertThresholdsC(0.0F, 50.0F).error, Error::NotInitialized);
   CHECK_EQ(sensor.SoftReset().error, Error::NotInitialized);
   CHECK_EQ(port.state.transfers, 0);
+  CHECK_EQ(port.state.bus_up_calls, 0); // no call starts the chip as a side effect
+  CHECK(!sensor.IsInitialized());
 }
 
-TEST_CASE("HardwareReset returns NotInitialized before Initialize") {
+TEST_CASE("HardwareReset returns NotInitialized before EnsureInitialized") {
   FullPort port;
   xmpl100::XMPL100<FullPort> sensor(port);
   CHECK_EQ(sensor.HardwareReset().error, Error::NotInitialized);
   CHECK_EQ(port.state.transfers, 0);
 }
 
-TEST_CASE("Without GpioSet, Initialize soft-resets and HardwareReset is Unsupported") {
+TEST_CASE("Without GpioSet, EnsureInitialized soft-resets and HardwareReset is Unsupported") {
   MinimalPort port;
   xmpl100::XMPL100<MinimalPort> sensor(port);
   const int resets = port.state.chip.resets;
-  REQUIRE(sensor.Initialize().ok());
+  REQUIRE(sensor.EnsureInitialized().ok());
   CHECK_EQ(port.state.chip.resets, resets + 1); // the soft reset
   CHECK_EQ(sensor.HardwareReset().error, Error::Unsupported);
   CHECK(sensor.IsInitialized()); // nothing was touched
 }
 
-TEST_CASE("With GpioSet, Initialize pulses RESET_N instead of the soft reset") {
+TEST_CASE("With GpioSet, EnsureInitialized pulses RESET_N instead of the soft reset") {
   FullPort port;
   xmpl100::XMPL100<FullPort> sensor(port);
   const int resets = port.state.chip.resets;
-  REQUIRE(sensor.Initialize().ok());
+  REQUIRE(sensor.EnsureInitialized().ok());
   CHECK_EQ(port.reset_pulses, 1);
   CHECK_EQ(port.state.chip.resets, resets + 1); // the pin reset only
   CHECK(!port.reset_asserted);
 }
 
-TEST_CASE("Initialize resets the chip, checks CHIP_ID and reads the revision") {
+TEST_CASE("EnsureInitialized resets the chip, checks CHIP_ID and reads the revision") {
   FullPort port;
   xmpl100::XMPL100<FullPort> sensor(port);
-  REQUIRE(sensor.Initialize().ok());
+  REQUIRE(sensor.EnsureInitialized().ok());
   CHECK(sensor.IsInitialized());
   CHECK_EQ(sensor.GetRevision(), xmpl100::kRevisionB);
   CHECK(port.delayed_us >= xmpl100::kResetTimeMaxUs); // waited t_RST with the delay hook
@@ -80,7 +79,7 @@ TEST_CASE("Initialize resets the chip, checks CHIP_ID and reads the revision") {
 TEST_CASE("Config{} writes the reset values back") {
   FullPort port;
   xmpl100::XMPL100<FullPort> sensor(port);
-  REQUIRE(sensor.Initialize().ok());
+  REQUIRE(sensor.EnsureInitialized().ok());
   CHECK_EQ(port.state.chip.Register(reg::kAlertHighMsb), reg::kAlertHighReset >> 8);
   CHECK_EQ(port.state.chip.Register(reg::kAlertHighMsb + 1), reg::kAlertHighReset & 0xFF);
   CHECK_EQ(port.state.chip.Register(reg::kAlertLowMsb), reg::kAlertLowReset >> 8);
@@ -88,20 +87,78 @@ TEST_CASE("Config{} writes the reset values back") {
   CHECK_EQ(port.state.chip.Register(reg::kOffset), 0);
 }
 
-TEST_CASE("EnsureInitialized initialises once") {
+TEST_CASE("EnsureInitialized starts the chip once, then returns Ok with no I/O") {
   MinimalPort port;
   xmpl100::XMPL100<MinimalPort> sensor(port);
   REQUIRE(sensor.EnsureInitialized().ok());
   const int transfers = port.state.transfers;
-  REQUIRE(sensor.EnsureInitialized().ok());
+  const int bus_up_calls = port.state.bus_up_calls;
+  const int resets = port.state.chip.resets;
+  for (int i = 0; i < 3; ++i) {
+    CHECK(sensor.EnsureInitialized().ok());
+  }
   CHECK_EQ(port.state.transfers, transfers);
+  CHECK_EQ(port.state.bus_up_calls, bus_up_calls);
+  CHECK_EQ(port.state.chip.resets, resets);
+}
+
+TEST_CASE("After a failed start, EnsureInitialized starts again from the beginning") {
+  MinimalPort port;
+  port.state.chip.chip_id = 0x5A;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  CHECK_EQ(sensor.EnsureInitialized().error, Error::DeviceIdMismatch);
+  CHECK(!sensor.IsInitialized());
+  const int transfers = port.state.transfers;
+  CHECK_EQ(sensor.ReadTemperatureC().error, Error::NotInitialized);
+  CHECK_EQ(port.state.transfers, transfers);  // still no implicit start
+  port.state.chip.chip_id = xmpl100::kChipId; // the right chip answers now
+  const int resets = port.state.chip.resets;
+  REQUIRE(sensor.EnsureInitialized().ok());
+  CHECK_EQ(port.state.chip.resets, resets + 1); // reset again, not resumed
+  CHECK(sensor.IsInitialized());
+}
+
+TEST_CASE("Deinitialize then EnsureInitialized restarts the chip") {
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port, xmpl100::LowPowerPreset());
+  REQUIRE(sensor.EnsureInitialized().ok());
+  REQUIRE(sensor.Deinitialize().ok());
+  const int transfers = port.state.transfers;
+  CHECK_EQ(sensor.ReadStatus().error, Error::NotInitialized);
+  CHECK_EQ(port.state.transfers, transfers);
+  const int resets = port.state.chip.resets;
+  REQUIRE(sensor.EnsureInitialized().ok());
+  CHECK_EQ(port.state.chip.resets, resets + 1);
+  CHECK_EQ(port.state.chip.Register(reg::kConfig) & reg::kConfigOdrMask, 0); // 1 Hz again
+  CHECK(sensor.ReadTemperatureC().ok());
+}
+
+TEST_CASE("ApplyConfig and its setters before the start store the config with no I/O") {
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  xmpl100::Config bad{};
+  bad.conversion_timeout_ms = 0;
+  CHECK_EQ(sensor.ApplyConfig(bad).error, Error::InvalidArgument); // checked, not stored
+  CHECK_EQ(sensor.GetConfig().conversion_timeout_ms, xmpl100::Config{}.conversion_timeout_ms);
+  REQUIRE(sensor.ApplyConfig(xmpl100::LowPowerPreset()).ok());
+  REQUIRE(sensor.SetMode(xmpl100::Mode::Shutdown).ok());
+  REQUIRE(sensor.SetAlertThresholdsC(0.0F, 50.0F).ok());
+  CHECK_EQ(sensor.SetAlertThresholdsC(30.0F, 20.0F).error, Error::InvalidArgument);
+  CHECK_EQ(port.state.transfers, 0);
+  CHECK_EQ(port.state.bus_up_calls, 0);
+  CHECK(!sensor.IsInitialized());
+  CHECK_EQ(sensor.GetConfig().mode, xmpl100::Mode::Shutdown);
+  REQUIRE(sensor.EnsureInitialized().ok()); // applies what was stored
+  CHECK_EQ(port.state.chip.Register(reg::kCtrl) & reg::kCtrlModeMask, 0);
+  CHECK_EQ(port.state.chip.Register(reg::kConfig) & reg::kConfigOdrMask, 0); // 1 Hz
+  CHECK_EQ(port.state.chip.Register(reg::kAlertHighMsb), (50 * 128) >> 8);
 }
 
 TEST_CASE("A port that cannot bring the bus up fails with Bus and logs it") {
   FullPort port;
   port.state.bus_up_ok = false;
   xmpl100::XMPL100<FullPort> sensor(port);
-  CHECK_EQ(sensor.Initialize().error, Error::Bus);
+  CHECK_EQ(sensor.EnsureInitialized().error, Error::Bus);
   CHECK(!sensor.IsInitialized());
   CHECK_EQ(port.error_lines, 1);
 }
@@ -110,7 +167,7 @@ TEST_CASE("A wrong CHIP_ID fails with DeviceIdMismatch") {
   MinimalPort port;
   port.state.chip.chip_id = 0x5A;
   xmpl100::XMPL100<MinimalPort> sensor(port);
-  CHECK_EQ(sensor.Initialize().error, Error::DeviceIdMismatch);
+  CHECK_EQ(sensor.EnsureInitialized().error, Error::DeviceIdMismatch);
   CHECK(!sensor.IsInitialized());
 }
 
@@ -118,20 +175,20 @@ TEST_CASE("A reset that never finishes fails with Timeout, soft or pin reset") {
   MinimalPort minimal;
   minimal.state.chip.reset_stuck = true;
   xmpl100::XMPL100<MinimalPort> a(minimal);
-  CHECK_EQ(a.Initialize().error, Error::Timeout);
+  CHECK_EQ(a.EnsureInitialized().error, Error::Timeout);
 
   FullPort full;
   full.state.chip.reset_stuck = true;
   xmpl100::XMPL100<FullPort> b(full);
-  CHECK_EQ(b.Initialize().error, Error::Timeout);
+  CHECK_EQ(b.EnsureInitialized().error, Error::Timeout);
 }
 
-TEST_CASE("Every failed transfer during Initialize is reported as Bus") {
+TEST_CASE("Every failed transfer during EnsureInitialized is reported as Bus") {
   int transfers = 0;
   {
     MinimalPort clean;
     xmpl100::XMPL100<MinimalPort> sensor(clean);
-    REQUIRE(sensor.Initialize().ok());
+    REQUIRE(sensor.EnsureInitialized().ok());
     transfers = clean.state.transfers;
   }
   CHECK(transfers >= 8);
@@ -139,7 +196,7 @@ TEST_CASE("Every failed transfer during Initialize is reported as Bus") {
     MinimalPort port;
     port.state.fail_transfer = i;
     xmpl100::XMPL100<MinimalPort> sensor(port);
-    const auto r = sensor.Initialize();
+    const auto r = sensor.EnsureInitialized();
     CHECK_EQ(r.error, Error::Bus);
     CHECK(!sensor.IsInitialized());
   }
@@ -147,11 +204,11 @@ TEST_CASE("Every failed transfer during Initialize is reported as Bus") {
 
 TEST_CASE("An invalid Config is rejected before any I/O") {
   MinimalPort port;
-  xmpl100::XMPL100<MinimalPort> sensor(port);
   xmpl100::Config c{};
   c.alert_low_c = 50.0F;
   c.alert_high_c = 40.0F;
-  CHECK_EQ(sensor.Initialize(c).error, Error::InvalidArgument);
+  xmpl100::XMPL100<MinimalPort> sensor(port, c);
+  CHECK_EQ(sensor.EnsureInitialized().error, Error::InvalidArgument);
   CHECK_EQ(port.state.transfers, 0);
 }
 
@@ -159,7 +216,7 @@ TEST_CASE("Deinitialize puts the chip in shutdown and is idempotent") {
   MinimalPort port;
   xmpl100::XMPL100<MinimalPort> sensor(port);
   CHECK(sensor.Deinitialize().ok()); // not initialised: nothing to do
-  REQUIRE(sensor.Initialize().ok());
+  REQUIRE(sensor.EnsureInitialized().ok());
   REQUIRE(sensor.Deinitialize().ok());
   CHECK(!sensor.IsInitialized());
   CHECK_EQ(port.state.chip.Register(reg::kCtrl) & reg::kCtrlModeMask, 0);
@@ -168,8 +225,8 @@ TEST_CASE("Deinitialize puts the chip in shutdown and is idempotent") {
 
 TEST_CASE("SoftReset and HardwareReset reset the chip and re-apply the configuration") {
   FullPort port;
-  xmpl100::XMPL100<FullPort> sensor(port);
-  REQUIRE(sensor.Initialize(xmpl100::LowPowerPreset()).ok());
+  xmpl100::XMPL100<FullPort> sensor(port, xmpl100::LowPowerPreset());
+  REQUIRE(sensor.EnsureInitialized().ok());
   const int resets = port.state.chip.resets;
   REQUIRE(sensor.SoftReset().ok());
   CHECK_EQ(port.state.chip.resets, resets + 1);
@@ -183,7 +240,7 @@ TEST_CASE("SoftReset and HardwareReset reset the chip and re-apply the configura
 TEST_CASE("A failed RESET_N write fails HardwareReset with Bus") {
   FullPort port;
   xmpl100::XMPL100<FullPort> sensor(port);
-  REQUIRE(sensor.Initialize().ok());
+  REQUIRE(sensor.EnsureInitialized().ok());
   port.gpio_ok = false;
   CHECK_EQ(sensor.HardwareReset().error, Error::Bus);
   CHECK(!sensor.IsInitialized());
@@ -195,7 +252,7 @@ TEST_CASE("A failed RESET_N write fails HardwareReset with Bus") {
 TEST_CASE("ApplyConfig writes CTRL, CONFIG, the thresholds and the offset") {
   MinimalPort port;
   xmpl100::XMPL100<MinimalPort> sensor(port);
-  REQUIRE(sensor.Initialize().ok());
+  REQUIRE(sensor.EnsureInitialized().ok());
   xmpl100::Config c = xmpl100::HighAccuracyPreset();
   c.alert_enable = true;
   c.alert_polarity = xmpl100::AlertPolarity::ActiveHigh;
@@ -245,8 +302,8 @@ TEST_CASE("Validate rejects every out-of-range field") {
 
 TEST_CASE("SetMode and SetAlertThresholdsC change only their fields") {
   MinimalPort port;
-  xmpl100::XMPL100<MinimalPort> sensor(port);
-  REQUIRE(sensor.Initialize(xmpl100::LowPowerPreset()).ok());
+  xmpl100::XMPL100<MinimalPort> sensor(port, xmpl100::LowPowerPreset());
+  REQUIRE(sensor.EnsureInitialized().ok());
   REQUIRE(sensor.SetMode(xmpl100::Mode::Shutdown).ok());
   CHECK_EQ(port.state.chip.Register(reg::kCtrl) & reg::kCtrlModeMask, 0);
   CHECK_EQ(port.state.chip.Register(reg::kConfig) & reg::kConfigOdrMask, 0);
@@ -258,9 +315,10 @@ TEST_CASE("SetMode and SetAlertThresholdsC change only their fields") {
 TEST_CASE("CRC on revision A silicon is Unsupported") {
   MinimalPort port;
   port.state.chip.rev_id = xmpl100::kRevisionA;
-  xmpl100::XMPL100<MinimalPort> sensor(port);
-  CHECK_EQ(sensor.Initialize(xmpl100::HighAccuracyPreset()).error, Error::Unsupported);
-  REQUIRE(sensor.Initialize().ok());
+  xmpl100::XMPL100<MinimalPort> sensor(port, xmpl100::HighAccuracyPreset());
+  CHECK_EQ(sensor.EnsureInitialized().error, Error::Unsupported);
+  REQUIRE(sensor.ApplyConfig({}).ok()); // not started: stored for the next attempt
+  REQUIRE(sensor.EnsureInitialized().ok());
   CHECK_EQ(sensor.ApplyConfig(xmpl100::HighAccuracyPreset()).error, Error::Unsupported);
 }
 
@@ -271,7 +329,7 @@ TEST_CASE("ReadTemperatureC converts counts and applies the offset") {
   MinimalPort port;
   port.state.chip.temperature_counts = static_cast<int16_t>(-1000); // -7.8125 °C
   xmpl100::XMPL100<MinimalPort> sensor(port);
-  REQUIRE(sensor.Initialize().ok());
+  REQUIRE(sensor.EnsureInitialized().ok());
   auto t = sensor.ReadTemperatureC();
   REQUIRE(t.ok());
   CHECK(t.value == -7.8125F);
@@ -285,8 +343,8 @@ TEST_CASE("ReadTemperatureC converts counts and applies the offset") {
 
 TEST_CASE("CRC-checked reads pass, and a corrupted CRC fails with Crc") {
   MinimalPort port;
-  xmpl100::XMPL100<MinimalPort> sensor(port);
-  REQUIRE(sensor.Initialize(xmpl100::HighAccuracyPreset()).ok());
+  xmpl100::XMPL100<MinimalPort> sensor(port, xmpl100::HighAccuracyPreset());
+  REQUIRE(sensor.EnsureInitialized().ok());
   CHECK(sensor.ReadTemperatureC().ok());
   port.state.chip.corrupt_crc = true;
   CHECK_EQ(sensor.ReadTemperatureC().error, Error::Crc);
@@ -295,7 +353,7 @@ TEST_CASE("CRC-checked reads pass, and a corrupted CRC fails with Crc") {
 TEST_CASE("A sensor fault is reported as DeviceFault") {
   MinimalPort port;
   xmpl100::XMPL100<MinimalPort> sensor(port);
-  REQUIRE(sensor.Initialize().ok());
+  REQUIRE(sensor.EnsureInitialized().ok());
   port.state.chip.fault = true;
   CHECK_EQ(sensor.ReadTemperatureC().error, Error::DeviceFault);
   auto s = sensor.ReadStatus();
@@ -306,10 +364,10 @@ TEST_CASE("A sensor fault is reported as DeviceFault") {
 TEST_CASE("ReadStatus decodes and clears POR") {
   MinimalPort port;
   xmpl100::XMPL100<MinimalPort> sensor(port);
-  REQUIRE(sensor.Initialize().ok());
+  REQUIRE(sensor.EnsureInitialized().ok());
   auto s = sensor.ReadStatus();
   REQUIRE(s.ok());
-  CHECK(!s.value.power_on_reset); // Initialize already read it
+  CHECK(!s.value.power_on_reset); // EnsureInitialized already read it
   CHECK(s.value.data_ready);      // continuous mode
   CHECK(!s.value.busy);
 }
@@ -317,8 +375,8 @@ TEST_CASE("ReadStatus decodes and clears POR") {
 TEST_CASE("MeasureOnceC runs one conversion and the chip returns to shutdown") {
   FullPort port;
   port.state.chip.temperature_counts = 30 * 128;
-  xmpl100::XMPL100<FullPort> sensor(port);
-  REQUIRE(sensor.Initialize(xmpl100::OneShotPreset()).ok());
+  xmpl100::XMPL100<FullPort> sensor(port, xmpl100::OneShotPreset());
+  REQUIRE(sensor.EnsureInitialized().ok());
   auto t = sensor.MeasureOnceC();
   REQUIRE(t.ok());
   CHECK(t.value == 30.0F);
@@ -328,15 +386,15 @@ TEST_CASE("MeasureOnceC runs one conversion and the chip returns to shutdown") {
 
 TEST_CASE("MeasureOnceC works on the minimal port") {
   MinimalPort port;
-  xmpl100::XMPL100<MinimalPort> sensor(port);
-  REQUIRE(sensor.Initialize(xmpl100::OneShotPreset()).ok());
+  xmpl100::XMPL100<MinimalPort> sensor(port, xmpl100::OneShotPreset());
+  REQUIRE(sensor.EnsureInitialized().ok());
   CHECK(sensor.MeasureOnceC().ok());
 }
 
 TEST_CASE("TriggerOneShot is Busy in continuous mode and while a conversion runs") {
   MinimalPort port;
   xmpl100::XMPL100<MinimalPort> sensor(port);
-  REQUIRE(sensor.Initialize().ok()); // continuous
+  REQUIRE(sensor.EnsureInitialized().ok()); // continuous
   CHECK_EQ(sensor.TriggerOneShot().error, Error::Busy);
   REQUIRE(sensor.SetMode(xmpl100::Mode::OneShot).ok());
   port.state.chip.conversion_busy_reads = 10;
@@ -347,10 +405,10 @@ TEST_CASE("TriggerOneShot is Busy in continuous mode and while a conversion runs
 TEST_CASE("A conversion that never finishes times out after conversion_timeout_ms") {
   FullPort port;
   port.state.chip.conversion_stuck = true;
-  xmpl100::XMPL100<FullPort> sensor(port);
   xmpl100::Config c = xmpl100::OneShotPreset();
   c.conversion_timeout_ms = 20;
-  REQUIRE(sensor.Initialize(c).ok());
+  xmpl100::XMPL100<FullPort> sensor(port, c);
+  REQUIRE(sensor.EnsureInitialized().ok());
   const uint64_t before = port.delayed_us;
   CHECK_EQ(sensor.MeasureOnceC().error, Error::Timeout);
   const uint64_t waited = port.delayed_us - before;
@@ -361,8 +419,8 @@ TEST_CASE("A conversion that never finishes times out after conversion_timeout_m
 TEST_CASE(
     "A chip reset behind the driver's back is UnexpectedReset, and EnsureInitialized recovers") {
   MinimalPort port;
-  xmpl100::XMPL100<MinimalPort> sensor(port);
-  REQUIRE(sensor.Initialize(xmpl100::LowPowerPreset()).ok());
+  xmpl100::XMPL100<MinimalPort> sensor(port, xmpl100::LowPowerPreset());
+  REQUIRE(sensor.EnsureInitialized().ok());
   port.state.chip.PowerOn(); // brown-out: registers back to reset values, POR set
   CHECK_EQ(sensor.ReadTemperatureC().error, Error::UnexpectedReset);
   CHECK(!sensor.IsInitialized());
@@ -374,7 +432,7 @@ TEST_CASE(
 TEST_CASE("A bus error during a read is reported as Bus") {
   MinimalPort port;
   xmpl100::XMPL100<MinimalPort> sensor(port);
-  REQUIRE(sensor.Initialize().ok());
+  REQUIRE(sensor.EnsureInitialized().ok());
   port.state.fail_transfer = port.state.transfers + 1; // the TEMP burst after STATUS
   CHECK_EQ(sensor.ReadTemperatureC().error, Error::Bus);
 }

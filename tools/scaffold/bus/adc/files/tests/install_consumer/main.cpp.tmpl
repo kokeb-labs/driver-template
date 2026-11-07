@@ -29,8 +29,8 @@ public:
 int main() {
   ZeroPort port;
   xmpl100::XMPL100<ZeroPort> sensor(port);
-  // 0 mV is outside the sensor's range, so Initialize() must fail with DeviceIdMismatch.
-  const auto r = sensor.Initialize();
+  // 0 mV is outside the sensor's range, so EnsureInitialized() must fail with DeviceIdMismatch.
+  const auto r = sensor.EnsureInitialized();
   return (r.error == xmpl100::Error::DeviceIdMismatch && xmpl100::GetDriverVersion()[0] != '\0')
              ? 0
              : 1;

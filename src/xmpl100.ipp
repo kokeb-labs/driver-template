@@ -14,8 +14,21 @@ namespace xmpl100 {
 // -------------------------------------------------------------------------------------------------
 
 template <SpiPort Port>
-Result<void> XMPL100<Port>::Initialize(const Config& config) noexcept {
-  initialized_ = false;
+Result<void> XMPL100<Port>::EnsureInitialized() noexcept {
+  if (initialized_) {
+    return Result<void>::Success();
+  }
+  if (auto r = initialize(); !r) {
+    return r;
+  }
+  initialized_ = true;
+  detail::Log(bus_.GetPort(), LogLevel::Info, "xmpl100: initialised");
+  return Result<void>::Success();
+}
+
+template <SpiPort Port>
+Result<void> XMPL100<Port>::initialize() noexcept {
+  const Config config = config_;
   if (Validate(config) != Error::Ok) {
     return fail(Error::InvalidArgument, "xmpl100: invalid Config");
   }
@@ -28,20 +41,7 @@ Result<void> XMPL100<Port>::Initialize(const Config& config) noexcept {
       return r;
     }
   }
-  if (auto r = resetAndConfigure(config, !detail::HasGpioSet<Port>); !r) {
-    return r;
-  }
-  initialized_ = true;
-  detail::Log(bus_.GetPort(), LogLevel::Info, "xmpl100: initialised");
-  return Result<void>::Success();
-}
-
-template <SpiPort Port>
-Result<void> XMPL100<Port>::EnsureInitialized() noexcept {
-  if (initialized_) {
-    return Result<void>::Success();
-  }
-  return Initialize(config_);
+  return resetAndConfigure(config, !detail::HasGpioSet<Port>);
 }
 
 template <SpiPort Port>
@@ -94,11 +94,12 @@ Result<void> XMPL100<Port>::HardwareReset() noexcept {
 
 template <SpiPort Port>
 Result<void> XMPL100<Port>::ApplyConfig(const Config& config) noexcept {
-  if (!initialized_) {
-    return Result<void>::Failure(Error::NotInitialized);
-  }
   if (Validate(config) != Error::Ok) {
     return Result<void>::Failure(Error::InvalidArgument);
+  }
+  if (!initialized_) {
+    config_ = config; // applied by the first EnsureInitialized()
+    return Result<void>::Success();
   }
   return writeConfigRegisters(config);
 }

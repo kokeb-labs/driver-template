@@ -8,12 +8,17 @@
 using Sensor = xmpl100::XMPL100<MyPort>;
 
 // --8<-- [start:calibrated]
-xmpl100::Error StartCalibrated(Sensor& sensor) {
+xmpl100::Config CalibratedConfig() {
   xmpl100::Config c = xmpl100::LowNoisePreset();
   c.channel = 2;
   c.offset_mv = 497; // measured at 0 °C on this board
   c.slope_uv_per_c = 10050;
-  return sensor.Initialize(c).error;
+  return c;
+}
+
+xmpl100::Error StartCalibrated(MyPort& port) {
+  static Sensor sensor(port, CalibratedConfig()); // stored, no I/O
+  return sensor.EnsureInitialized().error;        // InvalidArgument if the config is out of range
 }
 // --8<-- [end:calibrated]
 

@@ -6,16 +6,22 @@
 #include "@ROOT@/MovingAverage.h"
 
 // --8<-- [start:reject]
-xmpl100::Error FilterSpikes(xmpl100::MovingAverage<32>& avg) {
+xmpl100::Config SpikeFilter() {
   xmpl100::Config c{};
   c.window_samples = 32;
   c.reject_above_abs = 150.0F; // refuse readings beyond ±150
-  return avg.Initialize(c).error;
+  return c;
+}
+
+xmpl100::Error FilterSpikes() {
+  static xmpl100::MovingAverage<32> avg(SpikeFilter()); // stored, nothing checked yet
+  return avg.EnsureInitialized().error;                 // InvalidArgument if out of range
 }
 // --8<-- [end:reject]
 
 // --8<-- [start:kconfig]
-xmpl100::Error FromMenuconfig(xmpl100::MovingAverage<64>& avg) {
-  return avg.Initialize(xmpl100::KconfigDefaults()).error;
+xmpl100::Error FromMenuconfig() {
+  static xmpl100::MovingAverage<64> avg(xmpl100::KconfigDefaults());
+  return avg.EnsureInitialized().error;
 }
 // --8<-- [end:kconfig]

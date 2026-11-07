@@ -31,7 +31,7 @@ namespace xmpl100 {
 enum class Error : uint8_t {
   // Base set: the same names and values in every driver of the org (standards/driver.md).
   Ok = 0,               ///< The call succeeded.
-  NotInitialized = 1,   ///< `Initialize()` has not succeeded yet, or `Deinitialize()` ran since.
+  NotInitialized = 1,   ///< `EnsureInitialized()` has not succeeded, or `Deinitialize()` ran since.
   InvalidArgument = 2,  ///< An argument or a `Config` field is out of range; nothing was sent.
   Bus = 3,              ///< A port hook returned `false`.
   Timeout = 4,          ///< The chip did not finish a reset or a conversion in the allowed time.
@@ -41,7 +41,7 @@ enum class Error : uint8_t {
   DeviceFault = 8,      ///< STATUS.FAULT is set: the sensing element is open or shorted.
   Unsupported = 9,      ///< The hook or silicon feature this call needs is absent.
   // Chip-specific values start at 16; each one is returned by some call (tests/test_errors.cpp).
-  UnexpectedReset = 16, ///< STATUS.POR is set: the chip reset since `Initialize()` (brown-out).
+  UnexpectedReset = 16, ///< STATUS.POR is set: the chip reset since the start (brown-out).
 };
 
 /**
@@ -218,7 +218,7 @@ inline constexpr uint32_t kResetTimeMaxUs = 1000;
 inline constexpr uint32_t kResetPulseMinUs = 10;
 
 /**
- * @brief Everything `Initialize()` and `ApplyConfig()` write to the chip.
+ * @brief Everything `EnsureInitialized()` and `ApplyConfig()` write to the chip.
  *
  * The defaults are the reset values of the datasheet, so `Config{}` changes nothing on a freshly
  * reset chip except the driver-side timeouts. Fields with a unit carry it as a suffix.

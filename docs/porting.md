@@ -13,7 +13,7 @@ of use.
 
 | Method | Required | Contract |
 | --- | --- | --- |
-| `bool EnsureInitialized() noexcept` | yes | Bring the bus up on the first call; return `true` at once afterwards. `false` makes `Initialize()` return `Bus` |
+| `bool EnsureInitialized() noexcept` | yes | Bring the bus up on the first call; return `true` at once afterwards. `false` makes the driver's `EnsureInitialized()` return `Bus` |
 | `bool Transfer(const uint8_t* tx, uint8_t* rx, std::size_t len) noexcept` | yes | One full-duplex transfer of `len` bytes with CS_N low for all of them. `rx` is `nullptr` for writes. `false` on any bus error |
 | `void DelayUs(uint32_t us) noexcept` | yes, for every wait | Wait at least `us` microseconds |
 | `bool GpioSet(CtrlPin, GpioSignal) noexcept` | no | Drive RESET_N; `false` if the pin write failed |
@@ -44,7 +44,7 @@ step silently.
 | Hook | Used for | Without it |
 | --- | --- | --- |
 | `DelayUs()` | t_RST after a reset; 1 ms between polls while a one-shot converts | Compile error at the first call that waits (every port needs it in practice) |
-| `GpioSet()` | RESET_N: the reset in `Initialize()` and `HardwareReset()` | `Initialize()` soft-resets; `HardwareReset()` returns `Error::Unsupported` |
+| `GpioSet()` | RESET_N: the reset in `EnsureInitialized()` and `HardwareReset()` | `EnsureInitialized()` soft-resets; `HardwareReset()` returns `Error::Unsupported` |
 | `Log()` | One line per lifecycle event or failure | Nothing is logged |
 
 A port with every hook:
@@ -76,7 +76,7 @@ them and how to add one.
 
 1. Build it: the ports on this page are compiled by the host CI from [`tests/docs/`](../tests/docs/my_port.hpp),
    with the driver instantiated over them.
-2. Call `Initialize()`: `Ok` proves that writes and reads work and that CHIP_ID read `0xA1`.
+2. Call `EnsureInitialized()`: `Ok` proves that writes and reads work and that CHIP_ID read `0xA1`.
 3. Call `ReadTemperatureC()` twice a second and warm the chip with a finger: the value rises within seconds.
 
 ## Threads

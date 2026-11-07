@@ -10,8 +10,8 @@
 int check_board_overheat(MyPort& port, bool& overheated) {
   xmpl100::XMPL100<MyPort> sw(port); // no I/O yet
 
-  if (auto r = sw.Initialize(); !r) { // 1. pins up, self-test pulse waited out
-    return static_cast<int>(r.error); //    Bus: the port could not configure the pins
+  if (auto r = sw.EnsureInitialized(); !r) { // 1. pins up, self-test pulse waited out
+    return static_cast<int>(r.error);        //    Bus: the port could not configure the pins
   }
   const auto over = sw.IsOverTemperature(); // 2. OUT read 3 times, 1 ms apart
   if (!over) {

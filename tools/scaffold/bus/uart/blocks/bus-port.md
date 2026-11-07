@@ -2,7 +2,7 @@
 
 | Method | Required | Contract |
 | --- | --- | --- |
-| `bool EnsureInitialized() noexcept` | yes | Bring the UART up on the first call; return `true` at once afterwards. `false` makes `Initialize()` return `Bus` |
+| `bool EnsureInitialized() noexcept` | yes | Bring the UART up on the first call; return `true` at once afterwards. `false` makes the driver's `EnsureInitialized()` return `Bus` |
 | `bool Write(const uint8_t* data, std::size_t len) noexcept` | yes | Send all `len` bytes; `false` on an error |
 | `bool Read(uint8_t* data, std::size_t len, uint32_t timeout_ms) noexcept` | yes | Receive exactly `len` bytes within `timeout_ms`, or return `false` |
 | `bool FlushInput() noexcept` | yes | Drop every received byte not read yet |

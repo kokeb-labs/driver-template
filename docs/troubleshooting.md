@@ -2,7 +2,7 @@
 
 Symptoms, causes and fixes, cheapest check first.
 
-## Initialize returns Bus
+## EnsureInitialized returns Bus
 
 The port reported a failure: either `EnsureInitialized()` returned `false` or a transfer did.
 
@@ -10,7 +10,7 @@ The port reported a failure: either `EnsureInitialized()` returned `false` or a 
 2. Check the bus pins in your port against the board.
 3. With a logic analyser, check that the first frame (the soft-reset write to CTRL) appears on the bus.
 
-## Initialize returns DeviceIdMismatch
+## EnsureInitialized returns DeviceIdMismatch
 
 CHIP_ID did not read `0xA1`. The chip answered with something else, or nothing answered.
 
@@ -22,12 +22,12 @@ CHIP_ID did not read `0xA1`. The chip answered with something else, or nothing a
 | Anything else | Wrong SPI mode, or a shifted bit | Use mode 0 or 3; check that CS_N stays low for the whole frame |
 <!-- /scaffold:bus-troubleshooting -->
 
-## Initialize returns Timeout
+## EnsureInitialized returns Timeout
 
 STATUS.BUSY did not clear after the reset. Check VDD (1.8 V to 3.6 V) and that RESET_N is high, or released by
 your `GpioSet()` with `GpioSignal::INACTIVE`.
 
-## Initialize returns Unsupported
+## EnsureInitialized returns Unsupported
 
 `crc_enable` is set but the chip is revision A (`GetRevision()` returns `0x10`): clear `crc_enable`, or fit
 revision B silicon.
@@ -50,7 +50,7 @@ returns at once makes every timeout far too short.
 
 ## Reads return UnexpectedReset
 
-STATUS.POR was set: the chip reset since `Initialize()`, usually a brown-out on VDD. The driver is uninitialised
+STATUS.POR was set: the chip reset since the driver started it, usually a brown-out on VDD. The driver is uninitialised
 again; `EnsureInitialized()` reconfigures it. If it repeats, check the supply and its decoupling.
 
 ## The temperature reads a few degrees high

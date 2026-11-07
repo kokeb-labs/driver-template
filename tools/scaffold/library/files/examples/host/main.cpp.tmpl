@@ -9,11 +9,11 @@
 #include "@ROOT@/MovingAverage.h"
 
 int main() {
-  xmpl100::MovingAverage<16> avg; // fixed storage for 16 samples, no heap
+  xmpl100::MovingAverage<16> avg(xmpl100::Config{4, 0.0F}); // 16 samples of storage, no heap
 
   std::printf("@TITLE@ %s on the host\n", xmpl100::GetVersion());
-  if (const auto r = avg.Initialize({4, 0.0F}); !r) {
-    std::printf("Initialize failed: %s\n", xmpl100::ToString(r.error));
+  if (const auto r = avg.EnsureInitialized(); !r) {
+    std::printf("EnsureInitialized failed: %s\n", xmpl100::ToString(r.error));
     return 1;
   }
   const float samples[] = {24.0F, 25.0F, 26.0F, 25.0F, 30.0F};

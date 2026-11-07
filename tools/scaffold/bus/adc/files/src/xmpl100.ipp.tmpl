@@ -8,9 +8,20 @@
 namespace xmpl100 {
 
 template <SpiPort Port>
-Result<void> XMPL100<Port>::Initialize(const Config& config) noexcept {
-  initialized_ = false;
-  if (Validate(config) != Error::Ok) {
+Result<void> XMPL100<Port>::EnsureInitialized() noexcept {
+  if (initialized_) {
+    return Result<void>::Success();
+  }
+  if (auto r = initialize(); !r) {
+    return r;
+  }
+  initialized_ = true;
+  return Result<void>::Success();
+}
+
+template <SpiPort Port>
+Result<void> XMPL100<Port>::initialize() noexcept {
+  if (Validate(config_) != Error::Ok) {
     return Result<void>::Failure(Error::InvalidArgument);
   }
   if (!port_.EnsureInitialized()) {
@@ -23,7 +34,6 @@ Result<void> XMPL100<Port>::Initialize(const Config& config) noexcept {
     }
   }
   detail::DelayUs(port_, kPowerOnTimeUs); // t_ON: the output settles after power-up
-  config_ = config;
   const auto mv = readAveraged();
   if (!mv) {
     return Result<void>::Failure(mv.error);
@@ -32,13 +42,7 @@ Result<void> XMPL100<Port>::Initialize(const Config& config) noexcept {
     detail::Log(port_, LogLevel::Error, "xmpl100: output outside the sensor range: no sensor?");
     return Result<void>::Failure(Error::DeviceIdMismatch);
   }
-  initialized_ = true;
   return Result<void>::Success();
-}
-
-template <SpiPort Port>
-Result<void> XMPL100<Port>::EnsureInitialized() noexcept {
-  return initialized_ ? Result<void>::Success() : Initialize(config_);
 }
 
 template <SpiPort Port>

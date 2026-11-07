@@ -24,7 +24,7 @@ The XMPL100's pins, bus settings, timing and power, as the driver uses them.
 
 The driver drives RESET_N only through the optional `GpioSet()` hook of your port, with logical levels:
 `GpioSignal::ACTIVE` means "in reset", which your port writes as a low level. A board that ties RESET_N high
-leaves the hook out: `Initialize()` then uses the soft reset and `HardwareReset()` returns `Error::Unsupported`.
+leaves the hook out: `EnsureInitialized()` then uses the soft reset and `HardwareReset()` returns `Error::Unsupported`.
 
 ALERT is not read by the driver. Wire it to an MCU interrupt and read STATUS (`ReadStatus()`) when it fires.
 
@@ -55,7 +55,7 @@ sequenceDiagram
 
 | Parameter | Symbol | Value | Driver |
 | --- | --- | --- | --- |
-| Power-on to first access | t_PU | 2 ms maximum | Wait before `Initialize()`; the driver's reset wait covers a later call |
+| Power-on to first access | t_PU | 2 ms maximum | Wait before `EnsureInitialized()`; the driver's reset wait covers a later call |
 | Reset duration | t_RST | 1 ms maximum, STATUS.BUSY set | `kResetTimeMaxUs`, then STATUS polled |
 | RESET_N pulse | t_RST_PW | 10 µs minimum | `kResetPulseMinUs` with `DelayUs()` |
 | Conversion | t_CONV | 8 ms typical, 10 ms maximum per sample | `kConversionTimeMaxUs`; limits averaging at 16 Hz |
@@ -78,7 +78,7 @@ sequenceDiagram
 | `0x10` | A | No CRC: `crc_enable = true` returns `Error::Unsupported` |
 | `0x20` | B | CRC-8 (polynomial 0x31, initial value 0xFF) on TEMP_MSB and TEMP_LSB |
 
-`GetRevision()` returns the value read by `Initialize()`.
+`GetRevision()` returns the value read by `EnsureInitialized()`.
 
 ## Reference documents
 

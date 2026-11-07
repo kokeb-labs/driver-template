@@ -10,8 +10,8 @@
 int read_board_temperature(MyPort& port, float& celsius) {
   xmpl100::XMPL100<MyPort> sensor(port); // no I/O yet
 
-  if (auto r = sensor.Initialize(); !r) { // 1. ADC up, t_ON, output in range
-    return static_cast<int>(r.error);     //    DeviceIdMismatch: wrong channel or no sensor
+  if (auto r = sensor.EnsureInitialized(); !r) { // 1. ADC up, t_ON, output in range
+    return static_cast<int>(r.error);            //    DeviceIdMismatch: wrong channel or no sensor
   }
   const auto t = sensor.ReadTemperatureC(); // 2. 4 conversions averaged
   if (!t) {

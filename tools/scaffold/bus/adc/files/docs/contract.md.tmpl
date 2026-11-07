@@ -7,10 +7,12 @@ this page states only what is specific to it.
 
 ## Promises
 
-- The constructor is `noexcept`, does no I/O and cannot fail.
-- `Initialize()` brings the ADC up, powers the sensor when the port drives SHDN_N, waits t_ON and checks the output
-  is in range (the closest equivalent of a chip-ID check, since an analog part has no ID).
-- Every read returns `Error::NotInitialized` before `Initialize()` succeeds.
+- The constructor is `noexcept`, stores the configuration, does no I/O and cannot fail.
+- `EnsureInitialized()` brings the ADC up, powers the sensor when the port drives SHDN_N, waits t_ON and checks the
+  output is in range (the closest equivalent of a chip-ID check, since an analog part has no ID).
+- Every read returns `Error::NotInitialized` before `EnsureInitialized()` succeeds. No call starts the sensor as
+  a side effect: `EnsureInitialized()` is the only start-up call, and after it has succeeded it returns `Ok` with no
+  I/O.
 - Every port failure propagates as `Error::Bus`.
 
 ## Depends on
@@ -30,10 +32,10 @@ Not thread-safe; takes no lock. One owner task, or one mutex around every call.
 | `Error` | Value | Returned when |
 | --- | --- | --- |
 | `Ok` | 0 | The call succeeded |
-| `NotInitialized` | 1 | Before `Initialize()` succeeded |
+| `NotInitialized` | 1 | Before `EnsureInitialized()` succeeded |
 | `InvalidArgument` | 2 | `Validate()` failed |
 | `Bus` | 3 | The port failed |
-| `DeviceIdMismatch` | 5 | No sensor output on the channel at `Initialize()` |
+| `DeviceIdMismatch` | 5 | No sensor output on the channel at `EnsureInitialized()` |
 | `DeviceFault` | 8 | A reading outside the output range |
 | `Unsupported` | 9 | `Sleep()` without `GpioSet()` |
 

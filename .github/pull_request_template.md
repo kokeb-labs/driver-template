@@ -31,6 +31,6 @@
 - [ ] One logical change; no unrelated edits
 - [ ] README / `docs/` and Doxygen updated for any behaviour or API change
 - [ ] `CHANGELOG.md` entry under `## [Unreleased]`; breaking changes under `### Breaking`
-- [ ] Tests added or updated, including failure paths (call before `Initialize()`, failing port hook)
+- [ ] Tests added or updated, including failure paths (call before `EnsureInitialized()`, failing port hook)
 - [ ] Submodule pins bumped where needed, linking the PR or release pulled in
 - [ ] No secrets, credentials or private datasheet material; no attribution lines

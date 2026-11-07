@@ -21,5 +21,5 @@ public:
 int main() {
   VoidGpioPort port;
   xmpl100::XMPL100<VoidGpioPort> sensor(port);
-  return static_cast<int>(sensor.Initialize().error);
+  return static_cast<int>(sensor.EnsureInitialized().error);
 }

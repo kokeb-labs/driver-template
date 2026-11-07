@@ -75,16 +75,17 @@ void Log(Port& port, LogLevel level, const char* message) noexcept {
 /**
  * @brief Driver for one XMPL100 on a platform port.
  *
- * Lifecycle: construct (no I/O), `Initialize()` (bus up, reset, chip-ID check, configuration),
- * use, optionally `Deinitialize()` (shutdown mode). Every call that touches the chip returns
- * `Error::NotInitialized` until `Initialize()` has succeeded.
+ * Lifecycle: construct with the configuration (no I/O), then `EnsureInitialized()`, the one way
+ * to start (bus up, reset, chip-ID check, configuration), use, optionally `Deinitialize()`
+ * (shutdown mode). Every call that touches the chip returns `Error::NotInitialized` until
+ * `EnsureInitialized()` has succeeded; no call starts the chip as a side effect.
  *
  * Optional port hooks, found at compile time:
  *
  * | Hook | Used for | Without it |
  * | --- | --- | --- |
  * | `void DelayUs(uint32_t us) noexcept` | t_RST after a reset, 1 ms between result polls | Compile error: the waits are required |
- * | `bool GpioSet(CtrlPin, GpioSignal) noexcept` | RESET_N: hardware reset in `Initialize()` and `HardwareReset()` | Soft reset in `Initialize()`; `HardwareReset()` returns `Unsupported` |
+ * | `bool GpioSet(CtrlPin, GpioSignal) noexcept` | RESET_N: hardware reset in `EnsureInitialized()` and `HardwareReset()` | Soft reset in `EnsureInitialized()`; `HardwareReset()` returns `Unsupported` |
  * | `void Log(LogLevel, const char* fmt, ...) noexcept` | One line per lifecycle event or failure | Nothing is logged |
  *
  * A hook declared with the wrong signature (for example `void GpioSet(...)`) is a compile error.
@@ -101,10 +102,11 @@ class XMPL100 {
 public:
   // scaffold:bus-ctor
   /**
-   * @brief Bind the driver to a port. No I/O.
+   * @brief Bind the driver to a port and store the configuration. No I/O, cannot fail.
    * @param port The port; it must outlive the driver.
+   * @param config What `EnsureInitialized()` will apply; checked there, before any I/O.
    */
-  explicit XMPL100(Port& port) noexcept : bus_(port) {}
+  explicit XMPL100(Port& port, const Config& config = {}) noexcept : bus_(port), config_(config) {}
   // /scaffold:bus-ctor
 
   /** @brief One driver object per chip. */
@@ -116,25 +118,21 @@ public:
   /// @{
 
   /**
-   * @brief Bring the bus up, reset the chip, check CHIP_ID and apply `config`.
+   * @brief Start the chip, once: the only way to initialise the driver.
    *
-   * Resets through RESET_N when the port has `GpioSet()`, otherwise with CTRL.SOFT_RESET. Safe to
-   * call again: it resets and reconfigures the chip each time. Blocks for at most t_RST plus a few
-   * register accesses.
+   * The first call brings the bus up, resets the chip (through RESET_N when the port has
+   * `GpioSet()`, otherwise with CTRL.SOFT_RESET), checks CHIP_ID and applies the stored
+   * configuration; it blocks for at most t_RST plus a few register accesses. After it succeeds,
+   * later calls return `Ok` at once with no I/O. After it fails, the driver stays uninitialised and
+   * the next call starts again from the beginning.
    *
-   * @param config What to write; checked with `Validate()` before any I/O.
-   * @return `Ok`, `InvalidArgument`, `Bus`, `Timeout` (reset did not finish), `DeviceIdMismatch`,
-   *         or `Unsupported` (CRC asked for on revision A).
-   */
-  Result<void> Initialize(const Config& config = {}) noexcept;
-
-  /**
-   * @brief `Initialize()` with the last configuration, unless already initialised.
-   * @return `Ok` at once when initialised; otherwise what `Initialize()` returns.
+   * @return `Ok`, `InvalidArgument` (the stored configuration fails `Validate()`; no I/O), `Bus`,
+   *         `Timeout` (reset did not finish), `DeviceIdMismatch`, or `Unsupported` (CRC asked for
+   *         on revision A).
    */
   Result<void> EnsureInitialized() noexcept;
 
-  /** @return true after a successful `Initialize()` and before `Deinitialize()`. No I/O. */
+  /** @return true after a successful `EnsureInitialized()` and before `Deinitialize()`. No I/O. */
   [[nodiscard]] bool IsInitialized() const noexcept {
     return initialized_;
   }
@@ -142,8 +140,9 @@ public:
   /**
    * @brief Put the chip in shutdown, its low-power safe state, and mark the driver uninitialised.
    *
-   * The driver is uninitialised afterwards even if the write failed. On an uninitialised driver it
-   * does nothing and returns `Ok`.
+   * The driver is uninitialised afterwards even if the write failed; the next
+   * `EnsureInitialized()` starts the chip again (the recovery after a fault). On an uninitialised
+   * driver it does nothing and returns `Ok`.
    *
    * @return `Ok` or `Bus`.
    */
@@ -167,30 +166,35 @@ public:
   /// @{
 
   /**
-   * @brief Write a whole configuration.
+   * @brief Change the whole configuration.
+   *
+   * Running: the configuration is written to the chip. Not started yet: `config` is only stored,
+   * for the first `EnsureInitialized()`, with no I/O.
+   *
    * @param config Checked with `Validate()` before any I/O.
-   * @return `Ok`, `NotInitialized`, `InvalidArgument`, `Unsupported` (CRC on revision A) or `Bus`.
+   * @return `Ok`, `InvalidArgument`, `Unsupported` (CRC on revision A) or `Bus`.
    */
   Result<void> ApplyConfig(const Config& config) noexcept;
 
-  /** @return The configuration last applied (or passed to `Initialize()`). No I/O. */
+  /** @return The configuration last applied or stored. No I/O. */
   [[nodiscard]] const Config& GetConfig() const noexcept {
     return config_;
   }
 
   /**
-   * @brief Change the conversion mode only.
+   * @brief Change the conversion mode only; stored without I/O before the start, as
+   * `ApplyConfig()`.
    * @param mode The mode.
-   * @return `Ok`, `NotInitialized`, `InvalidArgument` (not an enumerator, or averaging too long
+   * @return `Ok`, `InvalidArgument` (not an enumerator, or averaging too long
    *         for the data rate in continuous mode) or `Bus`.
    */
   Result<void> SetMode(Mode mode) noexcept;
 
   /**
-   * @brief Set the alert thresholds.
+   * @brief Set the alert thresholds; stored without I/O before the start, as `ApplyConfig()`.
    * @param low_c Low threshold in °C, from `kAlertMinC`.
    * @param high_c High threshold in °C, up to `kAlertMaxC`; must be above `low_c`.
-   * @return `Ok`, `NotInitialized`, `InvalidArgument` or `Bus`.
+   * @return `Ok`, `InvalidArgument` or `Bus`.
    */
   Result<void> SetAlertThresholdsC(float low_c, float high_c) noexcept;
 
@@ -246,7 +250,7 @@ public:
   /// @name Identification
   /// @{
 
-  /** @return REV_ID read by the last successful `Initialize()`; 0 before. No I/O. */
+  /** @return REV_ID read by the last successful start or reset; 0 before. No I/O. */
   [[nodiscard]] uint8_t GetRevision() const noexcept {
     return revision_;
   }
@@ -254,6 +258,7 @@ public:
   /// @}
 
 private:
+  Result<void> initialize() noexcept;
   Result<void> resetAndConfigure(const Config& config, bool soft_reset) noexcept;
   Result<void> pulseResetPin() noexcept;
   Result<void> waitResetDone() noexcept;

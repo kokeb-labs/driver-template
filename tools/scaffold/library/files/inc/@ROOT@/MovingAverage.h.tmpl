@@ -19,7 +19,7 @@ namespace xmpl100 {
  * @{
  */
 
-/** @brief What `MovingAverage::Initialize()` sets. */
+/** @brief What `MovingAverage::EnsureInitialized()` applies. */
 struct Config {
   uint16_t window_samples{8}; ///< Samples averaged, 1 to the capacity.
   float reject_above_abs{
@@ -29,8 +29,10 @@ struct Config {
 /**
  * @brief The mean of the last `window_samples` samples.
  *
- * No heap: the samples live in a member array of `Capacity` floats. `Push()` and `Average()` are
- * O(1). Not thread-safe and takes no lock: use one object from one task, or guard it.
+ * Lifecycle: construct with the configuration, then `EnsureInitialized()`, the one way to start;
+ * every call returns `Error::NotInitialized` until it has succeeded. No heap: the samples live in
+ * a member array of `Capacity` floats. `Push()` and `Average()` are O(1). Not thread-safe and
+ * takes no lock: use one object from one task, or guard it.
  *
  * @tparam Capacity The largest window, in samples.
  */
@@ -39,34 +41,40 @@ class MovingAverage {
   static_assert(Capacity > 0 && Capacity <= 65535, "MovingAverage: Capacity must be 1 to 65535");
 
 public:
-  /** @brief An uninitialised average; `Initialize()` sets the window. */
-  constexpr MovingAverage() noexcept = default;
+  /**
+   * @brief An uninitialised average that stores `config`; `EnsureInitialized()` applies it.
+   * @param config The window and the rejection limit; checked by `EnsureInitialized()`.
+   */
+  constexpr explicit MovingAverage(const Config& config = {}) noexcept : config_(config) {}
 
   /**
-   * @brief Set the window and clear the samples.
-   * @param config The window and the rejection limit.
+   * @brief Start the average, once: check the stored configuration and clear the samples.
+   *
+   * After it succeeds, later calls return `Ok` at once and change nothing. After it fails, the
+   * average stays uninitialised and the next call checks again.
+   *
    * @return `Ok`, or `InvalidArgument` when the window is 0 or above `Capacity` or the limit is
    * negative.
    */
-  Result<void> Initialize(const Config& config = {}) noexcept {
-    initialized_ = false;
-    if (config.window_samples == 0 || config.window_samples > Capacity ||
-        !(config.reject_above_abs >= 0.0F)) {
-      return Result<void>::Failure(Error::InvalidArgument);
+  Result<void> EnsureInitialized() noexcept {
+    if (initialized_) {
+      return Result<void>::Success();
     }
-    config_ = config;
-    Clear();
+    if (auto r = initialize(); !r) {
+      return r;
+    }
     initialized_ = true;
     return Result<void>::Success();
   }
 
-  /** @return true after a successful `Initialize()` and before `Deinitialize()`. */
+  /** @return true after a successful `EnsureInitialized()` and before `Deinitialize()`. */
   [[nodiscard]] bool IsInitialized() const noexcept {
     return initialized_;
   }
 
   /**
-   * @brief Forget the samples and the configuration.
+   * @brief Forget the samples and mark the average uninitialised; the configuration stays for the
+   * next `EnsureInitialized()`.
    * @return Always `Ok`.
    */
   Result<void> Deinitialize() noexcept {
@@ -127,12 +135,21 @@ public:
     return count_;
   }
 
-  /** @return The configuration last applied. */
+  /** @return The configuration stored or applied. */
   [[nodiscard]] const Config& GetConfig() const noexcept {
     return config_;
   }
 
 private:
+  Result<void> initialize() noexcept {
+    if (config_.window_samples == 0 || config_.window_samples > Capacity ||
+        !(config_.reject_above_abs >= 0.0F)) {
+      return Result<void>::Failure(Error::InvalidArgument);
+    }
+    Clear();
+    return Result<void>::Success();
+  }
+
   float samples_[Capacity] = {};
   double sum_ = 0.0;
   Config config_{};

@@ -11,10 +11,9 @@ using Sensor = xmpl100::XMPL100<MyPort>;
 
 // --8<-- [start:lifecycle]
 xmpl100::Error BringUp(Sensor& sensor) {
-  if (sensor.IsInitialized()) {
-    return xmpl100::Error::Ok;
-  }
-  const auto r = sensor.Initialize(xmpl100::LowPowerPreset());
+  // The one entry point: starts the chip on the first call, then returns Ok with no I/O. After a
+  // failure the next call starts again from the beginning.
+  const auto r = sensor.EnsureInitialized();
   if (!r) {
     std::printf("XMPL100 init: %s\n", xmpl100::ToString(r.error));
   }

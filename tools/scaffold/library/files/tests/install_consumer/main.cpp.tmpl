@@ -6,8 +6,8 @@
 #include "@ROOT@/MovingAverage.h"
 
 int main() {
-  xmpl100::MovingAverage<4> avg;
-  if (!avg.Initialize({4, 0.0F}) || !avg.Push(2.0F)) {
+  xmpl100::MovingAverage<4> avg(xmpl100::Config{4, 0.0F});
+  if (!avg.EnsureInitialized() || !avg.Push(2.0F)) {
     return 1;
   }
   const auto m = avg.Average();

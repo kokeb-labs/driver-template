@@ -38,7 +38,7 @@ Supply
 
 ## What you get
 
-- **One object per part**, no I/O until `Initialize()`. See [API guide](api-guide.md).
+- **One object per part**, no I/O until `EnsureInitialized()`. See [API guide](api-guide.md).
 - **Errors you can act on**: `Result<T>` with an `Error`. See [Contract](contract.md).
 - **Zero-overhead portability**: a CRTP port checked by a concept. See [Porting](porting.md).
 - **Tested without hardware** against a model of the pins. See [Testing and CI](testing.md).

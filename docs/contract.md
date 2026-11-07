@@ -8,12 +8,14 @@ this page states only what is specific to it. A change to anything here is a bre
 
 ## Promises
 
-- The constructor is `noexcept`, does no I/O and cannot fail.
-- `Initialize()` brings the bus up, resets the chip (RESET_N when the port has `GpioSet()`, otherwise
-  CTRL.SOFT_RESET), checks CHIP_ID and only then writes the configuration. On any failure the driver stays
-  uninitialised.
-- Every call that touches the chip returns `Error::NotInitialized` before `Initialize()` succeeds. No call
-  initialises or resets the chip as a side effect.
+- The constructor is `noexcept`, stores the configuration, does no I/O and cannot fail.
+- `EnsureInitialized()` is the only way to start the driver. Its first call checks the stored configuration
+  (`InvalidArgument`, nothing sent), brings the bus up, resets the chip (RESET_N when the port has `GpioSet()`,
+  otherwise CTRL.SOFT_RESET), checks CHIP_ID and only then writes the configuration. On any failure the driver
+  stays uninitialised and the next call starts again from the beginning; once it has succeeded, later calls return
+  `Ok` with no I/O.
+- Every call that touches the chip returns `Error::NotInitialized` before `EnsureInitialized()` succeeds. No call
+  initialises or resets the chip as a side effect. `ApplyConfig()` before the start only stores the configuration.
 - Every port failure propagates as `Error::Bus`; no getter returns a stale or zero value after a failed read.
 - Every wait is bounded: a reset by `kResetTimeMaxUs` plus three STATUS reads, a one-shot by
   `Config::conversion_timeout_ms`.
@@ -47,7 +49,7 @@ one of them, plus one chip-specific value.
 | `Error` | Value | Returned when |
 | --- | --- | --- |
 | `Ok` | 0 | The call succeeded |
-| `NotInitialized` | 1 | `Initialize()` has not succeeded, or `Deinitialize()` ran since |
+| `NotInitialized` | 1 | `EnsureInitialized()` has not succeeded, or `Deinitialize()` ran since |
 | `InvalidArgument` | 2 | A `Config` field or argument is out of range (`Validate()`); nothing was sent |
 | `Bus` | 3 | A port hook returned `false` |
 | `Timeout` | 4 | A reset or a conversion did not finish in time |

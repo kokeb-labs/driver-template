@@ -36,7 +36,7 @@ Start from a preset or from `Config{}` and change fields:
 
 ## Validation
 
-`xmpl100::Validate(config)` checks a configuration without touching the chip, and `Initialize()` and
+`xmpl100::Validate(config)` checks a configuration without touching the chip, and `EnsureInitialized()` and
 `ApplyConfig()` call it before any I/O. It returns `Error::InvalidArgument` when an enum holds a value that is not
 an enumerator, a threshold or the offset is out of range, the low threshold is not below the high one, the timeout
 is zero, or one averaged result takes longer than the data-rate period in continuous mode (at 16 Hz, at most 4

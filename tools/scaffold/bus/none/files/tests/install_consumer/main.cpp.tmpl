@@ -34,8 +34,8 @@ public:
 int main() {
   EmptyPort port;
   xmpl100::XMPL100<EmptyPort> sw(port);
-  // No self-test pulse on OUT, so Initialize() must fail with DeviceIdMismatch.
-  const auto r = sw.Initialize();
+  // No self-test pulse on OUT, so EnsureInitialized() must fail with DeviceIdMismatch.
+  const auto r = sw.EnsureInitialized();
   return (r.error == xmpl100::Error::DeviceIdMismatch && xmpl100::GetDriverVersion()[0] != '\0')
              ? 0
              : 1;
