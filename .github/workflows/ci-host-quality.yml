@@ -1,7 +1,7 @@
 ---
 name: Host quality
 
-# Complexity, coverage and sanitizer gates at this repository's assurance level (handbook ADR-0020).
+# Complexity, coverage, sanitizer and fuzz gates at this repository's assurance level (handbook ADR-0020).
 on:
   workflow_call:
   workflow_dispatch:
@@ -18,4 +18,7 @@ jobs:
     with:
       level: high
       cmake_args: "-DXMPL100_BUILD_TESTS=ON"
+      # scaffold:fuzz-args
+      fuzz_cmake_args: "-DXMPL100_BUILD_FUZZERS=ON"
+      # /scaffold:fuzz-args
       library_paths: "inc src"

@@ -1,0 +1,31 @@
+  /// One request frame to the chip. The fuzzer may fail it, or lose it on the line (no reply).
+  bool Write(const uint8_t* data, std::size_t len) noexcept {
+    Check(data != nullptr && len >= 4 && len <= 4 + xmpl100::detail::kMaxBurst);
+    const uint8_t action = nextAction();
+    if (action == kFail) {
+      return false;
+    }
+    if (action == kFlip) {
+      bus_.reply_len = bus_.reply_pos = 0; // lost: the chip never answers
+      return true;
+    }
+    return bus_.DoWrite(data, len);
+  }
+
+  /// Reply bytes, as the fuzzer lets them through; `false` (a timeout) when the chip sent fewer.
+  bool Read(uint8_t* data, std::size_t len, uint32_t timeout_ms) noexcept {
+    Check(data != nullptr && len >= 2 && len <= 2 + xmpl100::detail::kMaxBurst && timeout_ms > 0);
+    const uint8_t action = nextAction();
+    if (action == kFail || !bus_.DoRead(data, len)) {
+      return false;
+    }
+    tamper(action, data, len);
+    return true;
+  }
+
+  /// Drop what is left of an earlier reply.
+  bool FlushInput() noexcept {
+    transfers_++;
+    bus_.reply_len = bus_.reply_pos = 0;
+    return true;
+  }
