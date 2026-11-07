@@ -18,6 +18,9 @@ version bump (a minor bump before 1.0).
 
 - clang-format checks `src/<name>.ipp`: the lint job's `extensions` include `ipp` (ci-tools 1.5.1 also measures
   its complexity).
+- The hook tables in the Doxygen comments of the driver header and every port header keep one row per line:
+  clang-format had reflowed each table into a single paragraph, which Doxygen does not render as a table. The
+  comment blocks are wrapped in `// clang-format off` / `// clang-format on`.
 
 ### Breaking
 

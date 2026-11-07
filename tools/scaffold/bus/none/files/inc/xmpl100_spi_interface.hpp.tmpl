@@ -1,3 +1,4 @@
+// clang-format off: the table below must keep one row per line.
 /**
  * @file xmpl100_spi_interface.hpp
  * @brief The GPIO port of the XMPL100 driver: the CRTP base, its pin enums and the `SpiPort`
@@ -11,13 +12,13 @@
  *
  * | Hook | Contract |
  * | --- | --- |
- * | `bool EnsureInitialized() noexcept` | Configure the pins on the first call; `true` at once
- * afterwards | | `bool GpioRead(InPin pin, GpioSignal& level) noexcept` | The logical level of an
- * input pin; `false` on an error |
+ * | `bool EnsureInitialized() noexcept` | Configure the pins on the first call; `true` at once afterwards |
+ * | `bool GpioRead(InPin pin, GpioSignal& level) noexcept` | The logical level of an input pin; `false` on an error |
  *
  * The port maps logical levels to the physical polarity: OUT is active low on the pin, and
  * `GpioSignal::ACTIVE` means "asserted".
  */
+// clang-format on
 #pragma once
 
 #include <concepts>

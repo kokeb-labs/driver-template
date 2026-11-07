@@ -1,3 +1,4 @@
+// clang-format off: the table below must keep one row per line.
 /**
  * @file xmpl100_spi_interface.hpp
  * @brief The I2C port of the XMPL100 driver: the CRTP base, its pin enums, the `SpiPort` concept
@@ -10,15 +11,14 @@
  *
  * | Hook | Contract |
  * | --- | --- |
- * | `bool EnsureInitialized() noexcept` | Bring the bus up on the first call; `true` at once
- * afterwards | | `bool Write(uint8_t addr, const uint8_t* data, std::size_t len) noexcept` | START,
- * `addr` + W, `len` bytes, STOP; `false` on a NACK or bus error | | `bool WriteRead(uint8_t addr,
- * const uint8_t* tx, std::size_t tx_len, uint8_t* rx, std::size_t rx_len) noexcept` | START, `addr`
- * + W, `tx`, repeated START, `addr` + R, `rx_len` bytes, STOP |
+ * | `bool EnsureInitialized() noexcept` | Bring the bus up on the first call; `true` at once afterwards |
+ * | `bool Write(uint8_t addr, const uint8_t* data, std::size_t len) noexcept` | START, `addr` + W, `len` bytes, STOP; `false` on a NACK or bus error |
+ * | `bool WriteRead(uint8_t addr, const uint8_t* tx, std::size_t tx_len, uint8_t* rx, std::size_t rx_len) noexcept` | START, `addr` + W, `tx`, repeated START, `addr` + R, `rx_len` bytes, STOP |
  *
  * `addr` is the 7-bit address. The port moves raw bytes: the register address travels in the
  * payload, and the port never retries or configures the chip. Standard or fast mode, up to 400 kHz.
  */
+// clang-format on
 #pragma once
 
 #include <concepts>

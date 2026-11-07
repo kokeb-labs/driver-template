@@ -1,3 +1,4 @@
+// clang-format off: the table below must keep one row per line.
 /**
  * @file xmpl100_spi_interface.hpp
  * @brief The SPI port of the XMPL100 driver: the CRTP base, its pin enums, the `SpiPort` concept
@@ -10,14 +11,14 @@
  *
  * | Hook | Contract |
  * | --- | --- |
- * | `bool EnsureInitialized() noexcept` | Bring the bus up on the first call; `true` at once
- * afterwards | | `bool Transfer(const uint8_t* tx, uint8_t* rx, std::size_t len) noexcept` | One
- * full-duplex transfer, CS low for all `len` bytes; `rx` may be `nullptr` |
+ * | `bool EnsureInitialized() noexcept` | Bring the bus up on the first call; `true` at once afterwards |
+ * | `bool Transfer(const uint8_t* tx, uint8_t* rx, std::size_t len) noexcept` | One full-duplex transfer, CS low for all `len` bytes; `rx` may be `nullptr` |
  *
  * The port moves raw bytes: it never retries, never interprets the frame and never configures the
  * chip. SPI mode 0 or 3, MSB first, up to 10 MHz (datasheet section 6.2). The optional hooks
  * (`DelayUs`, `GpioSet`, `Log`) are described in `xmpl100.hpp`.
  */
+// clang-format on
 #pragma once
 
 #include <array>

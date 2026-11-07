@@ -1,3 +1,4 @@
+// clang-format off: the table below must keep one row per line.
 /**
  * @file xmpl100_spi_interface.hpp
  * @brief The ADC port of the XMPL100 driver: the CRTP base, its pin enums and the `SpiPort`
@@ -10,13 +11,13 @@
  *
  * | Hook | Contract |
  * | --- | --- |
- * | `bool EnsureInitialized() noexcept` | Bring the ADC up on the first call; `true` at once
- * afterwards | | `bool ReadVoltageMv(uint8_t channel, uint32_t& voltage_mv) noexcept` | One
- * calibrated conversion of `channel`, in millivolts; `false` on an error |
+ * | `bool EnsureInitialized() noexcept` | Bring the ADC up on the first call; `true` at once afterwards |
+ * | `bool ReadVoltageMv(uint8_t channel, uint32_t& voltage_mv) noexcept` | One calibrated conversion of `channel`, in millivolts; `false` on an error |
  *
  * The port converts raw counts to millivolts with the MCU's calibration; the driver never
  * configures the ADC (attenuation, width, sampling time).
  */
+// clang-format on
 #pragma once
 
 #include <concepts>
