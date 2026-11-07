@@ -22,9 +22,13 @@ XMPL100, a fictional example sensor on SPI. It follows the
 - `_config/`: all tool configuration (clang-format, clang-tidy, `Doxyfile`, `mkdocs.yml`, `Kconfig`, linters).
   Pass the path (`--style=file:_config/.clang-format`, `--config-file=_config/.clang-tidy`,
   `mkdocs build -f _config/mkdocs.yml`); never add copies or symlinks at the root.
-- `cmake/xmpl100_build_settings.cmake`: the only place the version is set.
+- `cmake/xmpl100_build_settings.cmake`: the only place the version is set; `driver.yml` repeats name and version,
+  and CI checks they agree.
+- `.kokeb/handbook.yml`: the handbook release this repository follows, its kind and assurance level, and any
+  waivers (rule, reason, approver, expiry). CI checks the handbook rules against it and reports each finding by
+  rule ID (`KB-CPP-003`, ...); fix the code, or add a dated waiver only with the maintainer's approval.
 - The root holds only what GitHub or a tool needs there and what a reader looks for first: `README.md`, `LICENSE`,
-  `CHANGELOG.md`, `CMakeLists.txt`, `AGENTS.md`, `CLAUDE.md`, `.gitignore`, `.gitmodules`.
+  `CHANGELOG.md`, `CMakeLists.txt`, `AGENTS.md`, `CLAUDE.md`, `.gitignore`, `.gitmodules`, `driver.yml`.
 <!-- scaffold:remove -->
 - `tools/setup.py`, `tools/scaffold.py`, `tools/scaffold/`, `docs/template.md`,
   `.github/workflows/template-init.yml`: template only; see docs/template.md.
@@ -71,7 +75,8 @@ the CTest `xmpl100_doxygen` when `doxygen` is installed; every public symbol in 
 
 The list in `standards/agents.md#definition-of-done`, in short: one change; standard followed or deviation
 named; every check above passes locally (the `verify` skill); host tests for new behaviour including failure
-paths; docs and Doxygen updated; `CHANGELOG.md` under `## [Unreleased]`; CI green including `CI gate / gate`;
+paths; docs and Doxygen updated; `CHANGELOG.md` under `## [Unreleased]`; CI green including `CI gate / gate`
+(which needs the handbook check, the Cortex-M build and the coverage, complexity and sanitizer gates);
 anything hardware-dependent marked **not verified on hardware** with bench steps.
 
 ## Rules specific to this repo

@@ -1,0 +1,21 @@
+---
+name: Cross-compile
+
+# Every test source, and so every operation of the driver, compiled for Cortex-M0+, M4F and M7F with the strict
+# flags (handbook KB-TST-005). Nothing is linked.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cross:
+    name: Cortex-M
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-cross-build.yml@v1
+    permissions:
+      contents: read
+    with:
+      build_target: xmpl100_optimised_build
+      cmake_args: "-DXMPL100_BUILD_TESTS=ON"

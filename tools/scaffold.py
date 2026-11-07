@@ -86,8 +86,8 @@ PLATFORM_ONLY = {
 # The repository root holds only these (kokeb-labs/.github standards/adr/0011-repository-root-layout.md): what
 # GitHub or a tool needs at the root, and what a reader looks for first. Tool configuration lives in _config/.
 ROOT_FILES = {"README.md", "LICENSE", "CHANGELOG.md", "CMakeLists.txt", "AGENTS.md", "CLAUDE.md", ".gitignore",
-              ".gitmodules"}
-ROOT_DIRS = {".github", ".claude", "_config", "cmake", "docs", "examples", "inc", "src", "tests", "tools"}
+              ".gitmodules", "driver.yml"}
+ROOT_DIRS = {".github", ".claude", ".kokeb", "_config", "cmake", "docs", "examples", "inc", "src", "tests", "tools"}
 # Local editor copies of the _config/ files (.gitignore lists them): never copied into a scaffold.
 LOCAL_ONLY = {".clang-format", ".clang-tidy"}
 # Code: never carries a link to the organisation's standard or CI, or the organisation's name.
@@ -119,6 +119,7 @@ LIBRARY_REMOVE = [
     "tests/docs",
     "tests/mock_xmpl100.hpp",
     "tests/mock_xmpl100_bus.hpp",
+    "driver.yml",
     "tests/test_bus_faults.cpp",
     "tests/test_errors.cpp",
     "tests/test_xmpl100.cpp",
@@ -318,6 +319,11 @@ class Names:
             t, f = BUS_TITLE[self.bus], BUS_FILE[self.bus]
             text = text.replace("SpiInterface", f"{t}Interface").replace("SpiPort", f"{t}Port")
             text = text.replace("_spi_interface", f"_{f}_interface")
+        # What the repository is (handbook KB-REPO-002) and, for a driver, the bus it declares (KB-REPO-018).
+        if rel == ".kokeb/handbook.yml":
+            text = text.replace("kind: template", f"kind: {self.kind}")
+        if rel == "driver.yml":
+            text = text.replace("bus: [spi]", f"bus: [{BUS_FILE[self.bus]}]")
         for token, value in (
             ("@ROOT@", self.root),
             ("@NS@", self.ns),

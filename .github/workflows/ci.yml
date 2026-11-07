@@ -45,6 +45,18 @@ jobs:
     permissions:
       contents: read
 
+  cross:
+    name: Cross-compile
+    uses: ./.github/workflows/ci-cross-build.yml
+    permissions:
+      contents: read
+
+  handbook:
+    name: Handbook check
+    uses: ./.github/workflows/ci-handbook.yml
+    permissions:
+      contents: read
+
   lint:
     name: C++ lint
     uses: ./.github/workflows/ci-cpp-lint.yml
@@ -91,6 +103,8 @@ jobs:
     needs:
       - host-tests
       - quality
+      - cross
+      - handbook
       # scaffold:platform-esp32-gate
       - esp32
       # /scaffold:platform-esp32-gate
