@@ -14,6 +14,14 @@ version bump (a minor bump before 1.0).
 - CI checks the handbook rules a script can decide (ci-tools `ru-handbook-check`) and compiles every test source,
   and so every operation of the driver, for Cortex-M0+, M4F and M7F (`ru-cross-build`); both are in the CI gate.
 
+### Fixed
+
+- clang-format checks `src/<name>.ipp`: the lint job's `extensions` include `ipp` (ci-tools 1.5.1 also measures
+  its complexity).
+- The hook tables in the Doxygen comments of the driver header and every port header keep one row per line:
+  clang-format had reflowed each table into a single paragraph, which Doxygen does not render as a table. The
+  comment blocks are wrapped in `// clang-format off` / `// clang-format on`.
+
 ### Breaking
 
 - None yet.

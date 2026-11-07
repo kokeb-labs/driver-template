@@ -71,6 +71,7 @@ void Log(Port& port, LogLevel level, const char* message) noexcept {
  * @{
  */
 
+// clang-format off: the table below must keep one row per line.
 /**
  * @brief Driver for one XMPL100 on a platform port.
  *
@@ -82,16 +83,15 @@ void Log(Port& port, LogLevel level, const char* message) noexcept {
  *
  * | Hook | Used for | Without it |
  * | --- | --- | --- |
- * | `void DelayUs(uint32_t us) noexcept` | t_RST after a reset, 1 ms between result polls | Compile
- * error: the waits are required | | `bool GpioSet(CtrlPin, GpioSignal) noexcept` | RESET_N:
- * hardware reset in `Initialize()` and `HardwareReset()` | Soft reset in `Initialize()`;
- * `HardwareReset()` returns `Unsupported` | | `void Log(LogLevel, const char* fmt, ...) noexcept` |
- * One line per lifecycle event or failure | Nothing is logged |
+ * | `void DelayUs(uint32_t us) noexcept` | t_RST after a reset, 1 ms between result polls | Compile error: the waits are required |
+ * | `bool GpioSet(CtrlPin, GpioSignal) noexcept` | RESET_N: hardware reset in `Initialize()` and `HardwareReset()` | Soft reset in `Initialize()`; `HardwareReset()` returns `Unsupported` |
+ * | `void Log(LogLevel, const char* fmt, ...) noexcept` | One line per lifecycle event or failure | Nothing is logged |
  *
  * A hook declared with the wrong signature (for example `void GpioSet(...)`) is a compile error.
  *
  * @tparam Port Your class derived from `SpiInterface<Port>`.
  */
+// clang-format on
 template <SpiPort Port>
 class XMPL100 {
   static_assert(!detail::DeclaresGpioSet<Port> || detail::HasGpioSet<Port>,

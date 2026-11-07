@@ -1,3 +1,4 @@
+// clang-format off: the table below must keep one row per line.
 /**
  * @file xmpl100_spi_interface.hpp
  * @brief The UART port of the XMPL100 driver: the CRTP base, its pin enums, the `SpiPort` concept
@@ -10,15 +11,15 @@
  *
  * | Hook | Contract |
  * | --- | --- |
- * | `bool EnsureInitialized() noexcept` | Bring the UART up on the first call; `true` at once
- * afterwards | | `bool Write(const uint8_t* data, std::size_t len) noexcept` | Send `len` bytes;
- * `false` on an error | | `bool Read(uint8_t* data, std::size_t len, uint32_t timeout_ms) noexcept`
- * | Receive exactly `len` bytes within `timeout_ms`, or `false` | | `bool FlushInput() noexcept` |
- * Drop every received byte not read yet |
+ * | `bool EnsureInitialized() noexcept` | Bring the UART up on the first call; `true` at once afterwards |
+ * | `bool Write(const uint8_t* data, std::size_t len) noexcept` | Send `len` bytes; `false` on an error |
+ * | `bool Read(uint8_t* data, std::size_t len, uint32_t timeout_ms) noexcept` | Receive exactly `len` bytes within `timeout_ms`, or `false` |
+ * | `bool FlushInput() noexcept` | Drop every received byte not read yet |
  *
  * 115200 baud, 8 data bits, no parity, 1 stop bit (datasheet section 6.3). The port moves raw
  * bytes; the driver builds and checks the frames.
  */
+// clang-format on
 #pragma once
 
 #include <concepts>

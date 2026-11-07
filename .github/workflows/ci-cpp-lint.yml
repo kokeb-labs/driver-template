@@ -21,7 +21,7 @@ jobs:
       clang_version: "20"
       clang_format_config: "_config/.clang-format"
       clang_tidy_config: "_config/.clang-tidy"
-      extensions: "c,cpp,cc,cxx,h,hpp"
+      extensions: "c,cpp,cc,cxx,h,hpp,ipp"
       # examples/esp32 has its own lint job; tests/compile_fail must not compile, by design.
       ignore: "build|.git|docs|_site|examples/esp32|tools/scaffold|tests/compile_fail"
       files_changed_only: false
