@@ -2,6 +2,9 @@
 
 The driver's API by task, with code that compiles.
 
+<!-- generated: datasheet-refs -->
+<!-- /generated -->
+
 | Group | Calls |
 | --- | --- |
 | Lifecycle | `EnsureInitialized()`, `IsInitialized()`, `Deinitialize()`, `Sleep()` |
@@ -9,10 +12,11 @@ The driver's API by task, with code that compiles.
 | Configuration | `GetConfig()`, `xmpl100::Validate()` |
 
 The constructor stores the port and the configuration (`Config{}` unless you pass one) and does no I/O.
-`EnsureInitialized()` is the one way to start the part: its first call checks the configuration, then starts it as
-the [Contract](contract.md) page describes; once it has succeeded, later calls return `Ok` at once with no I/O, and after a failure the next
-call starts again from the beginning. No other call starts the part: before `EnsureInitialized()` succeeds every
-read returns `NotInitialized`. `Deinitialize()`, then `EnsureInitialized()`, is the recovery after a fault.
+`EnsureInitialized()` is the one way to start the part: its first call checks the configuration, then starts it as the
+[Contract](contract.md) page describes; once it has succeeded, later calls return `Ok` at once with no I/O, and after a
+failure the next call starts again from the beginning. No other call starts the part: before `EnsureInitialized()`
+succeeds every read returns `NotInitialized`. `Deinitialize()`, then `EnsureInitialized()`, is the recovery after a
+fault.
 
 ## Read the switch
 

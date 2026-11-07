@@ -1,0 +1,123 @@
+---
+# The vendor documents this driver was written against (handbook ADR-0019), and where the driver relies on them.
+# Never commit a PDF: `sha256` identifies the exact file that was used, so a reader can confirm they hold the same
+# revision. `pdf` is a stable direct link when the vendor publishes one (page links are built from it, adding
+# `page_offset` when the printed page numbers differ from the PDF's); otherwise readers download from `url`.
+#
+# The README card, docs/datasheet.md and the "Datasheet" box on each page are generated from this file by
+# tools/docs/generators/datasheet.py (`kokeb-docs gen`).
+#
+# PLACEHOLDER: the XMPL100 is a fictional part and so is this datasheet. Every value below (vendor, number,
+# revision, date, url, pdf, sha256, and the topics with their sections and pages) is an example. tools/setup.py
+# leaves them for you to replace with the real datasheet's (it only writes `url` from `--datasheet`), and
+# `kokeb-docs gen` keeps working with them meanwhile. Take `sha256` from the PDF you used (`shasum -a 256`).
+documents:
+  - id: ds
+    vendor: Example Corp (fictional)
+    title: XMPL100 Digital Temperature Sensor
+    kind: Datasheet
+    number: XMPL100-DS
+    revision: A
+    date: 2026-11-06
+    # scaffold:datasheet-url
+    url: https://example.com/xmpl100
+    # /scaffold:datasheet-url
+    pdf: null
+    page_offset: 0
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+
+# One row per thing the driver takes from a document: the datasheet's own section names and printed page
+# numbers, the driver API that implements it, and the docs pages that explain it (file names in docs/).
+topics:
+  - topic: Pins and package
+    doc: ds
+    section: 3 Pin configuration
+    page: 3
+    driver: "`CtrlPin::Reset`"
+    docs: [hardware, quickstart]
+  - topic: Supply voltage and supply current
+    doc: ds
+    section: 5 Electrical characteristics
+    page: 5
+    driver: "`Mode::Shutdown`, `Deinitialize()`"
+    docs: [hardware]
+  # scaffold:datasheet-bus
+  - topic: SPI mode, clock and register framing
+    doc: ds
+    section: 6.2 SPI interface
+    page: 8
+    driver: "`SpiInterface`, `SpiPort`, every register access"
+    docs: [hardware, porting, architecture]
+  # /scaffold:datasheet-bus
+  - topic: Register map and reset values
+    doc: ds
+    section: 7 Register map
+    page: 11
+    driver: "`inc/xmpl100_registers.hpp`, `Config{}`"
+    docs: [configuration, architecture]
+  - topic: Chip ID and silicon revision
+    doc: ds
+    section: 7.1 CHIP_ID and REV_ID
+    page: 11
+    driver: "`EnsureInitialized()`, `GetRevision()`, `Error::DeviceIdMismatch`"
+    docs: [hardware, troubleshooting]
+  - topic: Status flags
+    doc: ds
+    section: 7.3 STATUS
+    page: 12
+    driver: "`ReadStatus()`, `Status`, `Error::DeviceFault`, `Error::UnexpectedReset`"
+    docs: [api-guide, troubleshooting]
+  - topic: Conversion modes, output data rate and averaging
+    doc: ds
+    section: 7.4 CTRL; 7.5 CONFIG
+    page: 13
+    driver: "`Config::mode`, `odr`, `averaging`, `SetMode()`, `TriggerOneShot()`, `MeasureOnceC()`"
+    docs: [configuration, api-guide]
+  - topic: Temperature result format
+    doc: ds
+    section: 7.6 TEMP_MSB, TEMP_LSB and TEMP_CRC
+    page: 14
+    driver: "`ReadRawTemperature()`, `ReadTemperatureC()`"
+    docs: [api-guide]
+  - topic: Alert thresholds and the ALERT pin
+    doc: ds
+    section: 7.7 ALERT_HIGH and ALERT_LOW
+    page: 15
+    driver: "`Config::alert_enable`, `alert_polarity`, `alert_low_c`, `alert_high_c`, `SetAlertThresholdsC()`"
+    docs: [api-guide, configuration, hardware]
+  - topic: Offset correction
+    doc: ds
+    section: 7.8 OFFSET
+    page: 15
+    driver: "`Config::offset_c`"
+    docs: [configuration, troubleshooting]
+  - topic: CRC-8 of the result
+    doc: ds
+    section: 7.9 CRC
+    page: 16
+    driver: "`Config::crc_enable`, `reg::Crc8()`, `Error::Crc`"
+    docs: [hardware, troubleshooting]
+  - topic: Power-up time
+    doc: ds
+    section: 8.1 Power-up
+    page: 17
+    driver: "-"
+    docs: [hardware]
+  - topic: Soft reset and t_RST
+    doc: ds
+    section: 8.2 Soft reset
+    page: 17
+    driver: "`EnsureInitialized()`, `SoftReset()`, `kResetTimeMaxUs`, `Error::Timeout`"
+    docs: [hardware, porting, troubleshooting]
+  - topic: Hardware reset (RESET_N) and t_RST_PW
+    doc: ds
+    section: 8.3 Hardware reset
+    page: 18
+    driver: "`HardwareReset()`, `CtrlPin::Reset`, `kResetPulseMinUs`"
+    docs: [hardware, porting]
+  - topic: Conversion time t_CONV
+    doc: ds
+    section: 8.4 Conversion timing
+    page: 18
+    driver: "`kConversionTimeMaxUs`, `Config::conversion_timeout_ms`, `WaitDataReady()`"
+    docs: [hardware, troubleshooting]

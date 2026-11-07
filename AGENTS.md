@@ -13,7 +13,9 @@ XMPL100, a fictional example sensor on SPI. It follows the
   `inc/xmpl100_spi_interface.hpp` the port, `inc/xmpl100_types.hpp` errors and config.
 - `tests/`: host tests over the register model `tests/mock_xmpl100.hpp`, `tests/compile_fail/`, `tests/docs/`
   (every code block on the site), `tests/install_consumer/`.
-- `docs/`: the site pages (`docs/.nav.yml` orders them).
+- `docs/`: the site pages (`docs/.nav.yml` orders them). `docs/datasheets.yml` records the datasheet the driver
+  follows (revision, SHA-256) and every topic it takes from it; `kokeb-docs gen` builds the README card, the
+  Datasheet map (`docs/datasheet.md`) and each page's box from it (`tools/docs/generators/datasheet.py`).
 - `examples/<platform>/`: the only platform code, one self-contained folder per platform with its own port.
   `examples/host/` (simulated chip, any PC) always exists and runs in the host tests.
 <!-- scaffold:platform-esp32 -->

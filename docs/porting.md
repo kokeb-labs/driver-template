@@ -2,6 +2,18 @@
 
 Run the driver on a new MCU by writing one class: the port.
 
+<!-- generated: datasheet-refs -->
+??? abstract "Datasheet sections this page relies on"
+
+    From Example Corp (fictional) XMPL100-DS A:
+
+    - SPI mode, clock and register framing: 6.2 SPI interface, p. 8
+    - Soft reset and t_RST: 8.2 Soft reset, p. 17
+    - Hardware reset (RESET_N) and t_RST_PW: 8.3 Hardware reset, p. 18
+
+    All of them, with the driver API for each: [Datasheet map](datasheet.md).
+<!-- /generated -->
+
 The driver never calls your SDK. It calls hooks on a class you derive from `xmpl100::SpiInterface<Self>` (in
 [`inc/xmpl100_spi_interface.hpp`](../inc/xmpl100_spi_interface.hpp)). The base uses CRTP and declares no hook
 itself; the driver template is constrained by the `xmpl100::SpiPort` concept, so calls are resolved at compile

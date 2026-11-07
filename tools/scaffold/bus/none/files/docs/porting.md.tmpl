@@ -2,6 +2,9 @@
 
 Run the driver on a new MCU by writing one class: the port.
 
+<!-- generated: datasheet-refs -->
+<!-- /generated -->
+
 The driver calls hooks on a class you derive from `xmpl100::SpiInterface<Self>` (in
 [`inc/xmpl100_spi_interface.hpp`](../inc/xmpl100_spi_interface.hpp)). The base declares no hook; the driver template
 is constrained by the `xmpl100::SpiPort` concept, so a missing or misdeclared hook is a compile error.

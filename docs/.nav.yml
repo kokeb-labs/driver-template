@@ -18,6 +18,7 @@ nav:
       - Troubleshooting: troubleshooting.md
   - Reference:
       - API reference: api-reference.md
+      - Datasheet map: datasheet.md
       - Testing and CI: testing.md
       - Figures: diagrams/index.md
       - Changelog: changelog.md

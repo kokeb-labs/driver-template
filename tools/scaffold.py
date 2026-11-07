@@ -138,6 +138,10 @@ LIBRARY_REMOVE = [
     ".claude/skills/add-driver-feature",
     ".claude/skills/add-port",
     ".claude/skills/datasheet-conformance",
+    # A library has no datasheet (handbook ADR-0019 applies to drivers): no map, no generator, no regions.
+    "docs/datasheets.yml",
+    "docs/datasheet.md",
+    "tools/docs/generators/datasheet.py",
 ]
 # Blocks every scaffolded repository gets, whatever the kind (an overlay's block of the same name wins).
 COMMON_BLOCKS = {
@@ -356,21 +360,27 @@ class Names:
 
 
 def datasheet_blocks(a: argparse.Namespace) -> dict[str, str]:
-    """The datasheet link on the Hardware page and in the datasheet-conformance skill. Only the link: the PDF is
-    never downloaded or committed."""
+    """The datasheet link: the `url` of docs/datasheets.yml (which the README card, the Datasheet map and the boxes
+    on the pages are generated from), the Hardware page and the datasheet-conformance skill. Only the link: the PDF
+    is never downloaded or committed. The rest of docs/datasheets.yml stays the fictional placeholder until the
+    author fills it in."""
     if a.kind != "driver":
         return {}
     if a.datasheet:
         return {
             "datasheet": f"The datasheet: [XMPL100 datasheet]({a.datasheet}). Every pin, setting and timing on this"
-            " page cites a\nsection of it.\n",
-            "datasheet-link": f"The datasheet: <{a.datasheet}> (link only; never commit the vendor PDF).\n",
+            " page cites a\nsection of it; its revision, its SHA-256 and the sections each page relies on are in"
+            "\n[`docs/datasheets.yml`](datasheets.yml).\n",
+            "datasheet-link": f"The datasheet: <{a.datasheet}> (link only; never commit the vendor PDF). Record its"
+            " revision, SHA-256\nand every topic the driver takes from it in `docs/datasheets.yml`.\n",
+            "datasheet-url": f"    url: {a.datasheet}\n",
         }
     return {
-        "datasheet": "The datasheet: add its link here (`tools/setup.py --datasheet <url>` does it at setup). Link"
-        " the\nvendor's page or PDF; never commit the PDF.\n",
-        "datasheet-link": "The datasheet: not linked yet. Add its URL to `docs/hardware.md` and here; never commit"
-        " the\nvendor PDF.\n",
+        "datasheet": "The datasheet: not filled in yet. Fill in [`docs/datasheets.yml`](datasheets.yml) (vendor,"
+        " number, revision,\ndate, `url`, `pdf`, `sha256` and the topics); the card below, the [Datasheet"
+        " map](datasheet.md) and the box\nat the top of each page are generated from it. Never commit the PDF.\n",
+        "datasheet-link": "The datasheet: not linked yet. Fill in `docs/datasheets.yml` (vendor, number, revision,"
+        " date, `url`,\n`pdf`, `sha256` and the topics); never commit the vendor PDF.\n",
     }
 
 
@@ -453,8 +463,12 @@ def scaffold(a: argparse.Namespace, dest: Path) -> list[str]:
         "Run the verify skill (.claude/skills/verify/SKILL.md) before changing anything, and commit this state.",
     ]
     if a.kind == "driver":
-        if not a.datasheet:
-            todo.append("docs/hardware.md and .claude/skills/datasheet-conformance/SKILL.md: link the datasheet.")
+        todo.append(
+            "docs/datasheets.yml: the real datasheet's vendor, number, revision, date, "
+            + ("" if a.datasheet else "url, ")
+            + "pdf (stable direct link or null), sha256 of the PDF, and one topic per section the driver uses"
+            " (section, page, driver API, docs pages); then kokeb-docs gen. It still holds the fictional placeholder."
+        )
         if a.bus not in ("adc", "none"):
             todo.append(f"inc/{n.name}_registers.hpp: the real register map, with datasheet sections.")
         todo += [
@@ -686,8 +700,20 @@ def check_output(out: Path, a: argparse.Namespace) -> list[str]:
         hardware = (out / "docs/hardware.md").read_text()
         if a.datasheet and a.datasheet not in hardware:
             bad.append("docs/hardware.md: no datasheet link")
-    elif not (out / f"inc/{a.include_root}/Result.h").is_file():
-        bad.append(f"inc/{a.include_root}/Result.h: missing")
+        sheets = out / "docs/datasheets.yml"
+        if not sheets.is_file() or not (out / "docs/datasheet.md").is_file():
+            bad.append("docs/datasheets.yml or docs/datasheet.md: missing")
+        elif a.datasheet and f"url: {a.datasheet}\n" not in sheets.read_text():
+            bad.append("docs/datasheets.yml: url is not the --datasheet link")
+    else:
+        if not (out / f"inc/{a.include_root}/Result.h").is_file():
+            bad.append(f"inc/{a.include_root}/Result.h: missing")
+        for rel in ("docs/datasheets.yml", "docs/datasheet.md", "tools/docs/generators/datasheet.py"):
+            if (out / rel).exists():
+                bad.append(f"{rel}: a library has no datasheet")
+        for path, rel, text in text_files(out):
+            if path.suffix == ".md" and rel.parts[0] in ("README.md", "docs") and re.search(r"generated: datasheet-|Datasheet map|datasheet\.md", text):
+                bad.append(f"{rel.as_posix()}: a datasheet region or link in a library")
     licence = (out / "LICENSE").read_text()
     if a.author not in licence and a.license == "MIT":
         bad.append("LICENSE: no copyright holder")

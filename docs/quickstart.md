@@ -3,6 +3,16 @@
 Run the driver on your PC first, with no hardware; then read the temperature from your MCU: wire the chip, write
 a small port class, call two driver functions.
 
+<!-- generated: datasheet-refs -->
+??? abstract "Datasheet sections this page relies on"
+
+    From Example Corp (fictional) XMPL100-DS A:
+
+    - Pins and package: 3 Pin configuration, p. 3
+
+    All of them, with the driver API for each: [Datasheet map](datasheet.md).
+<!-- /generated -->
+
 ## Try it on your PC
 
 [`examples/host/`](../examples/host/README.md) runs the real driver against a simulated XMPL100, through a host

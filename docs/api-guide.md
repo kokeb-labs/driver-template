@@ -2,6 +2,19 @@
 
 The driver's API by task, with code that compiles: initialise, configure, measure, handle errors and shut down.
 
+<!-- generated: datasheet-refs -->
+??? abstract "Datasheet sections this page relies on"
+
+    From Example Corp (fictional) XMPL100-DS A:
+
+    - Status flags: 7.3 STATUS, p. 12
+    - Conversion modes, output data rate and averaging: 7.4 CTRL; 7.5 CONFIG, p. 13
+    - Temperature result format: 7.6 TEMP_MSB, TEMP_LSB and TEMP_CRC, p. 14
+    - Alert thresholds and the ALERT pin: 7.7 ALERT_HIGH and ALERT_LOW, p. 15
+
+    All of them, with the driver API for each: [Datasheet map](datasheet.md).
+<!-- /generated -->
+
 ## The shape of the API
 
 | Group | Calls |

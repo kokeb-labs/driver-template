@@ -4,19 +4,65 @@ C++20 driver for the XMPL100, a fictional example SPI temperature sensor: chip I
 
 [![CI](https://github.com/kokeb-labs/driver-template/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kokeb-labs/driver-template/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-informational)](docs/installation.md#requirements)
 
 **Documentation: <https://kokeb-labs.github.io/driver-template/>**
+
+The XMPL100 is a temperature switch: its OUT pin goes low when the part is hotter than its 85 °C trip point.
+It has no data bus. This driver powers it up, checks its power-on self-test pulse, reads OUT several times so a
+noisy or floating line is an error rather than a wrong answer, and puts it to sleep. It runs on any MCU: you give it
+a small class that reads one pin (and optionally drives another), and it does the rest.
 
 <!-- figure: driver-layers -->
 <!-- /figure -->
 
-## In 30 seconds
+## At a glance
 
-Write a small port class for your MCU (two GPIO pins and a delay;
-[Porting](https://kokeb-labs.github.io/driver-template/latest/porting/)), then:
+| | |
+| --- | --- |
+| **Chip** | XMPL100 temperature switch |
+| **Does** | Asserts OUT (open drain, active low) above its trip point, 85 °C typical |
+| **Bus** | None: GPIO only, OUT to an MCU input |
+| **Also drives** | SHDN_N, when your port has `GpioSet()`; then `EnsureInitialized()` checks the self-test pulse |
+| **Driver** | Header-only C++20; no heap, exceptions, RTTI or virtual calls; every call returns `Result<T>` |
+| **Runs on** | Any MCU with GPIO and a C++20 compiler; the host example runs on any PC ([Platforms](docs/platforms.md)) |
+| **Status** | 0.1.0, not yet verified on hardware: host-tested against a model of the pins |
+
+## Datasheet
+
+<!-- generated: datasheet-card -->
+<!-- /generated -->
+
+Every docs page lists the datasheet sections it relies on.
+
+## Try it on your PC
+
+No hardware needed: [`examples/host`](examples/host/README.md) runs the driver against a simulated part.
+
+```bash
+cmake -S examples/host -B build-example && cmake --build build-example && ./build-example/xmpl100_host_example
+```
+
+## Use it on your MCU
+
+**1. Wire it** ([Hardware](docs/hardware.md) has every pin and the timing):
+
+| MCU | XMPL100 | Notes |
+| --- | --- | --- |
+| GPIO input | OUT | Pull-up to 3.3 V (10 kΩ, or the MCU's internal one) |
+| 3.3 V | VDD | 100 nF to GND close to the pin |
+| GND | GND | |
+
+**2. Write the port**: a class with `EnsureInitialized()` (configure the pins), `GpioRead()` (the level of OUT)
+and `DelayUs()`, about 20 lines on most SDKs. [Porting](docs/porting.md) has the contract and a complete example.
+
+**3. Read the switch:**
 
 <!-- generated: quickstart-code -->
 <!-- /generated -->
+
+`EnsureInitialized()` is the only call that starts the part. Every other call returns `Error::NotInitialized`
+until it has succeeded, and no read ever starts the part on its own.
 
 ## What it does
 
@@ -36,22 +82,36 @@ add_subdirectory(external/driver-template)
 target_link_libraries(my_app PRIVATE xmpl100::xmpl100)
 ```
 
+Plain CMake covers any MCU (STM32, RP2040, nRF, ...) and the host.
+<!-- scaffold:platform-esp32 -->
+Under ESP-IDF the repository root is itself a component: add it to `EXTRA_COMPONENT_DIRS`, check it out under
+`components/`, or use it as a component-manager git dependency.
+<!-- /scaffold:platform-esp32 -->
+Details: [Installation](docs/installation.md) and [Platforms](docs/platforms.md).
+
 ## Documentation
 
-| | |
+| Page | Read it when you want to |
 | --- | --- |
-| [Quickstart](https://kokeb-labs.github.io/driver-template/latest/quickstart/) | Wire it, write the port, read the switch |
-| [Hardware](https://kokeb-labs.github.io/driver-template/latest/hardware/) | Pins, timing, power |
-| [Contract](https://kokeb-labs.github.io/driver-template/latest/contract/) | Promises, dependencies, threading, errors |
-| [API guide](https://kokeb-labs.github.io/driver-template/latest/api-guide/) | Start, read, handle errors |
-| [Porting](https://kokeb-labs.github.io/driver-template/latest/porting/) | The port and its optional hooks |
-| [API reference](https://kokeb-labs.github.io/driver-template/latest/api/) | Doxygen, every class and member |
+| [Quickstart](docs/quickstart.md) | Go from a bare part to a reading on your MCU |
+| [Hardware](docs/hardware.md) | Wire it, check the trip point and the timing |
+| [Porting](docs/porting.md) | Write the port class for your MCU's SDK |
+| [API guide](docs/api-guide.md) | Use each call: start, read the switch, filter a noisy line, handle errors |
+| [Configuration](docs/configuration.md) | Choose how many reads make one reading, or start from a preset |
+| [Troubleshooting](docs/troubleshooting.md) | Find the cause of an error or a wrong reading |
+| [Contract](docs/contract.md) | Know exactly what the driver promises, needs and returns |
+| [Datasheet map](docs/datasheet.md) | Find the datasheet section behind each part of the driver |
+| [API reference](https://kokeb-labs.github.io/driver-template/latest/api/) | Look up a class or member (Doxygen) |
 
-## Tests
+## Tests and quality
 
 ```bash
 cmake -S . -B build -DXMPL100_BUILD_TESTS=ON && cmake --build build && ctest --test-dir build
 ```
+
+The host tests run the driver against a model of the pins and produce each error the driver can return. CI also builds
+for Cortex-M and checks coverage, complexity, sanitizers, clang-tidy and the handbook rules (`.kokeb/handbook.yml`). See
+[Testing and CI](docs/testing.md).
 
 ## License
 

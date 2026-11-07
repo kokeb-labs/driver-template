@@ -2,6 +2,19 @@
 
 Every field of `xmpl100::Config`, the presets, how a configuration is checked, and the optional Kconfig layer.
 
+<!-- generated: datasheet-refs -->
+??? abstract "Datasheet sections this page relies on"
+
+    From Example Corp (fictional) XMPL100-DS A:
+
+    - Register map and reset values: 7 Register map, p. 11
+    - Conversion modes, output data rate and averaging: 7.4 CTRL; 7.5 CONFIG, p. 13
+    - Alert thresholds and the ALERT pin: 7.7 ALERT_HIGH and ALERT_LOW, p. 15
+    - Offset correction: 7.8 OFFSET, p. 15
+
+    All of them, with the driver API for each: [Datasheet map](datasheet.md).
+<!-- /generated -->
+
 ## Fields
 
 `Config{}` holds the chip's reset values, so it changes nothing on a freshly reset chip. Fields with a unit carry

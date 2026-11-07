@@ -1,0 +1,6 @@
+  - topic: UART settings, frames and their CRC-8
+    doc: ds
+    section: 6.3 UART interface
+    page: 9
+    driver: "`SpiInterface`, `SpiPort`, every register access"
+    docs: [hardware, porting, architecture]
