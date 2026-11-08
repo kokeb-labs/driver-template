@@ -62,6 +62,7 @@ settings an owner applies.
 | `--datasheet` | none | Driver only: the datasheet URL, written into `docs/datasheets.yml` and linked on the Hardware page and in the `datasheet-conformance` skill; never fetched |
 | `--out DIR` | in place | `scaffold.py` only: write a scaffolded copy instead of rewriting this checkout |
 | `--selftest` | | `scaffold.py` only: scaffold every case into temporary directories and check each (what CI runs) |
+| `--check-drift DIR` | | `scaffold.py` only: compare the files the template manages in the repository at `DIR` with a fresh scaffold ([Template drift](#template-drift)); `--fix` takes the template's version |
 
 ## What the scaffold changes
 
@@ -102,6 +103,7 @@ settings an owner applies.
 8. **Formatting and docs.** With `clang-format` installed it formats the C++ sources (the new names change the
    include order); with `kokeb-docs` installed it redraws the figure and refreshes the generated regions (the README
    quickstart, the Examples table). Otherwise the checklist says to.
+9. **Record.** `.kokeb/template.yml` keeps the template commit and the arguments, for the drift check.
 
 ## The repository root
 
@@ -168,6 +170,23 @@ every bus (`none` included), a host-only driver, a driver for another organisati
 link, and two libraries; it fails on a template name, a foreign organisation name or an organisation link left in
 code. Overlay files mirror the template paths under `tools/scaffold/<kind>/files/` with a `.tmpl` suffix, so linters
 and the build skip them.
+
+## Template drift
+
+A scaffolded repository keeps its own copy of the template's shell, so a fix here does not reach it by itself. The
+drift check finds the copies that fell behind. `python3 tools/scaffold.py --check-drift DIR` reads
+`DIR/.kokeb/template.yml`, scaffolds this checkout again with those arguments into a temporary directory and compares
+every file the template manages:
+
+- managed: `.github/`, `_config/` (except `Kconfig`), `.claude/skills/`, `cmake/` (except
+  `<name>_build_settings.cmake`), `CLAUDE.md` and the `tests/check_*.cmake` helpers;
+- the repository's own: code, tests, docs, the README, the changelog, `driver.yml`, `_config/Kconfig`.
+
+Each scaffolded repository runs it in CI as the `Template drift` job (ci-tools `ru-template-drift`), which warns on
+each drifted file. `--fix` replaces the drifted files with the template's version and records the new template
+commit; review that diff, because a difference can be a fix the repository made first that belongs here. A file that
+differs on purpose goes under `local` in the record, with the reason. A change to a managed file here therefore
+shows up as a warning in every repository made from the template until each takes it.
 
 For a local docs check, install the theme in a venv:
 `pip install "git+https://github.com/kokeb-labs/ci-tools@v1#subdirectory=packages/kokeb-mkdocs-theme"`, which

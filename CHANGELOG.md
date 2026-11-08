@@ -6,6 +6,16 @@ version bump (a minor bump before 1.0).
 
 ## [Unreleased]
 
+### Added
+
+- Template drift check: the scaffold records the template commit and its arguments in `.kokeb/template.yml`, and
+  `tools/scaffold.py --check-drift DIR [--fix]` scaffolds the template again with them and compares the files the
+  template manages (workflows, `_config/` except `Kconfig`, skills, CMake helpers). A file that differs on purpose
+  is listed under `local` with its reason. CI runs it as the `Template drift` job (ci-tools `ru-template-drift`,
+  warning only), and the self-test checks that a fresh scaffold has no drift.
+- `release.yml`: the `attest` job signs build provenance for every release file (ci-tools `ru-attest-release`); a
+  private repository skips it.
+
 ### Changed
 
 - `AGENTS.md` states that extra read-back and verification are chosen per call with a `Verify` argument that
