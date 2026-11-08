@@ -6,6 +6,11 @@ version bump (a minor bump before 1.0).
 
 ## [Unreleased]
 
+### Changed
+
+- `AGENTS.md` states that extra read-back and verification are chosen per call with a `Verify` argument that
+  defaults to `Verify::None` (handbook KB-ARCH-041).
+
 ### Fixed
 
 - The scaffold ends the description with a full stop in `AGENTS.md`, where the next sentence follows it
