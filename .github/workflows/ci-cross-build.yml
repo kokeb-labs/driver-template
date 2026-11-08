@@ -5,7 +5,6 @@ name: Cross-compile
 # flags (handbook KB-TST-005). Nothing is linked.
 on:
   workflow_call:
-  workflow_dispatch:
 
 permissions:
   contents: read

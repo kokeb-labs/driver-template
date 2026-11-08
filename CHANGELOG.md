@@ -18,6 +18,10 @@ version bump (a minor bump before 1.0).
 
 ### Changed
 
+- No workflow has a `workflow_dispatch` trigger any more (ci-tools trigger policy): a manual run is a re-run. A
+  dispatched run executes in the default branch's context and can write the cache that `main` restores. The ESP32
+  build's `clean_build` input went with it; `gh cache delete --all` empties the caches when a clean build is wanted.
+
 - CI runs fewer jobs, because a private repository is billed every job rounded up to a whole minute: host tests
   build GCC and Clang in one job; DCO, the org standard, Markdown and YAML lint, the handbook rules, template drift
   and cppcheck are steps of one `Repository checks` job (`ci-repo-checks.yml`, ci-tools `ru-repo-checks`), which

@@ -4,7 +4,6 @@ name: Host quality
 # Complexity, coverage, sanitizer and fuzz gates at this repository's assurance level (handbook ADR-0020).
 on:
   workflow_call:
-  workflow_dispatch:
 
 permissions:
   contents: read

@@ -1,6 +1,6 @@
 ---
 # The repository's CI: every check, then the one gate that the ruleset requires ("CI gate / gate").
-# Each check is its own workflow file (callable alone with workflow_dispatch) that calls the shared
+# Each check is its own workflow file (re-run a check from its run; there is no manual trigger) that calls the shared
 # workflows of kokeb-labs/ci-tools at @v1; this file runs them together so a single gate can need all of them.
 name: CI
 
@@ -10,7 +10,6 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main, 'release/*']
-  workflow_dispatch:
 
 permissions:
   contents: read

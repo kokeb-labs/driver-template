@@ -8,7 +8,6 @@ name: Template init
 on:
   push:
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   issues: write
