@@ -30,3 +30,19 @@ jobs:
       # scaffold:platform-esp32
       fail_on_no_artifacts: true  # the ESP32 example firmware must be in the release
       # /scaffold:platform-esp32
+
+  # Signed build provenance for every file in the release's SHA256SUMS. GitHub attestations need a public
+  # repository, so a private one skips this job. Check a download:
+  #   gh attestation verify <file> -R kokeb-labs/driver-template \
+  #     --signer-workflow kokeb-labs/ci-tools/.github/workflows/ru-attest-release.yml
+  attest:
+    name: Attest release files
+    needs: release
+    if: github.event.repository.visibility == 'public'
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-attest-release.yml@v1
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    with:
+      tag_name: ${{ github.event.workflow_run.head_branch }}

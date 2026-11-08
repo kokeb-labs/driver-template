@@ -24,12 +24,21 @@ By default the repository is rewritten in place; --out DIR writes a scaffolded c
    ..._spi_interface -> ..._i2c_interface), the repository links (--org, --repo), the copyright holder
    (--author), the licence (--license) and the description; the README and docs titles follow.
 5. Regenerates the docs figures and generated regions when kokeb-docs is installed, and prints a checklist.
+6. Records the template commit and these arguments in .kokeb/template.yml.
+
+Template drift: `python3 tools/scaffold.py --check-drift DIR` scaffolds the current template again with the
+arguments in DIR/.kokeb/template.yml and compares the files the template manages (MANAGED below: workflows,
+tool configuration, skills, CMake helpers). A file that differs is drift: take the template's version with
+`--fix`, or, when the difference is the repository's own on purpose, list it under `local` with the reason.
+CI runs it through kokeb-labs/ci-tools ru-template-drift.
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime
+import difflib
+import json
 import os
 import re
 import shutil
@@ -107,6 +116,18 @@ TEMPLATE_ONLY = [
     ".github/workflows/template-selftest.yml",
     ".github/workflows/template-init.yml",
 ]
+# Template drift (--check-drift): the files every scaffolded repository keeps as the template makes them. Everything
+# else (code, tests, docs, README, CHANGELOG) is the repository's own.
+TEMPLATE_RECORD = ".kokeb/template.yml"
+MANAGED_PREFIXES = (".github/", "_config/", ".claude/skills/", "cmake/")
+MANAGED_FILES = {"CLAUDE.md", "tests/check_doxygen.cmake", "tests/check_install.cmake",
+                 "tests/check_version_copy.cmake"}
+# Inside those folders but the repository's own from the first commit.
+UNMANAGED_RE = re.compile(r"_config/Kconfig|cmake/[a-z0-9_]+_build_settings\.cmake")
+# The arguments the record keeps, in order; each is a scaffold option of the same name.
+RECORD_ARGS = ("kind", "name", "bus", "namespace", "description", "include_root", "org", "repo", "author", "license",
+               "datasheet", "platforms")
+
 # Kept verbatim apart from the licence and author: they describe the template itself.
 NO_RENAME = {"docs/repo-setup.md", ".claude/skills/new-driver-from-template/SKILL.md"}
 # A library keeps the shell and drops the chip; its host tests live in tests/host/.
@@ -460,6 +481,9 @@ def scaffold(a: argparse.Namespace, dest: Path) -> list[str]:
     # 8. Figures and generated regions.
     regenerated = regenerate(dest)
 
+    # 9. What the drift check needs to scaffold this repository again.
+    write_record(a, dest)
+
     bus = "" if a.kind == "library" else ", " + ("GPIO only" if a.bus == "none" else a.bus.upper())
     todo = [
         f"Scaffolded {n.title} ({a.kind}{bus}; platforms {', '.join(p for p in PLATFORMS if p in n.platforms)};"
@@ -552,7 +576,7 @@ def root_problems(root: Path, entries: list[str] | None = None) -> list[str]:
 
 def regenerate(dest: Path) -> bool:
     exe = shutil.which("kokeb-docs")
-    if not exe:
+    if not exe or os.environ.get("SCAFFOLD_NO_DOCS"):
         return False
     env = dict(os.environ, KOKEB_DOCS_ROOT=str(dest))
     for args in (["figures"], ["gen"]):
@@ -560,6 +584,176 @@ def regenerate(dest: Path) -> bool:
             continue
         subprocess.run([exe, *args], cwd=dest, env=env, check=True, stdout=subprocess.DEVNULL)
     return True
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Template drift.
+# ---------------------------------------------------------------------------------------------------------------
+
+def template_commit() -> str:
+    try:
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True,
+                              check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
+def record_text(values: dict, local: list[dict], commit: str) -> str:
+    lines = [
+        "---",
+        "# How this repository was made from kokeb-labs/driver-template. The template's drift check",
+        "# (tools/scaffold.py --check-drift, CI: kokeb-labs/ci-tools ru-template-drift) scaffolds the template again",
+        "# with these arguments and compares the files it manages. List a file under `local` only when it differs on",
+        "# purpose, with the reason.",
+        f"template: {commit}",
+    ]
+    for key in RECORD_ARGS:
+        v = values.get(key)
+        if v is None:
+            lines.append(f"{key}: null")
+        elif isinstance(v, list):
+            lines.append(f"{key}: [{', '.join(v)}]")
+        else:
+            lines.append(f"{key}: {json.dumps(v)}")
+    if local:
+        lines.append("local:")
+        for item in local:
+            lines.append(f"  - path: {item['path']}")
+            lines.append(f"    reason: {json.dumps(item['reason'])}")
+    else:
+        lines.append("local: []")
+    return "\n".join(lines) + "\n"
+
+
+def write_record(a: argparse.Namespace, dest: Path) -> None:
+    values = {k: getattr(a, k, None) for k in RECORD_ARGS}
+    if a.kind != "library":
+        values["include_root"] = None
+    (dest / TEMPLATE_RECORD).write_text(record_text(values, [], template_commit()), encoding="utf-8")
+
+
+def read_record(path: Path) -> tuple[dict, list[dict], str]:
+    """Read .kokeb/template.yml: the small YAML subset record_text() writes."""
+    values: dict = {}
+    local: list[dict] = []
+    commit = "unknown"
+
+    def scalar(raw: str):
+        raw = raw.strip()
+        if raw == "null":
+            return None
+        if raw.startswith('"'):
+            return json.loads(raw)
+        if raw.startswith("[") and raw.endswith("]"):
+            return [x.strip() for x in raw[1:-1].split(",") if x.strip()]
+        return raw
+
+    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#") or line == "---":
+            continue
+        m = re.fullmatch(r"  - path: (\S+)", line)
+        if m:
+            local.append({"path": m.group(1), "reason": ""})
+            continue
+        m = re.fullmatch(r"    reason: (.+)", line)
+        if m and local:
+            local[-1]["reason"] = scalar(m.group(1))
+            continue
+        m = re.fullmatch(r"([a-z_]+): ?(.*)", line)
+        if not m:
+            fail(f"{path}:{n}: not understood: {line}")
+        key, raw = m.groups()
+        if key == "template":
+            commit = raw.strip()
+        elif key == "local":
+            if raw.strip() not in ("", "[]"):
+                fail(f"{path}:{n}: local is a list of path/reason entries")
+        elif key in RECORD_ARGS:
+            values[key] = scalar(raw)
+        else:
+            fail(f"{path}:{n}: unknown key {key}")
+    for item in local:
+        if not item["reason"]:
+            fail(f"{path}: local entry {item['path']} has no reason")
+    return values, local, commit
+
+
+def managed(rel: str) -> bool:
+    if UNMANAGED_RE.fullmatch(rel):
+        return False
+    return rel in MANAGED_FILES or rel.startswith(MANAGED_PREFIXES)
+
+
+def check_drift(repo: Path, fix: bool) -> int:
+    """Compare the files the template manages in `repo` with a fresh scaffold. 0: no drift (or fixed)."""
+    repo = repo.resolve()
+    if (repo / "inc/xmpl100.hpp").is_file() and (repo / "tools/scaffold.py").is_file():
+        print("this is driver-template itself: nothing to compare")
+        return 0
+    record = repo / TEMPLATE_RECORD
+    if not record.is_file():
+        print(f"{TEMPLATE_RECORD}: missing; add it with the arguments this repository was scaffolded with")
+        return 1
+    values, local, _ = read_record(record)
+    args: list[str] = []
+    for key in RECORD_ARGS:
+        v = values.get(key)
+        if v is None:
+            continue
+        args += [f"--{key.replace('_', '-')}", ",".join(v) if isinstance(v, list) else str(v)]
+    exempt = {item["path"]: item["reason"] for item in local}
+    gha = bool(os.environ.get("GITHUB_ACTIONS"))
+    drift: list[str] = []
+    with tempfile.TemporaryDirectory(prefix="drift-") as tmp:
+        out = Path(tmp) / "repo"
+        env = dict(os.environ, SCAFFOLD_NO_DOCS="1")
+        done = subprocess.run([sys.executable, str(Path(__file__).resolve()), *args, "--out", str(out)], cwd=ROOT,
+                              env=env, capture_output=True, text=True)
+        if done.returncode != 0:
+            print(done.stdout + done.stderr)
+            fail("the scaffold failed with the recorded arguments")
+        for path in sorted(p for p in out.rglob("*") if p.is_file()):
+            rel = path.relative_to(out).as_posix()
+            if not managed(rel) or skipped(Path(rel)):
+                continue
+            mine = repo / rel
+            want = path.read_text(encoding="utf-8", errors="replace")
+            have = mine.read_text(encoding="utf-8", errors="replace") if mine.is_file() else None
+            if have == want:
+                if rel in exempt:
+                    print(f"{rel}: listed under local but matches the template; remove it from local")
+                    drift.append(rel)
+                continue
+            if rel in exempt:
+                print(f"{rel}: differs, kept on purpose ({exempt[rel]})")
+                continue
+            drift.append(rel)
+            if fix:
+                mine.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, mine)
+                print(f"{rel}: replaced with the template's version")
+                continue
+            what = "missing" if have is None else "differs from the template"
+            print(f"\n{rel}: {what}")
+            diff = list(difflib.unified_diff((have or "").splitlines(), want.splitlines(), f"{rel} (this repository)",
+                                             f"{rel} (template)", lineterm="", n=2))
+            print("\n".join(diff[:80] + (["  ..."] if len(diff) > 80 else [])))
+            if gha:
+                print(f"::warning file={rel}::{what}: take the template's version (scaffold.py --check-drift --fix)"
+                      " or list it under local in .kokeb/template.yml with the reason")
+    for rel in exempt:
+        if not managed(rel):
+            print(f"{rel}: listed under local but not a file the template manages; remove it from local")
+            drift.append(rel)
+    if fix:
+        record.write_text(record_text(values, local, template_commit()), encoding="utf-8")
+        print(f"{TEMPLATE_RECORD}: template commit updated")
+        return 0
+    if drift:
+        print(f"\ntemplate drift: {len(drift)} file(s)")
+        return 1
+    print("no template drift")
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -583,6 +777,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--out", type=Path, help="write a scaffolded copy here instead of rewriting in place")
     p.add_argument("--selftest", action="store_true", help="scaffold every kind into temp dirs and check each")
+    p.add_argument("--check-drift", type=Path, metavar="DIR",
+                   help="compare the files the template manages in DIR with a fresh scaffold (.kokeb/template.yml)")
+    p.add_argument("--fix", action="store_true", help="with --check-drift: take the template's version of each")
     return p
 
 
@@ -757,6 +954,9 @@ def selftest(only: str | None) -> int:
             if bad:
                 print("the scaffolded repository is wrong:", *bad, sep="\n  ")
                 return 1
+            if check_drift(out, fix=False) != 0:
+                print("a fresh scaffold drifts from the template")
+                return 1
             if (out / "examples/esp32").exists() != ("esp32" in a.platforms) or not (out / "examples/host").is_dir():
                 print("platforms: examples/esp32 missing or left over, or examples/host missing")
                 return 1
@@ -782,6 +982,8 @@ def main(argv: list[str] | None = None) -> int:
     a = p.parse_args(sys.argv[1:] if argv is None else argv)
     if a.selftest:
         return selftest(os.environ.get("SCAFFOLD_SELFTEST_ONLY"))
+    if a.check_drift:
+        return check_drift(a.check_drift, a.fix)
     if not (ROOT / "inc/xmpl100.hpp").is_file() or not OVERLAYS.is_dir():
         fail("run this from an unmodified driver-template checkout (inc/xmpl100.hpp or tools/scaffold/ missing)")
     dest = a.out.resolve() if a.out else ROOT
