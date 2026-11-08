@@ -51,12 +51,6 @@ jobs:
     permissions:
       contents: read
 
-  handbook:
-    name: Handbook check
-    uses: ./.github/workflows/ci-handbook.yml
-    permissions:
-      contents: read
-
   lint:
     name: C++ lint
     uses: ./.github/workflows/ci-cpp-lint.yml
@@ -64,41 +58,14 @@ jobs:
       contents: read
       pull-requests: write
 
-  cppcheck:
-    name: C++ analysis
-    uses: ./.github/workflows/ci-cpp-analysis.yml
-
-  markdown:
-    name: Markdown lint
-    uses: ./.github/workflows/ci-markdown-lint.yml
-
-  yaml:
-    name: YAML lint
-    uses: ./.github/workflows/ci-yaml-lint.yml
-
-  # Every commit of a pull request carries a Signed-off-by line (Developer Certificate of Origin).
-  dco:
-    name: DCO
-    if: github.event_name == 'pull_request'
-    uses: kokeb-labs/ci-tools/.github/workflows/dco.yml@v1
+  # DCO (pull requests; elsewhere it passes with nothing to check), the org standard, Markdown and YAML lint, the
+  # handbook rules, template drift (warns only) and cppcheck: steps of one job, billed as one.
+  checks:
+    name: Repository checks
+    uses: ./.github/workflows/ci-repo-checks.yml
     permissions:
       contents: read
       pull-requests: read
-
-  # The files and settings the org standard requires of every repository (licence, governance files, root layout).
-  org-standard:
-    name: Org standard
-    uses: kokeb-labs/ci-tools/.github/workflows/org-standard-check.yml@v1
-    permissions:
-      contents: read
-
-  # The workflows, _config/, skills and CMake helpers must match what the template makes today from
-  # .kokeb/template.yml (warns only; scaffold.py --check-drift --fix takes the template's version).
-  template-drift:
-    name: Template drift
-    uses: kokeb-labs/ci-tools/.github/workflows/ru-template-drift.yml@v1
-    permissions:
-      contents: read
 
   # >>> template-only (tools/scaffold.py removes this block from a scaffolded repository)
   template-selftest:
@@ -112,18 +79,12 @@ jobs:
       - host-tests
       - quality
       - cross
-      - handbook
       # scaffold:platform-esp32-gate
       - esp32
       # /scaffold:platform-esp32-gate
       - docs
       - lint
-      - cppcheck
-      - markdown
-      - yaml
-      - dco
-      - org-standard
-      - template-drift
+      - checks
       - template-selftest  # template-only
     if: always()
     uses: kokeb-labs/ci-tools/.github/workflows/ru-ci-gate.yml@v1
@@ -131,4 +92,3 @@ jobs:
       contents: read
     with:
       needs_json: ${{ toJSON(needs) }}
-      allow_skipped: dco  # runs on pull requests only

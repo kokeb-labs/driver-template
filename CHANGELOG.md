@@ -18,6 +18,12 @@ version bump (a minor bump before 1.0).
 
 ### Changed
 
+- CI runs fewer jobs, because a private repository is billed every job rounded up to a whole minute: host tests
+  build GCC and Clang in one job; DCO, the org standard, Markdown and YAML lint, the handbook rules, template drift
+  and cppcheck are steps of one `Repository checks` job (`ci-repo-checks.yml`, ci-tools `ru-repo-checks`), which
+  replaces `ci-handbook.yml`, `ci-cpp-analysis.yml`, `ci-markdown-lint.yml` and `ci-yaml-lint.yml`; the
+  cross-compile and host-quality checks use ci-tools 1.11's one-job layouts. No check is dropped, and the gate no
+  longer needs `allow_skipped` (DCO passes with nothing to check outside a pull request).
 - `AGENTS.md` states that extra read-back and verification are chosen per call with a `Verify` argument that
   defaults to `Verify::None` (handbook KB-ARCH-041).
 
