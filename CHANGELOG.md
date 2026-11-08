@@ -6,6 +6,11 @@ version bump (a minor bump before 1.0).
 
 ## [Unreleased]
 
+### Changed
+
+- `AGENTS.md` states that extra read-back and verification are opt-in `Config` fields, off by default
+  (handbook KB-ARCH-041).
+
 ### Fixed
 
 - The scaffold ends the description with a full stop in `AGENTS.md`, where the next sentence follows it
