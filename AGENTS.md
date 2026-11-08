@@ -47,8 +47,8 @@ XMPL100, a fictional example sensor on SPI. It follows the
 - Every fallible call returns `Result<T>`; every port failure propagates. The constructor stores the configuration
   with no I/O; `EnsureInitialized()` is the only start-up call, and every I/O call returns `NotInitialized` before it
   has succeeded.
-- A call sends only the traffic the datasheet needs. Any extra read-back or compare is a `Config` `bool`
-  (`verify_writes`, `verify_reads`), off by default, with its cost in its comment (handbook KB-ARCH-041). Start-up
+- A call sends only the traffic the datasheet needs. Any extra read-back or compare is asked for per call with a
+  trailing `Verify verify = Verify::None` argument, its cost in the doc comment (handbook KB-ARCH-041). Start-up
   checks in `EnsureInitialized()` and datasheet-required steps stay unconditional.
 - Public and protected methods PascalCase, private methods camelBack, members `snake_case_`, constants
   `kPascalCase`, units as suffixes. 100 columns (`_config/.clang-format`).
