@@ -8,6 +8,11 @@ version bump (a minor bump before 1.0).
 
 ### Breaking
 
+- The exact port concepts match each hook's address with `detail::ExactHook<Port, Sig>` instead of probing it
+  with `detail::Exactly<T>`, which needed an implicit conversion operator (MISRA C++:2023 Rule 15.1.3). A hook
+  must be a member function, `const` or not, of exactly the documented signature; `detail::Exactly` is gone.
+- `detail::kAlwaysFalse` takes a class type (`ClassType`) and `detail::EnumLast`, `ToUnderlying` and
+  `IsEnumerator` an enumeration (`Enumeration`) (KB-CPP20-005), each pinned by a compile-fail test.
 - The copyright holder is the repository's authors: `The <repo> authors` (`The driver-template authors` here)
   in `LICENSE`, every source header, `driver.yml` (new `authors` field) and the docs footer (`_config/mkdocs.yml`
   `copyright`). The scaffold's `--author` default is now `The <repo> authors`; `--author` still overrides it.
@@ -25,7 +30,10 @@ version bump (a minor bump before 1.0).
 
 - `tools/check_standalone.py`, run in the repository checks and kept in every scaffolded repository by the drift
   check: a repository names no other project, carries no dated history and gives its copyright to its authors.
+  It also reports a private repository, a personal account outside `.github/CODEOWNERS` and a local path.
   `scaffold.py --selftest` runs it with `--strict` on the template and on every scaffolded case.
+- The `misra-review` skill names no private repository: it uses a licensed copy of the standard and the
+  maintainers' private notes only when the reviewer holds them, and the handbook's matrix otherwise.
 - `AGENTS.md`: sections on reading and citing the datasheet, the standards, branches and pull requests (squash
   merge once green), the definition of done and the safety rules.
 - Issue and PR templates ask for the board, MCU and port in one free-text field.

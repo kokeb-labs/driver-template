@@ -126,7 +126,7 @@ manifest or a wrapper folder. `--selftest` fails when a scaffolded root holds an
 | Path | What it is | Standard |
 | --- | --- | --- |
 | `inc/xmpl100.hpp` | Umbrella header: the driver class `xmpl100::XMPL100<Port>`, constrained by the port concept; optional hooks detected by named `Declares*`/`Has*` concepts in `xmpl100::detail`; the register encoders as free `constexpr` functions with `static_assert`s | driver.md: Namespace, Lifecycle |
-| `inc/xmpl100_detail.hpp` | Compile-time helpers: `detail::Exactly<T>` (exact hook probes), `kAlwaysFalse`, `ToUnderlying`, `IsEnumerator`/`EnumLast`, typed register fields `detail::Field` | C++20 profile |
+| `inc/xmpl100_detail.hpp` | Compile-time helpers, each constrained by a concept: `detail::ExactHook` (exact hook matching, no conversion operator), `kAlwaysFalse` (`ClassType`), `ToUnderlying`, `IsEnumerator`/`EnumLast` (`Enumeration`), typed register fields `detail::Field` | C++20 profile |
 | `inc/xmpl100_spi_interface.hpp` | The CRTP base `SpiInterface<Derived>` (declares no hook), `CtrlPin`, `GpioSignal`, the exact `SpiPort` concept, the register framing on spans | driver.md: The port |
 | `inc/xmpl100_types.hpp` | `[[nodiscard]] Error` (base set 0 to 9, `UnexpectedReset` = 16), `Result<T>`, `ToString()`, `Config` with datasheet defaults and unit suffixes, presets with `static_assert`ed validity, `Validate()`, the `Resolution` strong type with `ToCounts()`/`ToCelsius()`, `CheckedConfig`, version getters | driver.md: Errors, Config |
 | `inc/xmpl100_registers.hpp` | The register map with section references, typed fields, the CRC-8 with its check vectors | driver.md: layout |
@@ -180,7 +180,7 @@ from working examples of them:
 | Single-shot raw access and the last raw reply (KB-CPP-129) | `ReadRegister()` and `GetLastStatusByte()` (ADC: `ReadRawVoltageMv()`, `GetLastVoltageMv()`; GPIO: `ReadRawOutput()`, `GetLastOutput()`) |
 | Unsigned operands for bit operations (MISRA C++:2023 Rules 7.0.4, 7.0.5) | Narrow values are cast to `uint32_t` before `<<`, `~`, `\|` and `^`; `hicpp-signed-bitwise` is on |
 | Strict ISO C++20 everywhere (KB-CPP20-001) | `CMAKE_CXX_EXTENSIONS OFF` in every folder that builds a target, `-pedantic-errors`, the header checks, and the ESP-IDF header self-check |
-| Exact port concepts and named hook concepts (KB-CPP20-006, -007) | `detail::Exactly<T>` in the `SpiPort` concept; `DeclaresDelayUs`/`HasDelayUs` and friends in `xmpl100.hpp`; the compile-fail tests |
+| Exact port concepts and named hook concepts (KB-CPP20-006, -007) | `detail::ExactHook` in the `SpiPort` concept; `DeclaresDelayUs`/`HasDelayUs` and friends in `xmpl100.hpp`; the compile-fail tests |
 | Bounded loops and masked shifts (KB-CPP20-058, -020) | `kConversionTimeoutMaxMs` checked by `Validate()` and capping `WaitDataReady()`; `SamplesPerResult()` and `PeriodUs()` mask their shift counts |
 | `[[nodiscard]]` error types (KB-CPP20-037) | `enum class [[nodiscard]] Error` |
 
@@ -192,9 +192,13 @@ profile) on every pull request, from the handbook commit pinned in `.github/work
 The handbook's C++20 profile (KB-CPP20-001 to 058) asks for patterns that cost nothing on the run-time path. The
 template uses these, each with tests:
 
-- **Exact port concepts** (`detail::Exactly<T>`): a hook argument is probed with a type that converts to the
-  documented parameter type and nothing else, and every hook is required `noexcept`, so `Transfer(..., uint16_t
-  len)` is a compile error, not a silent truncation. Compile time only.
+- **Exact port concepts** (`detail::ExactHook<Port, Sig>`): the address of each hook must match a member function
+  (`const` or not) of exactly the documented signature, `noexcept` included, so `Transfer(..., uint16_t len)` is a
+  compile error, not a silent truncation. No value is converted, so no implicit conversion operator is needed.
+  Compile time only.
+- **Constrained helpers** (KB-CPP20-005): `ExactHook` takes a class and a function type, `kAlwaysFalse` a class
+  (`ClassType`), `EnumLast`, `ToUnderlying` and `IsEnumerator` an enumeration (`Enumeration`); a compile-fail test
+  pins each constraint.
 - **Typed register fields** (`detail::Field<Reg, Shift, Width>` in `inc/xmpl100_registers.hpp`): every shift is
   a constant in range and every operand is widened once; `static_assert`s tie each field to the register map.
 - **Strong unit types for public conversions** (`Resolution`, `ToCounts()`, `ToCelsius()`): the register

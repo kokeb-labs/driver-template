@@ -68,11 +68,10 @@ protected:
  * @tparam Port The port class.
  */
 template <typename Port>
-concept SpiPort = std::derived_from<Port, SpiInterface<Port>> &&
-                  requires(Port& port, detail::Exactly<uint8_t> channel, uint32_t& voltage_mv) {
-                    { port.EnsureInitialized() } noexcept -> std::same_as<bool>;
-                    { port.ReadVoltageMv(channel, voltage_mv) } noexcept -> std::same_as<bool>;
-                  };
+concept SpiPort = std::derived_from<Port, SpiInterface<Port>> && requires {
+  detail::ExactHook<Port, bool() noexcept>::Take(&Port::EnsureInitialized);
+  detail::ExactHook<Port, bool(uint8_t, uint32_t&) noexcept>::Take(&Port::ReadVoltageMv);
+};
 
 } // namespace xmpl100
 

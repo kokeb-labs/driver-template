@@ -74,11 +74,10 @@ protected:
  * @tparam Port The port class.
  */
 template <typename Port>
-concept SpiPort = std::derived_from<Port, SpiInterface<Port>> &&
-                  requires(Port& port, detail::Exactly<InPin> pin, GpioSignal& level) {
-                    { port.EnsureInitialized() } noexcept -> std::same_as<bool>;
-                    { port.GpioRead(pin, level) } noexcept -> std::same_as<bool>;
-                  };
+concept SpiPort = std::derived_from<Port, SpiInterface<Port>> && requires {
+  detail::ExactHook<Port, bool() noexcept>::Take(&Port::EnsureInitialized);
+  detail::ExactHook<Port, bool(InPin, GpioSignal&) noexcept>::Take(&Port::GpioRead);
+};
 
 } // namespace xmpl100
 

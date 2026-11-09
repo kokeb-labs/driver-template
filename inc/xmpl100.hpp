@@ -38,9 +38,8 @@ concept DeclaresGpioSet =
 
 /// The port drives control pins: `bool GpioSet(CtrlPin, GpioSignal) noexcept`.
 template <typename Port>
-concept HasGpioSet = requires(Port& port, Exactly<CtrlPin> pin, Exactly<GpioSignal> signal) {
-  { port.GpioSet(pin, signal) } noexcept -> std::same_as<bool>;
-};
+concept HasGpioSet =
+    requires { ExactHook<Port, bool(CtrlPin, GpioSignal) noexcept>::Take(&Port::GpioSet); };
 
 /// The port declares something called `DelayUs`.
 template <typename Port>
@@ -49,9 +48,7 @@ concept DeclaresDelayUs = requires(Port& port) { port.DelayUs(1U); };
 /// The port waits: `void DelayUs(uint32_t us) noexcept`. A narrower parameter would truncate long
 /// waits.
 template <typename Port>
-concept HasDelayUs = requires(Port& port, Exactly<uint32_t> us) {
-  { port.DelayUs(us) } noexcept -> std::same_as<void>;
-};
+concept HasDelayUs = requires { ExactHook<Port, void(uint32_t) noexcept>::Take(&Port::DelayUs); };
 
 /// The port declares something called `Log`.
 template <typename Port>
@@ -59,9 +56,8 @@ concept DeclaresLog = requires(Port& port) { port.Log(LogLevel::Info, ""); };
 
 /// The port takes log lines: `void Log(LogLevel, const char* message) noexcept`.
 template <typename Port>
-concept HasLog = requires(Port& port, Exactly<LogLevel> level, Exactly<const char*> message) {
-  { port.Log(level, message) } noexcept -> std::same_as<void>;
-};
+concept HasLog =
+    requires { ExactHook<Port, void(LogLevel, const char*) noexcept>::Take(&Port::Log); };
 
 /// Wait through the port. A port without `DelayUs()` fails to compile at the first call that needs
 /// a wait: the chip's reset and conversion times are requirements, never skipped.

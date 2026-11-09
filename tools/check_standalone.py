@@ -10,8 +10,9 @@ A driver documents its chip against the datasheet, and its copyright belongs to 
 repository can move and have many owners. Over every tracked text file (`git ls-files`, else every file under the
 root) it reports:
 
-1. Another project's name: boards, products, test projects and driver repositories that are not this one.
-   Write what the chip does and cite the datasheet section instead.
+1. Another project's name: boards, products, test projects and driver repositories that are not this one;
+   a private repository, a personal account (outside .github/CODEOWNERS) or a local path. Write what the chip
+   does and cite the datasheet section instead.
 2. Dated history: an ISO date anywhere but a CHANGELOG release heading, a datasheet revision (docs/datasheets.yml,
    or a line that names the datasheet or its revision) or a waiver expiry in .kokeb/handbook.yml. Behaviour
    learned on hardware is written as the design, with its datasheet section; a step still to check on hardware
@@ -42,7 +43,12 @@ NAMES = [
     ("another project's board", re.compile(r"\bport" r"enta\b", re.I)),
     ("another project's test project", re.compile(r"\bpw[-_ ]?contr" r"oller", re.I)),
     ("a reference to another driver", re.compile(r"\b(?:old" r"er|prev" r"ious) driver", re.I)),
+    ("a private repository", re.compile(r"standards" r"-private", re.I)),
+    ("a local path", re.compile(r"~/Doc" r"uments|(?<![\w.])/(?:Us" r"ers|ho" r"me)/[A-Za-z0-9_.-]+/")),
 ]
+# A maintainer's account: allowed only where GitHub needs it, in .github/CODEOWNERS (repository governance).
+ACCOUNTS = re.compile(r"\bn3" r"b3x\b", re.I)
+ACCOUNT_FILES = {".github/CODEOWNERS"}
 # --strict (the template's self-test): the board names on their own as well.
 STRICT_NAMES = [("another project's board", re.compile(r"\b(?:fl" r"ux|vor" r"tex)\b", re.I))]
 DATE_RE = re.compile(r"\b20\d\d-[01]\d-[0-3]\d\b")
@@ -126,6 +132,8 @@ def check(root: Path, repo: str, strict: bool = False) -> list[str]:
                 m = pattern.search(line)
                 if m:
                     bad.append(f"{rel}:{n}: {what} ({m.group(0)!r}); document this chip against its datasheet")
+            if ACCOUNTS.search(line) and rel not in ACCOUNT_FILES:
+                bad.append(f"{rel}:{n}: a personal account; name the role (the maintainers) instead")
             if DATE_RE.search(line) and not date_allowed(rel, line):
                 bad.append(f"{rel}:{n}: a date outside a release heading or a datasheet revision (dated history)")
             for m in COPYRIGHT_RE.finditer(line):
@@ -160,6 +168,8 @@ def selftest() -> int:
                   0),
         "names": ({"docs/a.md": "Tested on the " + "Vor" + "tex V1 board, like the " + "old" + "er driver.\n"}, 2),
         "repo": ({"docs/a.md": "See " + "h" + "f-x1-driver for the rest.\n"}, 1),
+        "private": ({"docs/a.md": "Notes in N3" + "b3x/standards" + "-private and ~/Doc" + "uments/Standards.\n",
+                     ".github/CODEOWNERS": "* @N3" + "b3x\n"}, 3),
         "dates": ({"docs/a.md": f"On {day} the bench saw a stuck line.\n", "CHANGELOG.md": f"- Fixed on {day}.\n"}, 2),
         "holder": ({"inc/x1.hpp": f"// {c} Acme Inc. SPDX-License-Identifier: MIT\n", "driver.yml": "name: x1\n"}, 2),
     }
