@@ -40,9 +40,16 @@ Use the `datasheet-conformance` skill for every step, one subsystem at a time:
 5. `examples/host/`: the host port over the new register model and the example program.
 6. `examples/esp32/main/` (when scaffolded with `esp32`): the ESP-IDF port pins and the example. Keep the
    header self-check `<chip>_cxx20_check.cpp`: it is the only C++20 conformance check inside the ESP-IDF build.
-7. Write the driver to the handbook's C++20 profile from the first line (the `cpp20-profile` skill), and before
-   the first PR run the `misra-review` and `hardware-lessons-review` skills, or the `safety-reviewer` agent, over
-   the whole repository.
+7. Write the driver to the handbook's C++20 profile and the MISRA patterns from the first line (the
+   `cpp20-profile` skill, and step 7 of the `misra-review` skill: typed literals for constant arguments,
+   `default: break;` in enumeration switches, parenthesised operands, constant loop bounds, `EnumLast<E>` instead
+   of a sentinel enumerator). Before the first PR run the `misra-review` and `hardware-lessons-review` skills, or
+   the `safety-reviewer` agent, over the whole repository; the `MISRA` CI job then checks every translation unit.
+8. **Moving a driver from an older repository.** Take the behaviour, never the history: rewrite each part into
+   this layout and these conventions, and describe it as this chip's design with its datasheet section. Drop
+   every reference to another product, board, project or driver repository, dated lab notes and old ownership
+   lines; `tools/check_standalone.py` checks this. What a bench taught becomes a model test and a design rule, or
+   a bench step marked **not verified on hardware**.
 
 ## 3. Docs and metadata
 
@@ -54,5 +61,10 @@ Use the `datasheet-conformance` skill for every step, one subsystem at a time:
 2. Every page in `docs/`: the chip card, pins, timing, power, errors; the README's paragraph, At a glance table,
    wiring and documentation table. Remove every statement about the XMPL100.
 3. `kokeb-docs figures && kokeb-docs gen`, `mkdocs build -f _config/mkdocs.yml --strict`.
-4. `CHANGELOG.md`: `## [Unreleased]` / `### Added` describing the first version.
-5. Run `verify`, open the PR, and give the owner `docs/repo-setup.md` for the org settings.
+4. `CHANGELOG.md`: `## [Unreleased]` / `### Added` describing the first version. Headings are only `### Breaking`,
+   `### Added`, `### Changed`, `### Deprecated`, `### Removed`, `### Fixed`, `### Security` (the `release` skill
+   and CI check this); anything else is a bold lead-in under one of them.
+5. The repository's About comes from its entry in `kokeb-labs/.github` `org/repos.json` (`docs/repo-setup.md`,
+   step 2): the README's first sentence as the description, and the shared topics plus the bus, the device
+   category, the vendor and the part.
+6. Run `verify`, open the PR, and give the owner `docs/repo-setup.md` for the org settings.
