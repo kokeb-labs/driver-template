@@ -28,7 +28,6 @@
 
 #include "xmpl100_types.hpp"
 
-// NOLINTBEGIN(cppcoreguidelines-macro-usage): Kconfig values are macros by definition.
 #ifndef CONFIG_XMPL100_AVERAGING_SAMPLES
 /** Samples averaged per result when Kconfig does not set it: 1, the reset value. */
 #define CONFIG_XMPL100_AVERAGING_SAMPLES 1
@@ -38,7 +37,6 @@
  */
 #define CONFIG_XMPL100_CONVERSION_TIMEOUT_MS 100
 #endif
-// NOLINTEND(cppcoreguidelines-macro-usage)
 
 namespace xmpl100 {
 

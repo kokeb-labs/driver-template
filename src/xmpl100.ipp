@@ -160,7 +160,7 @@ Result<int16_t> XMPL100<Port>::ReadRawTemperature() noexcept {
   if (e != Error::Ok) {
     return Result<int16_t>::Failure(e);
   }
-  if (config_.crc_enable && reg::Crc8(burst.first<2>()) != bytes[2]) {
+  if (config_.crc_enable && (reg::Crc8(burst.first<2>()) != bytes[2])) {
     return Result<int16_t>::Failure(Error::Crc);
   }
   const auto counts = static_cast<int16_t>(static_cast<uint16_t>(
@@ -199,13 +199,14 @@ Result<void> XMPL100<Port>::TriggerOneShot() noexcept {
 
 template <SpiPort Port>
 Result<void> XMPL100<Port>::WaitDataReady() noexcept {
+  using detail::operator""_u32;
   if (!initialized_) {
     return Result<void>::Failure(Error::NotInitialized);
   }
   // One poll per millisecond, timeout + 1 polls. The bound is the validated timeout, capped by the
   // same maximum, so the loop ends even for a configuration that bypassed Validate()
   // (KB-CPP20-058).
-  const uint32_t timeout_ms = config_.conversion_timeout_ms < kConversionTimeoutMaxMs
+  const uint32_t timeout_ms = (config_.conversion_timeout_ms < kConversionTimeoutMaxMs)
                                   ? config_.conversion_timeout_ms
                                   : kConversionTimeoutMaxMs;
   const uint32_t polls = timeout_ms + 1U;
@@ -220,7 +221,7 @@ Result<void> XMPL100<Port>::WaitDataReady() noexcept {
     if (status.value.data_ready) {
       return Result<void>::Success();
     }
-    detail::DelayUs(bus_.GetPort(), 1000);
+    detail::DelayUs(bus_.GetPort(), 1000_u32);
   }
   return Result<void>::Failure(Error::Timeout);
 }
@@ -233,7 +234,7 @@ Result<uint8_t> XMPL100<Port>::ReadRegister(uint8_t address) noexcept {
   if (address > reg::kLastRegister) {
     return Result<uint8_t>::Failure(Error::InvalidArgument);
   }
-  return address == reg::kStatus ? readStatusByte() : readRegister(address);
+  return (address == reg::kStatus) ? readStatusByte() : readRegister(address);
 }
 
 template <SpiPort Port>
@@ -299,8 +300,8 @@ Result<void> XMPL100<Port>::resetAndConfigure(const Config& config, bool soft_re
   }
   latched_status_ = 0;
   if (auto r = writeConfigRegisters(config); !r) {
-    return fail(r.error, r.error == Error::Unsupported ? "xmpl100: CRC needs revision B silicon"
-                                                       : "xmpl100: configuration write failed");
+    return fail(r.error, (r.error == Error::Unsupported) ? "xmpl100: CRC needs revision B silicon"
+                                                         : "xmpl100: configuration write failed");
   }
   return Result<void>::Success();
 }
@@ -309,12 +310,12 @@ template <SpiPort Port>
 Result<void> XMPL100<Port>::waitResetDone() noexcept {
   // BUSY stays set for at most t_RST after a reset (section 8.2): wait it, then confirm.
   detail::DelayUs(bus_.GetPort(), kResetTimeMaxUs);
-  for (uint32_t i = 0; i < kResetPolls; ++i) {
+  for (uint32_t i = 0U; i < kResetPolls; ++i) {
     const auto status = readStatusByte();
     if (!status) {
       return fail(status.error, "xmpl100: STATUS read failed during reset");
     }
-    if ((status.value & reg::kStatusBusy) == 0) {
+    if ((static_cast<uint32_t>(status.value) & reg::kStatusBusy) == 0U) {
       return Result<void>::Success();
     }
     detail::DelayUs(bus_.GetPort(), kResetTimeMaxUs);
@@ -324,7 +325,7 @@ Result<void> XMPL100<Port>::waitResetDone() noexcept {
 
 template <SpiPort Port>
 Result<void> XMPL100<Port>::writeConfigRegisters(const Config& config) noexcept {
-  if (config.crc_enable && revision_ < kRevisionB) {
+  if (config.crc_enable && (revision_ < kRevisionB)) {
     return Result<void>::Failure(Error::Unsupported);
   }
   // Shutdown while the thresholds and averaging change, so no result mixes old and new settings.

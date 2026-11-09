@@ -46,6 +46,8 @@ int main(int argc, char** argv) {
       }
     } else if (RunFile(arg)) {
       files++;
+    } else {
+      // Not a directory and not a readable file: nothing replayed.
     }
   }
   (void)std::printf("replayed %d inputs\n", files);

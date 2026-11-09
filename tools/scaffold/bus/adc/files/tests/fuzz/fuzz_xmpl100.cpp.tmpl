@@ -151,6 +151,8 @@ bool KnownError(Error e) noexcept {
   case Error::Crc:
   case Error::Busy:
     return false;
+  default:
+    break;
   }
   return false;
 }

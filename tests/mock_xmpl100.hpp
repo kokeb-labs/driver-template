@@ -210,6 +210,8 @@ private:
     } else if (busy_reads_left_ > 0) {
       busy = true;
       busy_reads_left_--;
+    } else {
+      // No reset in progress.
     }
     if (conversion_reads_left_ > 0 || (conversion_stuck && conversion_reads_left_ == 0)) {
       busy = true;
@@ -223,6 +225,8 @@ private:
       conversion_reads_left_ = -1;
       regs_[chip::kCtrl] = static_cast<uint8_t>(static_cast<uint32_t>(regs_[chip::kCtrl]) &
                                                 ~uint32_t{chip::kCtrlModeMask});
+    } else {
+      // No one-shot conversion pending.
     }
     if ((regs_[chip::kCtrl] & chip::kCtrlModeMask) == 2 && !busy) {
       data_ready_ = true; // continuous: a result is always available

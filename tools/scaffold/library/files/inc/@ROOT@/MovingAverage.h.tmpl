@@ -39,7 +39,7 @@ struct Config {
  */
 template <std::size_t Capacity>
 class MovingAverage {
-  static_assert(Capacity > 0 && Capacity <= 65535, "MovingAverage: Capacity must be 1 to 65535");
+  static_assert((Capacity > 0U) && (Capacity <= 65535U), "MovingAverage: Capacity must be 1 to 65535");
 
 public:
   /**
@@ -101,9 +101,9 @@ public:
     if (!initialized_) {
       return Result<void>::Failure(Error::NotInitialized);
     }
-    const float magnitude = sample < 0.0F ? -sample : sample;
+    const float magnitude = (sample < 0.0F) ? -sample : sample;
     if (!(sample == sample) ||
-        (config_.reject_above_abs > 0.0F && magnitude > config_.reject_above_abs)) {
+        ((config_.reject_above_abs > 0.0F) && (magnitude > config_.reject_above_abs))) {
       return Result<void>::Failure(Error::InvalidArgument);
     }
     if (count_ == config_.window_samples) {
@@ -113,7 +113,8 @@ public:
     }
     samples_[next_] = sample;
     sum_ += sample;
-    next_ = static_cast<uint16_t>((next_ + 1) % config_.window_samples);
+    next_ = static_cast<uint16_t>((static_cast<uint32_t>(next_) + 1U) %
+                                  static_cast<uint32_t>(config_.window_samples));
     return Result<void>::Success();
   }
 
@@ -125,10 +126,10 @@ public:
     if (!initialized_) {
       return Result<float>::Failure(Error::NotInitialized);
     }
-    if (count_ == 0) {
+    if (count_ == 0U) {
       return Result<float>::Failure(Error::Empty);
     }
-    return Result<float>::Success(static_cast<float>(sum_ / count_));
+    return Result<float>::Success(static_cast<float>(sum_ / static_cast<double>(count_)));
   }
 
   /** @return Samples in the window, 0 to `window_samples`. */
@@ -143,7 +144,7 @@ public:
 
 private:
   Result<void> initialize() noexcept {
-    if (config_.window_samples == 0 || config_.window_samples > Capacity ||
+    if ((config_.window_samples == 0U) || (config_.window_samples > Capacity) ||
         !(config_.reject_above_abs >= 0.0F)) {
       return Result<void>::Failure(Error::InvalidArgument);
     }

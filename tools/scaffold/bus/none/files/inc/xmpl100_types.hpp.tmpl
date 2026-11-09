@@ -72,6 +72,8 @@ constexpr const char* ToString(Error error) noexcept {
     return "DeviceFault";
   case Error::Unsupported:
     return "Unsupported";
+  default:
+    break;
   }
   return "Unknown";
 }
@@ -196,8 +198,8 @@ constexpr Config DebouncedPreset() noexcept {
  * `kMaxSampleIntervalUs`).
  */
 constexpr Error Validate(const Config& config) noexcept {
-  if (config.samples == 0 || config.samples > kMaxSamples ||
-      config.sample_interval_us > kMaxSampleIntervalUs) {
+  if ((config.samples == 0U) || (config.samples > kMaxSamples) ||
+      (config.sample_interval_us > kMaxSampleIntervalUs)) {
     return Error::InvalidArgument;
   }
   return Error::Ok;

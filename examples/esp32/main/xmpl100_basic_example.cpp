@@ -39,6 +39,8 @@ extern "C" void app_main(void) {
         (void)sensor.SoftReset(); // recover after a bus glitch; next read reports again
       } else if (t.error == xmpl100::Error::UnexpectedReset) {
         (void)sensor.EnsureInitialized(); // the chip lost its configuration: start it again
+      } else {
+        // Any other error: the next read reports again.
       }
     }
     vTaskDelay(pdMS_TO_TICKS(500));

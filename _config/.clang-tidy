@@ -85,6 +85,8 @@ ExcludeHeaderFilterRegex: '.*/(build[^/]*|_deps|third_party|managed_components|e
 FormatStyle: file
 
 CheckOptions:
+  # Kconfig values (CONFIG_*) are macros by definition; they are object-like, which MISRA Rule 19.0.2 allows.
+  - { key: cppcoreguidelines-macro-usage.AllowedRegexp,                 value: '^(DEBUG_|CONFIG_)' }
   - { key: readability-implicit-bool-conversion.AllowPointerConditions, value: true }
   - { key: readability-uppercase-literal-suffix.NewSuffixes,            value: 'L;LL;UL;ULL' }
   # A positive literal (1U << 0, x << 8) is not flagged; a narrow unsigned operand promoted to int is.

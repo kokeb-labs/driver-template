@@ -147,6 +147,8 @@ private:
         data[i] = static_cast<uint8_t>(data[i] ^ in_.Byte());
       } else if (action == kReplace) {
         data[i] = in_.Byte();
+      } else {
+        // Pass the byte through unchanged.
       }
     }
   }
@@ -174,6 +176,8 @@ bool KnownError(Error e) noexcept {
   case Error::Unsupported:
   case Error::UnexpectedReset:
     return true;
+  default:
+    break;
   }
   return false;
 }

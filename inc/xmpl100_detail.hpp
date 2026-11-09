@@ -1,7 +1,7 @@
 /**
  * @file xmpl100_detail.hpp
- * @brief Compile-time helpers of the XMPL100 driver: exact hook matching, typed register fields and
- * enumeration checks.
+ * @brief Compile-time helpers of the XMPL100 driver: typed integer literals, exact hook matching,
+ * typed register fields and enumeration checks.
  * @copyright Copyright (c) 2026 The driver-template authors. SPDX-License-Identifier: MIT
  *
  * @details
@@ -17,6 +17,50 @@
 #include <type_traits>
 
 namespace xmpl100::detail {
+
+/**
+ * @brief Reached only when a `_u8`, `_u16` or `_u32` literal does not fit its type: it is never
+ * defined and not `constexpr`, so the constant evaluation fails and the build names it.
+ */
+void LiteralOutOfRange() noexcept;
+
+/**
+ * @brief An integer constant of type `uint8_t`, for an argument whose parameter is `uint8_t`
+ * (MISRA C++:2023 Rule 7.0.6). `0xFF_u8` compiles; `0x100_u8` does not.
+ * @param v The literal's value.
+ * @return `v` as `uint8_t`.
+ */
+consteval std::uint8_t operator""_u8(unsigned long long v) noexcept {
+  if (v > 0xFFULL) {
+    LiteralOutOfRange();
+  }
+  return static_cast<std::uint8_t>(v);
+}
+
+/**
+ * @brief An integer constant of type `uint16_t` (Rule 7.0.6); out of range does not compile.
+ * @param v The literal's value.
+ * @return `v` as `uint16_t`.
+ */
+consteval std::uint16_t operator""_u16(unsigned long long v) noexcept {
+  if (v > 0xFFFFULL) {
+    LiteralOutOfRange();
+  }
+  return static_cast<std::uint16_t>(v);
+}
+
+/**
+ * @brief An integer constant of type `uint32_t` (Rule 7.0.6): on targets where `uint32_t` is
+ * `unsigned long`, a `U` literal is still `unsigned int`. Out of range does not compile.
+ * @param v The literal's value.
+ * @return `v` as `uint32_t`.
+ */
+consteval std::uint32_t operator""_u32(unsigned long long v) noexcept {
+  if (v > 0xFFFF'FFFFULL) {
+    LiteralOutOfRange();
+  }
+  return static_cast<std::uint32_t>(v);
+}
 
 /**
  * @brief Matches a port hook against exactly one signature, `R(Args...) noexcept`, as a member
@@ -91,7 +135,7 @@ template <Enumeration E>
  */
 template <typename Reg, uint32_t Shift, uint32_t Width>
   requires std::unsigned_integral<Reg> && (Width > 0U) && (Width < 32U) &&
-           (Shift + Width <= static_cast<uint32_t>(std::numeric_limits<Reg>::digits))
+           ((Shift + Width) <= static_cast<uint32_t>(std::numeric_limits<Reg>::digits))
 struct Field {
   /// The largest value the field holds.
   static constexpr uint32_t kMax = (uint32_t{1} << Width) - 1U;

@@ -18,7 +18,6 @@
 
 #include "xmpl100_types.hpp"
 
-// NOLINTBEGIN(cppcoreguidelines-macro-usage): Kconfig values are macros by definition.
 #ifndef CONFIG_XMPL100_ADC_CHANNEL
 /** ADC channel when Kconfig does not set it: `Config{}.channel`. */
 #define CONFIG_XMPL100_ADC_CHANNEL 0
@@ -27,7 +26,6 @@
 /** Conversions averaged when Kconfig does not set it: `Config{}.samples`. */
 #define CONFIG_XMPL100_SAMPLES 4
 #endif
-// NOLINTEND(cppcoreguidelines-macro-usage)
 
 namespace xmpl100 {
 

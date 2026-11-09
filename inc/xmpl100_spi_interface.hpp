@@ -153,17 +153,18 @@ public:
   /// Read `out.size()` consecutive registers from `reg`. `InvalidArgument` (nothing sent) for 0 or
   /// more than `kMaxBurst` bytes, `Bus` on a failed transfer.
   Error Read(uint8_t reg, std::span<uint8_t> out) noexcept {
-    if (out.empty() || out.size() > kMaxBurst) {
+    if (out.empty() || (out.size() > kMaxBurst)) {
       return Error::InvalidArgument;
     }
-    std::array<uint8_t, 1 + kMaxBurst> tx{};
-    std::array<uint8_t, 1 + kMaxBurst> rx{};
+    std::array<uint8_t, 1U + kMaxBurst> tx{};
+    std::array<uint8_t, 1U + kMaxBurst> rx{};
     tx[0] = static_cast<uint8_t>(static_cast<uint32_t>(kReadFlag) |
                                  (static_cast<uint32_t>(reg) & kAddressMask));
-    if (!port_.Transfer(tx.data(), rx.data(), out.size() + 1U)) {
+    const std::size_t count = out.size();
+    if (!port_.Transfer(tx.data(), rx.data(), count + 1U)) {
       return Error::Bus;
     }
-    for (std::size_t i = 0; i < out.size(); ++i) {
+    for (std::size_t i = 0U; i < count; ++i) {
       out[i] = rx[1U + i];
     }
     return Error::Ok;
@@ -179,15 +180,16 @@ public:
   /// Write `data.size()` consecutive registers from `reg`. `InvalidArgument` (nothing sent) for 0
   /// or more than `kMaxBurst` bytes, `Bus` on a failed transfer.
   Error Write(uint8_t reg, std::span<const uint8_t> data) noexcept {
-    if (data.empty() || data.size() > kMaxBurst) {
+    if (data.empty() || (data.size() > kMaxBurst)) {
       return Error::InvalidArgument;
     }
-    std::array<uint8_t, 1 + kMaxBurst> tx{};
+    std::array<uint8_t, 1U + kMaxBurst> tx{};
     tx[0] = static_cast<uint8_t>(static_cast<uint32_t>(reg) & kAddressMask);
-    for (std::size_t i = 0; i < data.size(); ++i) {
+    const std::size_t count = data.size();
+    for (std::size_t i = 0U; i < count; ++i) {
       tx[1U + i] = data[i];
     }
-    return port_.Transfer(tx.data(), nullptr, data.size() + 1U) ? Error::Ok : Error::Bus;
+    return port_.Transfer(tx.data(), nullptr, count + 1U) ? Error::Ok : Error::Bus;
   }
 
 private:

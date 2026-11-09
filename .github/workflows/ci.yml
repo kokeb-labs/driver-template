@@ -50,6 +50,12 @@ jobs:
     permissions:
       contents: read
 
+  misra:
+    name: MISRA
+    uses: ./.github/workflows/ci-misra.yml
+    permissions:
+      contents: read
+
   lint:
     name: C++ lint
     uses: ./.github/workflows/ci-cpp-lint.yml
@@ -83,6 +89,7 @@ jobs:
       # /scaffold:platform-esp32-gate
       - docs
       - lint
+      - misra
       - checks
       - template-selftest  # template-only
     if: always()

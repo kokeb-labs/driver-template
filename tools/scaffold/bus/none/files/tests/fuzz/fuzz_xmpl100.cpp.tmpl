@@ -88,7 +88,9 @@ public:
     if (action == kFlip) {
       level = level == GpioSignal::ACTIVE ? GpioSignal::INACTIVE : GpioSignal::ACTIVE;
     } else if (action == kReplace) {
-      level = (in_.Byte() & 1U) != 0U ? GpioSignal::ACTIVE : GpioSignal::INACTIVE;
+      level = ((in_.Byte() & 1U) != 0U) ? GpioSignal::ACTIVE : GpioSignal::INACTIVE;
+    } else {
+      // Pass the level through unchanged.
     }
     return true;
   }
@@ -154,6 +156,8 @@ bool KnownError(Error e) noexcept {
   case Error::Crc:
   case Error::Busy:
     return false;
+  default:
+    break;
   }
   return false;
 }

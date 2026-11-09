@@ -15,10 +15,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# -pedantic-errors and the C++20 deprecations as errors (KB-CPP20-001, -003).
+# -pedantic-errors and the C++20 deprecations as errors (KB-CPP20-001, -003). -Wswitch-enum: a switch over
+# an enumeration ends with `default: break;` (MISRA C++:2023 Rule 9.4.2), and a new enumerator still warns.
 set(XMPL100_TEST_FLAGS -fno-exceptions -fno-rtti -Wall -Wextra -Wpedantic -pedantic-errors -Wshadow
     -Wconversion -Wsign-conversion -Wdeprecated -Wdeprecated-enum-enum-conversion
-    -Wdeprecated-enum-float-conversion -Wimplicit-fallthrough -Werror)
+    -Wdeprecated-enum-float-conversion -Wimplicit-fallthrough -Wswitch-enum -Werror)
 # The standard library's own bounds checks, so an out-of-range span or array access traps in the tests
 # and fuzzers (KB-CPP20-043).
 set(XMPL100_TEST_DEFINITIONS _GLIBCXX_ASSERTIONS=1 _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST)
@@ -138,6 +139,8 @@ file(GLOB XMPL100_DOC_SNIPPETS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/doc
 add_library(xmpl100_doc_snippets OBJECT ${XMPL100_DOC_SNIPPETS})
 xmpl100_test_target(xmpl100_doc_snippets)
 target_include_directories(xmpl100_doc_snippets PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/docs)
+# A page shows a switch over Error that names only the errors it explains and ends with `default:`.
+target_compile_options(xmpl100_doc_snippets PRIVATE -Wno-switch-enum)
 
 # --- Host example (examples/host/): built with the test flags and run ------------
 add_subdirectory(${PROJECT_SOURCE_DIR}/examples/host ${CMAKE_CURRENT_BINARY_DIR}/examples-host)

@@ -70,6 +70,8 @@ constexpr const char* ToString(Error error) noexcept {
     return "DeviceFault";
   case Error::Unsupported:
     return "Unsupported";
+  default:
+    break;
   }
   return "Unknown";
 }
@@ -191,8 +193,8 @@ constexpr Config LowNoisePreset() noexcept {
  * the output range, slope 0).
  */
 constexpr Error Validate(const Config& config) noexcept {
-  if (config.samples == 0 || config.samples > kMaxSamples || config.slope_uv_per_c == 0 ||
-      config.offset_mv > kOutputMaxMv) {
+  if ((config.samples == 0U) || (config.samples > kMaxSamples) || (config.slope_uv_per_c == 0U) ||
+      (config.offset_mv > kOutputMaxMv)) {
     return Error::InvalidArgument;
   }
   return Error::Ok;

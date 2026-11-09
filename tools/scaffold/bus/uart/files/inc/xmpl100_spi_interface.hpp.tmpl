@@ -145,7 +145,7 @@ public:
   /// `kMaxBurst` bytes, `Bus` on a write error or bad sync, `Timeout` without a reply, `Crc` on a
   /// corrupted reply.
   Error Read(uint8_t reg, std::span<uint8_t> out) noexcept {
-    if (out.empty() || out.size() > kMaxBurst) {
+    if (out.empty() || (out.size() > kMaxBurst)) {
       return Error::InvalidArgument;
     }
     const std::size_t len = out.size();
@@ -153,7 +153,7 @@ public:
         e != Error::Ok) {
       return e;
     }
-    std::array<uint8_t, 1 + kMaxBurst + 1> reply{};
+    std::array<uint8_t, 1U + kMaxBurst + 1U> reply{};
     if (!port_.Read(reply.data(), len + 2U, kReplyTimeoutMs)) {
       return Error::Timeout;
     }
@@ -163,7 +163,7 @@ public:
     if (reg::Crc8(std::span{reply}.subspan(1U, len)) != reply[1U + len]) {
       return Error::Crc;
     }
-    for (std::size_t i = 0; i < len; ++i) {
+    for (std::size_t i = 0U; i < len; ++i) {
       out[i] = reply[1U + i];
     }
     return Error::Ok;
@@ -179,7 +179,7 @@ public:
   /// Write `data.size()` registers from `reg`; the chip acknowledges each request.
   /// `InvalidArgument` (nothing sent) for 0 or more than `kMaxBurst` bytes.
   Error Write(uint8_t reg, std::span<const uint8_t> data) noexcept {
-    if (data.empty() || data.size() > kMaxBurst) {
+    if (data.empty() || (data.size() > kMaxBurst)) {
       return Error::InvalidArgument;
     }
     if (const Error e = request(reg, data, data.size()); e != Error::Ok) {
@@ -189,14 +189,14 @@ public:
     if (!port_.Read(reply.data(), reply.size(), kReplyTimeoutMs)) {
       return Error::Timeout;
     }
-    return reply[0] == kSync && reply[1] == kAck ? Error::Ok : Error::Bus;
+    return ((reply[0] == kSync) && (reply[1] == kAck)) ? Error::Ok : Error::Bus;
   }
 
 private:
   /// One request frame; `data` is empty for a read, which sends only the count `len`.
   Error request(uint8_t cmd, std::span<const uint8_t> data, std::size_t len) noexcept {
-    std::array<uint8_t, 3 + kMaxBurst + 1> frame{kSync, cmd, static_cast<uint8_t>(len)};
-    std::size_t n = 3;
+    std::array<uint8_t, 3U + kMaxBurst + 1U> frame{kSync, cmd, static_cast<uint8_t>(len)};
+    std::size_t n = 3U;
     for (const uint8_t byte : data) {
       frame[n++] = byte;
     }
