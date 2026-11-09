@@ -51,8 +51,11 @@ commits, pull requests or comments, or upload or attach the licensed copy. Cite 
    - a narrow operand meets a `U` constant (`count == 0U`), and a bit operation on two narrow operands widens one
      to `uint32_t` first (Rule 7.0.5);
    - an integer constant argument has its parameter's type: `DelayUs(port, 1000_u32)`, `Insert(0_u8, v)` with the
-     `consteval` literals of `inc/xmpl100_detail.hpp`, brought in with `using detail::operator""_u32;` where used
-     (Rule 7.0.6);
+     `consteval` literals of `inc/xmpl100_detail.hpp` (Rule 7.0.6). Remember that `uint32_t` is `unsigned long`
+     on Cortex-M, so even `0xFFU` is the wrong type for a `uint32_t` parameter there. Bring a literal in with
+     `using detail::operator""_u32;` at the top of the function that uses it, or write the code inside
+     `namespace detail`; a namespace-scope using-declaration of a literal operator makes lizard read the rest of
+     the file as one function and fail the complexity gate;
    - a loop bound that is not a constant is a `const` local before the loop (Rule 9.5.1);
    - a result that is not used comes from a call that returns `void` (`std::fill`, not `std::fill_n` or
      `std::ranges::fill`) (Rule 0.1.2);
@@ -60,7 +63,25 @@ commits, pull requests or comments, or upload or attach the licensed copy. Cite 
    - a defaulted `operator==` is a hidden friend (Rule 16.6.1);
    - the `#include "../src/xmpl100.ipp"` at the end of `inc/xmpl100.hpp` is deviated by MD-CPP-009, named on the
      line before it: `// codeql::misra_deviation_next_line(MD-CPP-009)` (Rule 19.0.3).
-8. **Report** in the pull request (or to whoever asked), ranked by our category, mandatory first:
+   - an enumeration has only real values: no `kCount`/`kLast` sentinel. The range a raw value is checked against
+     is the `detail::EnumLast<E>` specialisation next to the enumeration, used by `detail::IsEnumerator()` and
+     its compile-fail test; a sentinel would be a value no switch can handle and `-Wswitch-enum` would demand it
+     in every switch (Rule 9.4.2);
+   - a member template called on a local of a class-template member is written `x.template first<2>()`: the
+     CodeQL front end otherwise reads `first < 2` and stops extracting the function, which fails the scan's
+     extraction check.
+8. **Read the CI report the `MISRA` job attaches** (`misra-report`: `misra-summary.md`, `misra-findings.csv`).
+   - *Violations* fail the job at the high level for a required or mandatory guideline; fix them.
+   - *To review* are findings of a rule the ci-tools tool validation found reporting compliant code; the
+     `review` column names the anomaly ids (ci-tools `tests/misra-validation/anomalies.yml`). Check each one: a
+     real one is fixed, a false one needs nothing more. In class-template code the known misfires are member calls
+     reported as function-pointer conversions (Rule 7.11.3), `Result` or dependent conditions reported as
+     conversions to bool (7.0.2), writes to data members as dead writes (0.1.1), same-type comparisons as
+     signedness changes (7.0.5), braced casts `T{x}` as C-style casts (8.2.2), and `noexcept` functions as
+     throwing ones under `-fno-exceptions` (18.4.1). Never contort code to silence one.
+   - A tool misfire in a shape the suite does not record yet is reported to ci-tools with a minimal reproducer,
+     so the suite gains a case and the anomaly log an entry.
+9. **Report** in the pull request (or to whoever asked), ranked by our category, mandatory first:
 
    | Guideline | Our category | File:line | Finding | Fix, or deviation to propose |
    | --- | --- | --- | --- | --- |

@@ -21,7 +21,10 @@ python3 tools/setup.py
 
 ## 2. Apply the org settings
 
-From a checkout of `kokeb-labs/.github`, after adding the repository to `org/org-metadata.json` by PR:
+From a checkout of `kokeb-labs/.github`, after adding the repository to `org/repos.json` by PR. Its entry sets
+the About: the description is the README's first sentence (`C++20 driver for the <vendor> <parts> <what it is>
+(<bus>)`), and the topics are the shared `kokeb-labs driver embedded cpp20 misra-cpp header-only` plus the bus, the
+device category, the vendor and the part (`spi eeprom microchip at25040b`):
 
 ```bash
 ./org/apply-metadata.sh       --repo driver-<chip> --apply
