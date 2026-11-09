@@ -38,7 +38,7 @@ concept HasGpioSet =
 
 /// The port declares something called `DelayUs`.
 template <typename Port>
-concept DeclaresDelayUs = requires(Port& port) { port.DelayUs(1U); };
+concept DeclaresDelayUs = requires(Port& port) { port.DelayUs(1_u32); };
 
 /// The port waits: `void DelayUs(uint32_t us) noexcept`.
 template <typename Port>
@@ -202,6 +202,7 @@ private:
 
 } // namespace xmpl100
 
+// codeql::misra_deviation_next_line(MD-CPP-009)
 #include "../src/xmpl100.ipp" // IWYU pragma: export
 
 #endif // XMPL100_HPP

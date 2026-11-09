@@ -120,19 +120,22 @@ Result<GpioSignal> XMPL100<Port>::readOnce() noexcept {
 template <SpiPort Port>
 Result<GpioSignal> XMPL100<Port>::readStable() noexcept {
   GpioSignal first = GpioSignal::INACTIVE;
-  for (uint16_t i = 0; i < config_.samples; ++i) {
+  const uint16_t samples = config_.samples;
+  for (uint16_t i = 0U; i < samples; ++i) {
     const auto sample = readOnce();
     if (!sample) {
       return sample;
     }
     const GpioSignal level = sample.value;
-    if (i == 0) {
+    if (i == 0U) {
       first = level;
     } else if (level != first) {
       detail::Log(port_, LogLevel::Warning, "xmpl100: OUT changed during a reading");
       return Result<GpioSignal>::Failure(Error::DeviceFault);
+    } else {
+      // The same level as the first sample: the reading holds so far.
     }
-    if (i + 1U < config_.samples && config_.sample_interval_us > 0) {
+    if (((i + 1U) < samples) && (config_.sample_interval_us > 0U)) {
       detail::DelayUs(port_, config_.sample_interval_us);
     }
   }

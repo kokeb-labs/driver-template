@@ -39,7 +39,7 @@ struct MockBusState {
     }
     if (open_output) {
       mv = 3300;
-    } else if (channel != wired_channel || !powered) {
+    } else if ((channel != wired_channel) || !powered) {
       mv = 0;
     } else {
       // The output cannot go below 0 V: below -50 °C it sits at the rail (a negative float cast to

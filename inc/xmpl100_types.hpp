@@ -76,6 +76,8 @@ constexpr const char* ToString(Error error) noexcept {
     return "Unsupported";
   case Error::UnexpectedReset:
     return "UnexpectedReset";
+  default:
+    break;
   }
   return "Unknown";
 }
@@ -321,10 +323,10 @@ constexpr Result<int16_t> ToCounts(float celsius, Resolution resolution) noexcep
   const float scaled = celsius * static_cast<float>(resolution.counts_per_degree_c);
   // "Not in range" on purpose: a NaN fails every comparison, so it is rejected here.
   // NOLINTNEXTLINE(readability-simplify-boolean-expr)
-  if (!(scaled >= -32768.0F && scaled <= 32767.0F)) {
+  if (!((scaled >= -32768.0F) && (scaled <= 32767.0F))) {
     return Result<int16_t>::Failure(Error::InvalidArgument);
   }
-  const auto rounded = static_cast<int32_t>(scaled >= 0.0F ? scaled + 0.5F : scaled - 0.5F);
+  const auto rounded = static_cast<int32_t>((scaled >= 0.0F) ? (scaled + 0.5F) : (scaled - 0.5F));
   return Result<int16_t>::Success(static_cast<int16_t>(rounded)); // in range: checked above
 }
 
@@ -379,20 +381,20 @@ constexpr Error Validate(const Config& config) noexcept {
   }
   // Written as "not in range" on purpose: a NaN fails every comparison, so it is rejected here.
   // NOLINTNEXTLINE(readability-simplify-boolean-expr)
-  if (!(config.alert_low_c >= kAlertMinC && config.alert_high_c <= kAlertMaxC &&
-        config.alert_low_c < config.alert_high_c)) {
+  if (!((config.alert_low_c >= kAlertMinC) && (config.alert_high_c <= kAlertMaxC) &&
+        (config.alert_low_c < config.alert_high_c))) {
     return Error::InvalidArgument;
   }
   // NOLINTNEXTLINE(readability-simplify-boolean-expr): "not in range" rejects NaN too
-  if (!(config.offset_c >= kOffsetMinC && config.offset_c <= kOffsetMaxC)) {
+  if (!((config.offset_c >= kOffsetMinC) && (config.offset_c <= kOffsetMaxC))) {
     return Error::InvalidArgument;
   }
-  if (config.conversion_timeout_ms == 0U ||
-      config.conversion_timeout_ms > kConversionTimeoutMaxMs) {
+  if ((config.conversion_timeout_ms == 0U) ||
+      (config.conversion_timeout_ms > kConversionTimeoutMaxMs)) {
     return Error::InvalidArgument;
   }
-  if (config.mode == Mode::Continuous &&
-      SamplesPerResult(config.averaging) * kConversionTimeMaxUs > PeriodUs(config.odr)) {
+  if ((config.mode == Mode::Continuous) &&
+      ((SamplesPerResult(config.averaging) * kConversionTimeMaxUs) > PeriodUs(config.odr))) {
     return Error::InvalidArgument;
   }
   return Error::Ok;
@@ -406,7 +408,7 @@ static_assert(Validate(OneShotPreset()) == Error::Ok);
 // The reset values of the threshold registers are the default thresholds (section 7.7).
 static_assert(ToCounts(125.0F, kTemperatureResolution).value == 0x3E80);
 static_assert(ToCounts(-40.0F, kTemperatureResolution).value == -5120); // 0xEC00
-static_assert(ToCelsius(0x3E80, kTemperatureResolution) == 125.0F);
+static_assert(ToCelsius(int16_t{0x3E80}, kTemperatureResolution) == 125.0F);
 static_assert(!ToCounts(256.0F, kTemperatureResolution).ok());
 
 /**

@@ -21,6 +21,9 @@
 /** @brief The XMPL100 register map. */
 namespace xmpl100::reg {
 
+using detail::operator""_u8;
+using detail::operator""_u32;
+
 /**
  * @defgroup xmpl100_registers Register map
  * @brief Addresses, fields and reset values.
@@ -73,8 +76,9 @@ using ConfigAvg = detail::Field<uint8_t, kConfigAvgShift, 2U>;
 static_assert(CtrlMode::kMask == kCtrlModeMask);
 static_assert(ConfigOdr::kMask == kConfigOdrMask);
 static_assert(ConfigAvg::kMask == kConfigAvgMask);
-static_assert(ConfigAvg::Extract(ConfigAvg::Insert(0xFFU, 2U)) == 2U);
-static_assert(ConfigAvg::Insert(0x00U, 7U) == kConfigAvgMask); // the value is masked to the field
+static_assert(ConfigAvg::Extract(ConfigAvg::Insert(0xFF_u8, 2_u32)) == 2U);
+static_assert(ConfigAvg::Insert(0x00_u8, 7_u32) ==
+              kConfigAvgMask); // the value is masked to the field
 
 inline constexpr uint8_t kCtrlReset = 0x02;   ///< CTRL after reset: continuous, alert off.
 inline constexpr uint8_t kConfigReset = 0x02; ///< CONFIG after reset: 4 Hz, no averaging, no CRC.
@@ -95,15 +99,16 @@ constexpr uint8_t Crc8(std::span<const uint8_t> data) noexcept {
   for (const uint8_t byte : data) {
     crc ^= static_cast<uint32_t>(byte);
     for (uint32_t bit = 0U; bit < 8U; ++bit) {
-      crc = (crc & 0x80U) != 0U ? ((crc << 1U) ^ uint32_t{kCrcPolynomial}) : (crc << 1U);
+      crc = ((crc & 0x80U) != 0U) ? ((crc << 1U) ^ uint32_t{kCrcPolynomial}) : (crc << 1U);
       crc &= 0xFFU;
     }
   }
   return static_cast<uint8_t>(crc);
 }
 
-/// The CRC-8 catalogue check: "123456789" gives 0xF7 for these parameters.
-static_assert(Crc8(std::array<uint8_t, 9>{'1', '2', '3', '4', '5', '6', '7', '8', '9'}) == 0xF7U);
+/// The CRC-8 catalogue check: "123456789" (ASCII 0x31 to 0x39) gives 0xF7 for these parameters.
+static_assert(Crc8(std::array<uint8_t, 9>{0x31U, 0x32U, 0x33U, 0x34U, 0x35U, 0x36U, 0x37U, 0x38U,
+                                          0x39U}) == 0xF7U);
 /// The reset value of ALERT_HIGH, 0x3E80, gives 0x24.
 static_assert(Crc8(std::array<uint8_t, 2>{0x3EU, 0x80U}) == 0x24U);
 

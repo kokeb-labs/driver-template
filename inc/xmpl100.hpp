@@ -43,7 +43,7 @@ concept HasGpioSet =
 
 /// The port declares something called `DelayUs`.
 template <typename Port>
-concept DeclaresDelayUs = requires(Port& port) { port.DelayUs(1U); };
+concept DeclaresDelayUs = requires(Port& port) { port.DelayUs(1_u32); };
 
 /// The port waits: `void DelayUs(uint32_t us) noexcept`. A narrower parameter would truncate long
 /// waits.
@@ -87,25 +87,25 @@ void Log(Port& port, [[maybe_unused]] LogLevel level,
 
 /// CTRL for `config`, with START set when `start` is true (section 7.4).
 [[nodiscard]] constexpr uint8_t CtrlValue(const Config& config, bool start) noexcept {
-  auto value = reg::CtrlMode::Insert(0U, ToUnderlying(config.mode));
+  auto value = reg::CtrlMode::Insert(0_u8, static_cast<uint32_t>(ToUnderlying(config.mode)));
   if (config.alert_enable) {
-    value = static_cast<uint8_t>(value | reg::kCtrlAlertEn);
+    value = static_cast<uint8_t>(static_cast<uint32_t>(value) | reg::kCtrlAlertEn);
   }
   if (config.alert_polarity == AlertPolarity::ActiveHigh) {
-    value = static_cast<uint8_t>(value | reg::kCtrlAlertPol);
+    value = static_cast<uint8_t>(static_cast<uint32_t>(value) | reg::kCtrlAlertPol);
   }
   if (start) {
-    value = static_cast<uint8_t>(value | reg::kCtrlStart);
+    value = static_cast<uint8_t>(static_cast<uint32_t>(value) | reg::kCtrlStart);
   }
   return value;
 }
 
 /// CONFIG for `config` (section 7.5).
 [[nodiscard]] constexpr uint8_t ConfigValue(const Config& config) noexcept {
-  auto value = reg::ConfigOdr::Insert(0U, ToUnderlying(config.odr));
-  value = reg::ConfigAvg::Insert(value, ToUnderlying(config.averaging));
+  auto value = reg::ConfigOdr::Insert(0_u8, static_cast<uint32_t>(ToUnderlying(config.odr)));
+  value = reg::ConfigAvg::Insert(value, static_cast<uint32_t>(ToUnderlying(config.averaging)));
   if (config.crc_enable) {
-    value = static_cast<uint8_t>(value | reg::kConfigCrcEn);
+    value = static_cast<uint8_t>(static_cast<uint32_t>(value) | reg::kConfigCrcEn);
   }
   return value;
 }
@@ -113,12 +113,13 @@ void Log(Port& port, [[maybe_unused]] LogLevel level,
 /// STATUS, decoded (section 7.3).
 [[nodiscard]] constexpr Status DecodeStatus(uint8_t raw) noexcept {
   Status s{};
-  s.data_ready = (raw & reg::kStatusDrdy) != 0U;
-  s.busy = (raw & reg::kStatusBusy) != 0U;
-  s.alert_high = (raw & reg::kStatusAlertHi) != 0U;
-  s.alert_low = (raw & reg::kStatusAlertLo) != 0U;
-  s.power_on_reset = (raw & reg::kStatusPor) != 0U;
-  s.fault = (raw & reg::kStatusFault) != 0U;
+  const auto bits = static_cast<uint32_t>(raw);
+  s.data_ready = (bits & reg::kStatusDrdy) != 0U;
+  s.busy = (bits & reg::kStatusBusy) != 0U;
+  s.alert_high = (bits & reg::kStatusAlertHi) != 0U;
+  s.alert_low = (bits & reg::kStatusAlertLo) != 0U;
+  s.power_on_reset = (bits & reg::kStatusPor) != 0U;
+  s.fault = (bits & reg::kStatusFault) != 0U;
   return s;
 }
 
@@ -132,7 +133,7 @@ static_assert(reg::ConfigOdr::Extract(ConfigValue(HighAccuracyPreset())) ==
               ToUnderlying(OutputDataRate::Hz8));
 static_assert(reg::CtrlMode::Extract(CtrlValue(OneShotPreset(), true)) ==
               ToUnderlying(Mode::OneShot));
-static_assert((CtrlValue(OneShotPreset(), true) & reg::kCtrlStart) != 0U);
+static_assert((static_cast<uint32_t>(CtrlValue(OneShotPreset(), true)) & reg::kCtrlStart) != 0U);
 static_assert(DecodeStatus(reg::kStatusPor).power_on_reset && !DecodeStatus(reg::kStatusPor).fault);
 
 } // namespace detail
@@ -394,7 +395,7 @@ private:
   Result<void> fail(Error error, const char* message) noexcept;
 
   /// STATUS reads after the t_RST wait before a reset counts as stuck.
-  static constexpr uint32_t kResetPolls = 3;
+  static constexpr uint32_t kResetPolls = 3U;
 
   detail::RegisterBus<Port> bus_;
   Config config_{};
@@ -408,6 +409,7 @@ private:
 
 } // namespace xmpl100
 
+// codeql::misra_deviation_next_line(MD-CPP-009)
 #include "../src/xmpl100.ipp" // IWYU pragma: export
 
 #endif // XMPL100_HPP

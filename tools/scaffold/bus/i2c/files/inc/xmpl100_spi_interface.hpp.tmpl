@@ -133,7 +133,7 @@ public:
   /// Read `out.size()` consecutive registers from `reg`. `InvalidArgument` (nothing sent) for 0 or
   /// more than `kMaxBurst` bytes, `Bus` on a NACK or bus error.
   Error Read(uint8_t reg, std::span<uint8_t> out) noexcept {
-    if (out.empty() || out.size() > kMaxBurst) {
+    if (out.empty() || (out.size() > kMaxBurst)) {
       return Error::InvalidArgument;
     }
     const std::array<uint8_t, 1> pointer{reg};
@@ -152,15 +152,16 @@ public:
   /// Write `data.size()` consecutive registers from `reg`. `InvalidArgument` (nothing sent) for 0
   /// or more than `kMaxBurst` bytes, `Bus` on a NACK or bus error.
   Error Write(uint8_t reg, std::span<const uint8_t> data) noexcept {
-    if (data.empty() || data.size() > kMaxBurst) {
+    if (data.empty() || (data.size() > kMaxBurst)) {
       return Error::InvalidArgument;
     }
-    std::array<uint8_t, 1 + kMaxBurst> frame{};
+    std::array<uint8_t, 1U + kMaxBurst> frame{};
     frame[0] = reg;
-    for (std::size_t i = 0; i < data.size(); ++i) {
+    const std::size_t count = data.size();
+    for (std::size_t i = 0U; i < count; ++i) {
       frame[1U + i] = data[i];
     }
-    return port_.Write(address_, frame.data(), data.size() + 1U) ? Error::Ok : Error::Bus;
+    return port_.Write(address_, frame.data(), count + 1U) ? Error::Ok : Error::Bus;
   }
 
 private:

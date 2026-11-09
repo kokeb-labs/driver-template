@@ -11,7 +11,7 @@ XMPL100, a fictional example sensor on SPI. It follows the
 
 - `inc/`, `src/`: the driver. `inc/xmpl100.hpp` is the umbrella header, `src/xmpl100.ipp` the implementation,
   `inc/xmpl100_spi_interface.hpp` the port, `inc/xmpl100_types.hpp` errors and config, `inc/xmpl100_detail.hpp`
-  the compile-time helpers (exact hook probes, typed register fields, enumeration checks).
+  the compile-time helpers (typed integer literals, exact hook probes, typed register fields, enumeration checks).
 - `tests/`: host tests over the register model `tests/mock_xmpl100.hpp`, `tests/compile_fail/`, `tests/docs/`
   (every code block on the site), `tests/install_consumer/`.
 - `docs/`: the site pages (`docs/.nav.yml` orders them). `docs/datasheets.yml` records the datasheet the driver
@@ -86,8 +86,10 @@ application supplies (`inc/xmpl100_spi_interface.hpp`). `docs/architecture.md` d
   expiry) needs the maintainer's approval.
 - **C++20 profile** (KB-CPP20-001 to 058): the `cpp20-profile` skill lists which features to use, use with
   rules, or leave out, and runs the automated checks first.
-- **MISRA C++:2023 matrix**: the `misra-review` skill reviews against the handbook's compliance matrix and cites
-  guideline numbers only.
+- **MISRA C++:2023 matrix**: the CI job `MISRA` (`.github/workflows/ci-misra.yml`) analyses every translation
+  unit; the `misra-review` skill reviews against the handbook's compliance matrix, lists the patterns the code
+  follows (`default: break;` in every enumeration switch, `else` after `else if`, typed constant arguments with
+  `_u8`/`_u16`/`_u32`, ...) and cites guideline numbers only.
 - **Hardware lessons** (reply validity, stuck and floating lines, resynchronisation, retries, ready waits, bus
   requirements, pin idle levels): the `hardware-lessons-review` skill checks each rule has a code path and a
   model test.

@@ -40,7 +40,27 @@ commits, pull requests or comments, or upload or attach the licensed copy. Cite 
    entry in `docs/deviations.yml` (`id`, `rule`, `check`, `where`, `reason`, `risk`, `approved_by`, `date`). A
    mandatory guideline is never deviated. Do not add a deviation or a waiver yourself: propose it in the report
    for the maintainer to approve, and fix the code when a fix exists.
-7. **Report** in the pull request (or to whoever asked), ranked by our category, mandatory first:
+7. **Check the patterns the code already follows**, which the `MISRA` CI job (`.github/workflows/ci-misra.yml`)
+   holds it to; new code uses them too:
+   - every switch over a scoped enumeration, or one with a fixed underlying type, lists its cases and ends with
+     `default: break;` as its last label, followed by the existing fallback (`return "Unknown";`); the tests
+     build with `-Wswitch-enum`, so a new enumerator still warns (Rule 9.4.2);
+   - every `if ... else if` chain ends with an `else`, with a comment when it does nothing (Rule 9.4.1);
+   - an operand of a binary or ternary operator that is itself a binary expression of higher precedence is
+     parenthesised: `(a == b) && (c < d)`, `(x < y) ? x : y` (Rule 8.0.1);
+   - a narrow operand meets a `U` constant (`count == 0U`), and a bit operation on two narrow operands widens one
+     to `uint32_t` first (Rule 7.0.5);
+   - an integer constant argument has its parameter's type: `DelayUs(port, 1000_u32)`, `Insert(0_u8, v)` with the
+     `consteval` literals of `inc/xmpl100_detail.hpp`, brought in with `using detail::operator""_u32;` where used
+     (Rule 7.0.6);
+   - a loop bound that is not a constant is a `const` local before the loop (Rule 9.5.1);
+   - a result that is not used comes from a call that returns `void` (`std::fill`, not `std::fill_n` or
+     `std::ranges::fill`) (Rule 0.1.2);
+   - a declaration and its definition use the same parameter names (Rule 13.3.3);
+   - a defaulted `operator==` is a hidden friend (Rule 16.6.1);
+   - the `#include "../src/xmpl100.ipp"` at the end of `inc/xmpl100.hpp` is deviated by MD-CPP-009, named on the
+     line before it: `// codeql::misra_deviation_next_line(MD-CPP-009)` (Rule 19.0.3).
+8. **Report** in the pull request (or to whoever asked), ranked by our category, mandatory first:
 
    | Guideline | Our category | File:line | Finding | Fix, or deviation to propose |
    | --- | --- | --- | --- | --- |

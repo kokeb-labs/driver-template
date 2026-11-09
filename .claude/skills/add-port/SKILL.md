@@ -22,7 +22,8 @@ PlatformIO manifest only when a product needs it, and never at the cost of a sec
 2. Implement `DelayUs()`: every wait of the driver needs it.
 3. Implement `GpioSet()` when RESET_N (or another `CtrlPin`) is wired; map `GpioSignal::ACTIVE` to the pin's
    electrical polarity in the port, not in the driver. Return `false` when the pin write fails.
-4. Optionally `Log(LogLevel, const char* message)`, printing the plain-text line with the platform's logger (`"%s"`, never as a format string).
+4. Optionally `Log(LogLevel, const char* message)`, printing the plain-text line with the platform's logger
+   (`"%s"`, never as a format string).
 5. Bounded time-outs on every bus call; return `false` on any error.
 
 ## ESP32 (ESP-IDF)

@@ -28,6 +28,12 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- CI job `MISRA` (`.github/workflows/ci-misra.yml`): the shared `ru-misra` workflow at level `high`, MISRA
+  C++:2023 and the C++20 profile on traced host and Cortex-M builds, with `open_source_prerelease` until the
+  repository is public. The clang-tidy `cppcoreguidelines-macro-usage` check allows `CONFIG_` macros, so the
+  Kconfig headers carry no suppression.
+- `detail::operator""_u8`, `_u16` and `_u32`: `consteval` literals of exactly `uint8_t`, `uint16_t` and
+  `uint32_t`, for constant arguments (Rule 7.0.6); a value that does not fit does not compile.
 - `tools/check_standalone.py`, run in the repository checks and kept in every scaffolded repository by the drift
   check: a repository names no other project, carries no dated history and gives its copyright to its authors.
   It also reports a private repository, a personal account outside `.github/CODEOWNERS` and a local path.
@@ -92,6 +98,13 @@ version bump (a minor bump before 1.0).
 
 ### Changed
 
+- The code follows the first MISRA C++:2023 scan, in the driver and in every scaffold overlay: every switch over
+  an enumeration ends with `default: break;` (Rule 9.4.2) and the tests build with `-Wswitch-enum`, so a new
+  enumerator still warns; every `else if` chain ends with `else` (Rule 9.4.1); operands of a different precedence
+  are parenthesised (Rule 8.0.1); narrow operands meet `U` constants or are widened to `uint32_t` first
+  (Rule 7.0.5); constant arguments have their parameter's type (Rule 7.0.6); loop bounds are `const` locals
+  (Rule 9.5.1); and the `.ipp` include of the umbrella header names deviation MD-CPP-009 (Rule 19.0.3).
+  Behaviour is unchanged.
 - Every header, generated ones and the scaffold's overlays included, has an `#ifndef` include guard named
   `<NAME>_<FILE_STEM>_<EXT>` instead of `#pragma once` (handbook KB-CPP-019, MISRA C++:2023 Rule 19.2.1). The
   scaffold renames the guards with the chip and the bus, and its self-test checks every guard of the template and

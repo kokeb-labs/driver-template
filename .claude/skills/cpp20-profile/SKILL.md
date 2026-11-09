@@ -40,10 +40,12 @@ For each changed construct, decide its verdict:
 - **Use with rules**: concepts (exact hook signatures, `detail::ExactHook`, `noexcept`), optional-hook detection
   (named `Has<Hook>` and `Declares<Hook>` concepts), `if constexpr` (each branch instantiated by a test),
   dynamic `std::span` (size checked before the first access, never stored), designated initialisers (every member
-  defaulted), defaulted `operator==` (integral members only), lambdas (explicit captures, never stored), CRTP
-  (port-independent code outside the class template), `consteval` (build-time construction, run-time `Validate()`
-  kept), `constinit`, `std::bit_cast` (never for byte order), `using enum` (block scope), `std::optional` (never
-  `.value()`), structured bindings (error tested first), the `std::ranges` algorithms (no views).
+  defaulted), defaulted `operator==` (integral members only, as a hidden friend:
+  `friend constexpr bool operator==(const T& lhs, const T& rhs) noexcept = default;`), lambdas (explicit
+  captures, never stored), CRTP (port-independent code outside the class template), `consteval` (build-time
+  construction, run-time `Validate()` kept; the `_u8`/`_u16`/`_u32` literals of `detail`), `constinit`,
+  `std::bit_cast` (never for byte order), `using enum` (block scope), `std::optional` (never `.value()`),
+  structured bindings (error tested first), the `std::ranges` algorithms (no views).
 - **Forbid**: coroutines, modules, range views and `<ranges>`, `<format>` and `std::print`, `<=>` in drivers,
   `char8_t`, parenthesised aggregate initialisation, lambdas in unevaluated operands, generic lambdas in drivers,
   `[[fallthrough]]`, `[[no_unique_address]]` in drivers, `[[likely]]` without a measurement,

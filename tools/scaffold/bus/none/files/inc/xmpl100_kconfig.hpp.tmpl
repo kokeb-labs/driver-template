@@ -18,7 +18,6 @@
 
 #include "xmpl100_types.hpp"
 
-// NOLINTBEGIN(cppcoreguidelines-macro-usage): Kconfig values are macros by definition.
 #ifndef CONFIG_XMPL100_SAMPLES
 /** Reads of OUT per reading when Kconfig does not set it: `Config{}.samples`. */
 #define CONFIG_XMPL100_SAMPLES 3
@@ -27,7 +26,6 @@
 /** Wait between two reads when Kconfig does not set it: `Config{}.sample_interval_us`. */
 #define CONFIG_XMPL100_SAMPLE_INTERVAL_US 1000
 #endif
-// NOLINTEND(cppcoreguidelines-macro-usage)
 
 namespace xmpl100 {
 

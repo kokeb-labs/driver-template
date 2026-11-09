@@ -66,6 +66,15 @@ clang-tidy 20 ([`_config/.clang-tidy`](../_config/.clang-tidy): bugprone, CERT, 
 cppcoreguidelines, modernize, performance, portability and readability, each disabled check with its reason) and
 cppcheck (strict) run in the `C++ lint` and `Repository checks` jobs and fail on any finding.
 
+The `MISRA` job ([`ci-misra.yml`](../.github/workflows/ci-misra.yml)) runs the shared `ru-misra` workflow of
+ci-tools at level `high`: it traces a host build and the Cortex-M build (`xmpl100_optimised_build`) of every
+translation unit, checks them against MISRA C++:2023 and the handbook's C++20 profile (the CodeQL coding-standards
+and profile packs, plus the validated clang-tidy and cppcheck checks), and reports each finding against the
+handbook's compliance matrix and deviation records. A finding is fixed in the code; a deliberate exception names
+its deviation on the line before it. Until the repository is public the job runs with
+`open_source_prerelease: true`, the declaration that the code is released under the licence in `LICENSE` and is to
+be published.
+
 ## CI workflows
 
 Everything runs from [`ci.yml`](../.github/workflows/ci.yml), which calls one workflow file per check and ends in
@@ -77,6 +86,7 @@ the `CI gate` job, the single required check (`CI gate / gate`).
 | Host quality | The gates above: complexity, coverage, sanitizers |
 | Cross-compile | `arm-none-eabi-g++` for Cortex-M0+, M4F and M7F with the strict flags, warnings as errors (nothing linked) |
 | C++ lint, cppcheck | clang-format, clang-tidy and cppcheck over `inc/` |
+| MISRA | MISRA C++:2023 and the C++20 profile on traced host and Cortex-M builds, at level `high` (see [Quality gates](#quality-gates)) |
 | Docs | Strict site build (`_config/mkdocs.yml`), generated-region drift, Doxygen (`_config/Doxyfile`), offline link check |
 | Repository checks | One job: DCO on pull requests, the org standard, Markdown and YAML lint, the [Kokeb Labs handbook](https://github.com/kokeb-labs/handbook) rules for `.kokeb/handbook.yml` (by rule ID), template drift (warns only) and cppcheck over the driver sources |
 | CI gate | Passes only if every job above passed: the one required check |

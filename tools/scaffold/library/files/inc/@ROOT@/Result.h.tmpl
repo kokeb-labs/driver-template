@@ -48,6 +48,8 @@ constexpr const char* ToString(Error error) noexcept {
     return "InvalidArgument";
   case Error::Empty:
     return "Empty";
+  default:
+    break;
   }
   return "Unknown";
 }
