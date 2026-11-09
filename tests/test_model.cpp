@@ -57,16 +57,15 @@ static_assert(reg::kStatusClearOnRead == chip::kStatusPor);
 constexpr std::array<uint8_t, 2> kZero = {0x00, 0x00};
 constexpr std::array<uint8_t, 2> kOnes = {0xFF, 0xFF};
 constexpr std::array<uint8_t, 2> kSample = {0x0C, 0x80}; // +25 °C
-static_assert(chip::Crc8(kZero.data(), kZero.size()) == reg::Crc8(kZero.data(), kZero.size()));
-static_assert(chip::Crc8(kOnes.data(), kOnes.size()) == reg::Crc8(kOnes.data(), kOnes.size()));
-static_assert(chip::Crc8(kSample.data(), kSample.size()) ==
-              reg::Crc8(kSample.data(), kSample.size()));
+static_assert(chip::Crc8(kZero.data(), kZero.size()) == reg::Crc8(kZero));
+static_assert(chip::Crc8(kOnes.data(), kOnes.size()) == reg::Crc8(kOnes));
+static_assert(chip::Crc8(kSample.data(), kSample.size()) == reg::Crc8(kSample));
 
 } // namespace
 
 TEST_CASE("The model's CRC-8 matches the driver's for every first byte") {
   for (uint32_t b = 0; b <= 0xFFU; ++b) {
     const std::array<uint8_t, 2> bytes = {static_cast<uint8_t>(b), static_cast<uint8_t>(0xFFU - b)};
-    CHECK_EQ(chip::Crc8(bytes.data(), bytes.size()), reg::Crc8(bytes.data(), bytes.size()));
+    CHECK_EQ(chip::Crc8(bytes.data(), bytes.size()), reg::Crc8(bytes));
   }
 }

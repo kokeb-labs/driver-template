@@ -26,7 +26,7 @@ namespace xmpl100 {
 
 /** @brief Why a call failed. Values 0 to 9 follow the shared base set; library values start at 16.
  */
-enum class Error : uint8_t {
+enum class [[nodiscard]] Error : uint8_t {
   Ok = 0,              ///< The call succeeded.
   NotInitialized = 1,  ///< `EnsureInitialized()` has not succeeded, or `Deinitialize()` ran since.
   InvalidArgument = 2, ///< An argument or a `Config` field is out of range; nothing changed.

@@ -34,7 +34,8 @@ jobs:
       cppcheck_strict: true  # a cppcheck finding fails CI
 
   # The handbook's source checks: include guards and no #pragma (KB-CPP-019), the bus requirements as constexpr
-  # (KB-CPP-123) and a single-shot raw access (KB-CPP-129). The script comes from a pinned commit of the public
+  # (KB-CPP-123), a single-shot raw access (KB-CPP-129) and the C++20 profile (KB-CPP20: no forbidden features,
+  # CMAKE_CXX_EXTENSIONS OFF, [[nodiscard]] error types, named hook concepts, the Kconfig header as a leaf). The script comes from a pinned commit of the public
   # handbook and needs only the Python standard library; a finding fails CI.
   source-checks:
     name: Handbook source checks
@@ -49,7 +50,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: kokeb-labs/handbook
-          ref: bb3b9a12262c7a6edc75e2522e9b8d5b7fa7135e  # main, 2026-11-08: checks/source_checks.py
+          ref: daec60fa62c5e418eb72a1bfb28c0937f536a751  # main, 2026-11-08: checks/source_checks.py with the C++20 profile checks
           path: .handbook
           sparse-checkout: checks/source_checks.py
           sparse-checkout-cone-mode: false

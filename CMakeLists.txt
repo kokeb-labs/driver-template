@@ -46,6 +46,13 @@ project(xmpl100_driver
 
 include(GNUInstallDirs)
 
+# ISO C++20 for every target this project builds (tests, fuzzers, examples), never the GNU dialect
+# that CMake picks by default (handbook KB-CPP-001, KB-CPP20-001). CXX_EXTENSIONS does not travel
+# through an INTERFACE target, so each folder that builds a target sets it as well.
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 # The installed layout keeps the source tree's inc/ + src/ pair, because xmpl100.hpp includes
 # "../src/xmpl100.ipp" relative to itself:
 #   <prefix>/include/xmpl100/inc/*.hpp, xmpl100_version.h

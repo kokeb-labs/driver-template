@@ -17,10 +17,16 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../.. xmpl100)
 endif()
 
+# ISO C++20, also when this folder is built on its own (handbook KB-CPP20-001).
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 add_executable(xmpl100_host_example main.cpp)
 target_link_libraries(xmpl100_host_example PRIVATE xmpl100::xmpl100)
 target_include_directories(xmpl100_host_example PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}
   ${CMAKE_CURRENT_LIST_DIR}/../../tests)
 target_compile_features(xmpl100_host_example PRIVATE cxx_std_20)
-target_compile_options(xmpl100_host_example PRIVATE -fno-exceptions -fno-rtti -Wall -Wextra -Wpedantic)
+target_compile_options(xmpl100_host_example PRIVATE -fno-exceptions -fno-rtti -Wall -Wextra -Wpedantic
+  -pedantic-errors)

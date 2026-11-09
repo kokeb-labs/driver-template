@@ -22,7 +22,7 @@ get_filename_component(xmpl100_component "${CMAKE_CURRENT_LIST_DIR}/../../.." AB
 get_filename_component(xmpl100_component "${xmpl100_component}" NAME)
 
 idf_component_register(
-    SRCS "${APP_SOURCE_FILE}"
+    SRCS "${APP_SOURCE_FILE}" "xmpl100_cxx20_check.cpp"
     INCLUDE_DIRS "."
     # scaffold:idf-requires
     REQUIRES driver esp_rom freertos log ${xmpl100_component}
@@ -36,3 +36,6 @@ else()
     target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra -Wpedantic -O2 -g -DNDEBUG)
 endif()
 target_compile_definitions(${COMPONENT_LIB} PRIVATE "EXAMPLE_TYPE_${APP_TYPE}=1")
+# The header self-check: the driver's public headers as ISO C++20, whatever dialect ESP-IDF uses for the
+# rest of the build (handbook KB-CPP20-001). Source options come after the component's, so this -std wins.
+set_source_files_properties(xmpl100_cxx20_check.cpp PROPERTIES COMPILE_OPTIONS "-std=c++20;-pedantic-errors")

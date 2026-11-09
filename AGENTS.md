@@ -10,7 +10,8 @@ XMPL100, a fictional example sensor on SPI. It follows the
 ## Layout
 
 - `inc/`, `src/`: the driver. `inc/xmpl100.hpp` is the umbrella header, `src/xmpl100.ipp` the implementation,
-  `inc/xmpl100_spi_interface.hpp` the port, `inc/xmpl100_types.hpp` errors and config.
+  `inc/xmpl100_spi_interface.hpp` the port, `inc/xmpl100_types.hpp` errors and config, `inc/xmpl100_detail.hpp`
+  the compile-time helpers (exact hook probes, typed register fields, enumeration checks).
 - `tests/`: host tests over the register model `tests/mock_xmpl100.hpp`, `tests/compile_fail/`, `tests/docs/`
   (every code block on the site), `tests/install_consumer/`.
 - `docs/`: the site pages (`docs/.nav.yml` orders them). `docs/datasheets.yml` records the datasheet the driver
@@ -41,8 +42,11 @@ XMPL100, a fictional example sensor on SPI. It follows the
 - A driver is MCU-agnostic and platform-free: no SDK, no RTOS, no lock, no heap, exceptions, RTTI, `std::function`,
   `std::string`, `printf` or static mutable state. It reaches the bus only through the port hooks.
 - Everything is in `namespace xmpl100`; internals in `xmpl100::detail`. The class is `xmpl100::XMPL100`.
-- The port base declares no hook; the driver is constrained by the `SpiPort` concept. Optional hooks are
-  detected with `requires` in `xmpl100::detail` only.
+- The port base declares no hook; the driver is constrained by the `SpiPort` concept, which checks each hook's
+  exact signature and `noexcept`. Optional hooks are detected by named `Declares*`/`Has*` concepts in
+  `xmpl100::detail` only, never by an inline `requires` expression.
+- Code follows the handbook's C++20 profile (KB-CPP20): ISO C++20 with no extensions, nothing from C++23, spans
+  for buffers, masked shifts, `uint32_t` bit work, bounded loops, `[[nodiscard]]` error types.
 - `Error` keeps the base set at values 0 to 9; chip-specific values start at 16 and each is returned somewhere.
 - Every fallible call returns `Result<T>`; every port failure propagates. The constructor stores the configuration
   with no I/O; `EnsureInitialized()` is the only start-up call, and every I/O call returns `NotInitialized` before it
@@ -61,8 +65,9 @@ cmake -S . -B build -DXMPL100_BUILD_TESTS=ON
 cmake --build build --parallel && ctest --test-dir build --output-on-failure
 ```
 
-The tests build with `-fno-exceptions -fno-rtti -Werror`. CI runs GCC and Clang; run the compilers you have.
-The host example runs as the CTest `xmpl100_host_example`. ESP32 builds run in CI only
+The tests build as ISO C++20 (`CMAKE_CXX_EXTENSIONS OFF`, `-pedantic-errors`) with `-fno-exceptions -fno-rtti
+-Werror`, and the target `xmpl100_header_checks` compiles each public header alone. CI runs GCC and Clang; run
+the compilers you have. The host example runs as the CTest `xmpl100_host_example`. ESP32 builds run in CI only
 (`esp32-examples-build-ci.yml`); do not install ESP-IDF to check a change.
 
 ## Docs checks
@@ -98,4 +103,6 @@ anything hardware-dependent marked **not verified on hardware** with bench steps
 ## Skills
 
 `.claude/skills/`: `verify`, `release`, `bump-pin`, `add-driver-feature`, `new-driver-from-template`,
-`datasheet-conformance`, `add-port`.
+`datasheet-conformance`, `add-port`, and the review skills `cpp20-profile`, `misra-review` and
+`hardware-lessons-review`. `.claude/agents/safety-reviewer.md` runs the review skills with `datasheet-conformance`
+and reports findings by severity without editing.

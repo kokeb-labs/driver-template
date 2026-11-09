@@ -25,6 +25,8 @@
 #include <concepts>
 #include <cstdint>
 
+#include "xmpl100_detail.hpp"
+
 namespace xmpl100 {
 
 /** @brief Input pins the driver reads through the `GpioRead()` hook. */
@@ -68,14 +70,14 @@ protected:
 
 /**
  * @brief Satisfied by a class that derives from `SpiInterface<Port>` and implements the required
- * hooks with the right types.
+ * hooks with exactly the types above, `noexcept` and returning `bool` (handbook KB-CPP20-006).
  * @tparam Port The port class.
  */
 template <typename Port>
 concept SpiPort = std::derived_from<Port, SpiInterface<Port>> &&
-                  requires(Port& port, InPin pin, GpioSignal& level) {
-                    { port.EnsureInitialized() } -> std::same_as<bool>;
-                    { port.GpioRead(pin, level) } -> std::same_as<bool>;
+                  requires(Port& port, detail::Exactly<InPin> pin, GpioSignal& level) {
+                    { port.EnsureInitialized() } noexcept -> std::same_as<bool>;
+                    { port.GpioRead(pin, level) } noexcept -> std::same_as<bool>;
                   };
 
 } // namespace xmpl100

@@ -28,7 +28,7 @@ namespace xmpl100 {
  *
  * An analog sensor has no bus protocol, so `Timeout`, `Crc` and `Busy` are never returned.
  */
-enum class Error : uint8_t {
+enum class [[nodiscard]] Error : uint8_t {
   Ok = 0,               ///< The call succeeded.
   NotInitialized = 1,   ///< `EnsureInitialized()` has not succeeded, or `Deinitialize()` ran since.
   InvalidArgument = 2,  ///< A `Config` field is out of range; nothing was read.

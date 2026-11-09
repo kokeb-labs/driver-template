@@ -15,7 +15,9 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
+#include "xmpl100_detail.hpp"
 #include "xmpl100_registers.hpp"
 #include "xmpl100_spi_interface.hpp"
 #include "xmpl100_types.hpp"
@@ -25,6 +27,10 @@ namespace xmpl100 {
 
 namespace detail {
 
+// Optional hooks: a `Declares*` concept only tests the name, the `Has*` concept the exact
+// signature, `noexcept` and the result type; the driver rejects a hook that is declared but does
+// not match (KB-CPP20-007).
+
 /// The port declares something called `GpioSet` (used to reject a misdeclared hook).
 template <typename Port>
 concept DeclaresGpioSet =
@@ -32,37 +38,106 @@ concept DeclaresGpioSet =
 
 /// The port drives control pins: `bool GpioSet(CtrlPin, GpioSignal) noexcept`.
 template <typename Port>
-concept HasGpioSet = requires(Port& port) {
-  { port.GpioSet(CtrlPin::Reset, GpioSignal::ACTIVE) } -> std::same_as<bool>;
+concept HasGpioSet = requires(Port& port, Exactly<CtrlPin> pin, Exactly<GpioSignal> signal) {
+  { port.GpioSet(pin, signal) } noexcept -> std::same_as<bool>;
 };
+
+/// The port declares something called `DelayUs`.
+template <typename Port>
+concept DeclaresDelayUs = requires(Port& port) { port.DelayUs(1U); };
+
+/// The port waits: `void DelayUs(uint32_t us) noexcept`. A narrower parameter would truncate long
+/// waits.
+template <typename Port>
+concept HasDelayUs = requires(Port& port, Exactly<uint32_t> us) {
+  { port.DelayUs(us) } noexcept -> std::same_as<void>;
+};
+
+/// The port declares something called `Log`.
+template <typename Port>
+concept DeclaresLog = requires(Port& port) { port.Log(LogLevel::Info, ""); };
 
 /// The port takes log lines: `void Log(LogLevel, const char* message) noexcept`.
 template <typename Port>
-concept HasLog = requires(Port& port, const char* fmt) { port.Log(LogLevel::Info, fmt); };
+concept HasLog = requires(Port& port, Exactly<LogLevel> level, Exactly<const char*> message) {
+  { port.Log(level, message) } noexcept -> std::same_as<void>;
+};
 
 /// Wait through the port. A port without `DelayUs()` fails to compile at the first call that needs
 /// a wait: the chip's reset and conversion times are requirements, never skipped.
 template <typename Port>
 void DelayUs(Port& port, uint32_t us) noexcept {
-  if constexpr (requires { port.DelayUs(us); }) {
+  if constexpr (HasDelayUs<Port>) {
     port.DelayUs(us);
   } else {
-    static_assert(sizeof(Port) == 0,
+    static_assert(kAlwaysFalse<Port>,
                   "xmpl100: the port must implement `void DelayUs(uint32_t us) noexcept`");
   }
 }
 
 /// Log through the port, or nothing when the port has no `Log()`. The driver never formats text.
 template <typename Port>
-void Log(Port& port, LogLevel level, const char* message) noexcept {
+void Log(Port& port, [[maybe_unused]] LogLevel level,
+         [[maybe_unused]] const char* message) noexcept {
   if constexpr (HasLog<Port>) {
     port.Log(level, message);
   } else {
     (void)port;
-    (void)level;
-    (void)message;
   }
 }
+
+// Register encoders and the STATUS decoder: free constexpr functions, emitted once whatever the
+// port type, and proved below with static_assert (KB-CPP20-009, -012).
+
+/// CTRL for `config`, with START set when `start` is true (section 7.4).
+[[nodiscard]] constexpr uint8_t CtrlValue(const Config& config, bool start) noexcept {
+  auto value = reg::CtrlMode::Insert(0U, ToUnderlying(config.mode));
+  if (config.alert_enable) {
+    value = static_cast<uint8_t>(value | reg::kCtrlAlertEn);
+  }
+  if (config.alert_polarity == AlertPolarity::ActiveHigh) {
+    value = static_cast<uint8_t>(value | reg::kCtrlAlertPol);
+  }
+  if (start) {
+    value = static_cast<uint8_t>(value | reg::kCtrlStart);
+  }
+  return value;
+}
+
+/// CONFIG for `config` (section 7.5).
+[[nodiscard]] constexpr uint8_t ConfigValue(const Config& config) noexcept {
+  auto value = reg::ConfigOdr::Insert(0U, ToUnderlying(config.odr));
+  value = reg::ConfigAvg::Insert(value, ToUnderlying(config.averaging));
+  if (config.crc_enable) {
+    value = static_cast<uint8_t>(value | reg::kConfigCrcEn);
+  }
+  return value;
+}
+
+/// STATUS, decoded (section 7.3).
+[[nodiscard]] constexpr Status DecodeStatus(uint8_t raw) noexcept {
+  Status s{};
+  s.data_ready = (raw & reg::kStatusDrdy) != 0U;
+  s.busy = (raw & reg::kStatusBusy) != 0U;
+  s.alert_high = (raw & reg::kStatusAlertHi) != 0U;
+  s.alert_low = (raw & reg::kStatusAlertLo) != 0U;
+  s.power_on_reset = (raw & reg::kStatusPor) != 0U;
+  s.fault = (raw & reg::kStatusFault) != 0U;
+  return s;
+}
+
+// The reset configuration encodes to the reset values of CTRL and CONFIG (section 7).
+static_assert(CtrlValue(Config{}, false) == reg::kCtrlReset);
+static_assert(ConfigValue(Config{}) == reg::kConfigReset);
+// Each field lands where the register map puts it, and decodes back.
+static_assert(reg::ConfigAvg::Extract(ConfigValue(HighAccuracyPreset())) ==
+              ToUnderlying(Averaging::X8));
+static_assert(reg::ConfigOdr::Extract(ConfigValue(HighAccuracyPreset())) ==
+              ToUnderlying(OutputDataRate::Hz8));
+static_assert(reg::CtrlMode::Extract(CtrlValue(OneShotPreset(), true)) ==
+              ToUnderlying(Mode::OneShot));
+static_assert((CtrlValue(OneShotPreset(), true) & reg::kCtrlStart) != 0U);
+static_assert(DecodeStatus(reg::kStatusPor).power_on_reset && !DecodeStatus(reg::kStatusPor).fault);
 
 } // namespace detail
 
@@ -99,6 +174,13 @@ class XMPL100 {
   static_assert(!detail::DeclaresGpioSet<Port> || detail::HasGpioSet<Port>,
                 "xmpl100: the optional GpioSet hook must be `bool GpioSet(CtrlPin, GpioSignal) "
                 "noexcept`, so that a failed pin write is reported");
+  static_assert(
+      !detail::DeclaresDelayUs<Port> || detail::HasDelayUs<Port>,
+      "xmpl100: the DelayUs hook must be `void DelayUs(uint32_t us) noexcept`, so that no "
+      "wait is truncated");
+  static_assert(!detail::DeclaresLog<Port> || detail::HasLog<Port>,
+                "xmpl100: the optional Log hook must be `void Log(LogLevel, const char* message) "
+                "noexcept`");
 
 public:
   // scaffold:bus-ctor
@@ -178,9 +260,11 @@ public:
   Result<void> ApplyConfig(const Config& config) noexcept;
 
   /** @return The configuration last applied or stored. No I/O. */
-  [[nodiscard]] const Config& GetConfig() const noexcept {
+  [[nodiscard]] const Config& GetConfig() const& noexcept {
     return config_;
   }
+  /** @brief Not on a temporary driver: the reference would dangle (KB-CPP20-044). */
+  void GetConfig() const&& = delete;
 
   /**
    * @brief Change the conversion mode only; stored without I/O before the start, as
@@ -263,7 +347,7 @@ public:
    * @return The latched flags; only `power_on_reset` can be set.
    */
   [[nodiscard]] Status GetLatchedStatus() const noexcept {
-    return decodeStatus(latched_status_);
+    return detail::DecodeStatus(latched_status_);
   }
 
   /** @brief Empty the latch of `GetLatchedStatus()`. No I/O. */
@@ -312,11 +396,6 @@ private:
   Result<uint8_t> readStatusByte() noexcept;
   Result<void> writeRegister(uint8_t reg, uint8_t value) noexcept;
   Result<void> fail(Error error, const char* message) noexcept;
-
-  static uint8_t ctrlValue(const Config& config, bool start) noexcept;
-  static uint8_t configValue(const Config& config) noexcept;
-  static int16_t toCounts(float celsius, int32_t counts_per_degree) noexcept;
-  static Status decodeStatus(uint8_t raw) noexcept;
 
   /// STATUS reads after the t_RST wait before a reset counts as stuck.
   static constexpr uint32_t kResetPolls = 3;

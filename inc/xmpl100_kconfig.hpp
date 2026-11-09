@@ -11,6 +11,11 @@
  *
  * Kconfig writes a bool option set to "n" as an absent macro, so an absent
  * `CONFIG_XMPL100_CRC_ENABLE` means off in both cases.
+ *
+ * One configuration per program: the inline function below depends on the `CONFIG_` macros, so
+ * every translation unit of one program must see the same values (ESP-IDF has one `sdkconfig.h`
+ * per build; each host test is its own program). No driver or library header includes this one
+ * (handbook KB-CPP20-018).
  */
 #ifndef XMPL100_KCONFIG_HPP
 #define XMPL100_KCONFIG_HPP

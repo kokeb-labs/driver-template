@@ -1,0 +1,31 @@
+/**
+ * @file hook_not_noexcept.cpp
+ * @brief Must NOT compile: a GpioRead hook that is not noexcept breaks the port contract, so the port
+ * concept rejects it (handbook KB-CPP20-006).
+ *
+ * EXPECT: SpiPort
+ */
+#include <cstdint>
+
+#include "xmpl100.hpp"
+
+class ThrowingPort : public xmpl100::SpiInterface<ThrowingPort> {
+public:
+  bool EnsureInitialized() noexcept {
+    return true;
+  }
+  bool GpioRead(xmpl100::InPin pin, xmpl100::GpioSignal& level) {
+    (void)pin;
+    level = xmpl100::GpioSignal::INACTIVE;
+    return true;
+  }
+  void DelayUs(uint32_t us) noexcept {
+    (void)us;
+  }
+};
+
+int main() {
+  ThrowingPort port;
+  xmpl100::XMPL100<ThrowingPort> sensor(port);
+  return static_cast<int>(sensor.EnsureInitialized().error);
+}

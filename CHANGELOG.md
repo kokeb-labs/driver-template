@@ -9,8 +9,44 @@ version bump (a minor bump before 1.0).
 ### Breaking
 
 - I2C overlay: `kDefaultI2cAddress` is now `kI2cAddress` (handbook KB-CPP-123).
+- Port concepts check each hook's exact signature and `noexcept` (handbook KB-CPP20-006): a hook with a narrower
+  or different parameter type, or without `noexcept`, no longer satisfies `SpiPort` (and the I2C, UART, ADC and
+  GPIO concepts). A misdeclared `DelayUs` or `Log` hook is now a compile error, as `GpioSet` already was.
+- `Validate()` rejects `conversion_timeout_ms` above `kConversionTimeoutMaxMs` (10000, the Kconfig range), and
+  `WaitDataReady()` is bounded by it: an unvalidated `UINT32_MAX` timeout used to make the poll loop endless.
+- `reg::Crc8()` and the register bus helpers take `std::span` instead of a pointer and a length; the bus helpers
+  also have fixed-extent overloads that check the burst size at compile time. `GetConfig()` is `&`-qualified
+  (deleted on a temporary driver).
 
 ### Added
+
+- The handbook's C++20 profile in the template (KB-CPP20-001 to 058):
+  - a strict-dialect build: `CMAKE_CXX_EXTENSIONS OFF` in the root, `tests/`, `examples/host/` and the install
+    consumer, `-pedantic-errors` and the C++20 deprecation warnings as errors, and `xmpl100_header_checks`, one
+    generated translation unit per public header asserting `__cplusplus == 202002L`, built by the host tests (GCC,
+    Clang) and, through `xmpl100_optimised_build`, the Cortex-M cross-build. The ESP-IDF example compiles
+    `main/xmpl100_cxx20_check.cpp` at `-std=c++20 -pedantic-errors` inside the ESP-IDF build, whose own dialect is
+    newer;
+  - `inc/xmpl100_detail.hpp`: `detail::Exactly<T>`, `kAlwaysFalse`, `ToUnderlying`, `IsEnumerator`/`EnumLast`
+    and typed register fields `detail::Field`; named `Declares*`/`Has*` concepts for every optional hook;
+  - `enum class [[nodiscard]] Error` in every overlay; masked shift counts in `SamplesPerResult()` and
+    `PeriodUs()`; the register encoders and the STATUS decoder as free `constexpr` functions;
+  - `Resolution` with `ToCounts()` (rejects NaN and out-of-range values) and `ToCelsius()`; `CheckedConfig`, a
+    configuration checked at build time;
+  - `static_assert`s: every preset valid, the reset `Config` encodes to the CTRL and CONFIG reset values, fields
+    round-trip, the CRC-8 matches its check value, the threshold reset values convert both ways;
+  - compile-fail tests for a narrowed hook parameter, a hook without `noexcept`, a `DelayUs(uint16_t)` and an
+    invalid `CheckedConfig`; unit tests for the bounded timeout, the masked helpers, the conversions, the fields;
+  - the standard library's assertions (`_GLIBCXX_ASSERTIONS`, libc++ hardening) in the tests and fuzzers.
+- Review skills and an agent, shipped with every scaffolded repository: `cpp20-profile` (the KB-CPP20 guidelines
+  with the check for each), `misra-review` (the pinned handbook's MISRA C++:2023 matrix, numbers only, deviations
+  the handbook's way), `hardware-lessons-review` (drivers: the rules learnt on hardware), and
+  `.claude/agents/safety-reviewer.md`, a read-only reviewer that runs them with `datasheet-conformance` and ranks
+  findings by severity. `verify`, `add-driver-feature` and `new-driver-from-template` call them and run the
+  strict-dialect build and the source checks. `.claude/agents/` is part of the template drift check.
+- The source checks job runs the handbook at its C++20-profile commit; `_config/.clang-tidy` follows the
+  handbook (`bugprone-dangling-handle` watches `std::span`; `modernize-use-std-format`/`-print` off).
+- `docs/template.md`: the C++20 patterns the template uses and the ones a driver adopts when its chip needs them.
 
 - Bus requirements as `constexpr` in the bus interface header (handbook KB-CPP-123): `kSpiMode`, `kMsbFirst`,
   `kMaxClockHz`, `kMinCsHighNs`, `kCsSetupNs`, `kCsHoldNs` and `kContinuousWord` for SPI; `kI2cAddress`,

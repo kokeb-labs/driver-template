@@ -4,7 +4,8 @@
  * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
  *
  * Include it only where menuconfig should choose the defaults; without Kconfig `KconfigDefaults()`
- * equals `Config{}`.
+ * equals `Config{}`. One configuration per program: every translation unit of one program must see
+ * the same `CONFIG_` values, and no driver header includes this one (handbook KB-CPP20-018).
  */
 #ifndef XMPL100_KCONFIG_HPP
 #define XMPL100_KCONFIG_HPP
