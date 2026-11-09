@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Run locally every check CI runs (strict-dialect host build and tests, the handbook's source checks, format, tidy, cppcheck, complexity, markdownlint, docs) and the review skills. Use before every push and before opening a PR.
+description: Run locally every check CI runs (strict-dialect host build and tests, the handbook's source checks, the stand-alone check, format, tidy, cppcheck, complexity, markdownlint, docs) and the review skills. Use before every push and before opening a PR.
 ---
 
 # Verify
@@ -20,6 +20,10 @@ Stop at the first failure, fix the cause, start again. Never weaken a check to p
    CI pins (the `ref:` of the handbook checkout in `.github/workflows/ci-repo-checks.yml`):
    `curl -fsSL https://raw.githubusercontent.com/kokeb-labs/handbook/<ref>/checks/source_checks.py -o /tmp/sc.py`
    and `python3 /tmp/sc.py scan --repo .`. Every finding fails CI.
+   Then the stand-alone check: `python3 tools/check_standalone.py`. It reports another project's name (a board,
+   a test project, another driver repository), a dated history line, and a copyright holder other than
+   `The <repo> authors`. Rewrite the sentence as this chip's behaviour with its datasheet section; a step still
+   to check on hardware stays a bench procedure without a date.
 5. Format the changed C++ files: `clang-format --style=file:_config/.clang-format -i <files>`, then
    `git diff --exit-code` shows nothing new.
 6. Tidy the changed files in `inc/` and `src/` when clang-tidy is installed:
@@ -40,8 +44,9 @@ Stop at the first failure, fix the cause, start again. Never weaken a check to p
    `examples/esp32/scripts` is checked out, run `git submodule deinit -f examples/esp32/scripts` first (its
    README has figure markers of its own), and `git submodule update --init` afterwards.
 10. In the template repository only: `python3 tools/scaffold.py --selftest` scaffolds every kind into temporary
-   directories, checks that each scaffolded root holds only the allowed files and no template or foreign names, and
-   runs steps 1, 2 and 9 on each.
+   directories, checks that each scaffolded root holds only the allowed files, no template name, no other
+   project's name and the portable copyright (the stand-alone check with `--strict`), and runs steps 1, 2 and 9
+   on each.
 11. Review the change: the `cpp20-profile`, `misra-review` and (drivers) `hardware-lessons-review` skills, or the
     `safety-reviewer` agent (`.claude/agents/safety-reviewer.md`), which runs them with `datasheet-conformance`
     and reports without editing. Fix what they find, or list it in the PR with the reason.

@@ -2,7 +2,7 @@
 # The small repository checks in one job (ci-tools ru-repo-checks): DCO on pull requests, the org standard
 # (licence, governance files), Markdown and YAML lint, the handbook rules against .kokeb/handbook.yml, template
 # drift (warns only; scaffold.py --check-drift --fix takes the template's version) and cppcheck over the driver
-# sources (a finding fails CI). A second small job runs the handbook's source checks.
+# sources (a finding fails CI). A second small job runs the handbook's source checks and the stand-alone check.
 name: Repository checks
 
 on:
@@ -50,10 +50,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: kokeb-labs/handbook
-          ref: daec60fa62c5e418eb72a1bfb28c0937f536a751  # main, 2026-11-08: checks/source_checks.py with the C++20 profile checks
+          ref: daec60fa62c5e418eb72a1bfb28c0937f536a751  # main: checks/source_checks.py with the C++20 profile checks
           path: .handbook
           sparse-checkout: checks/source_checks.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Scan
         run: python3 .handbook/checks/source_checks.py scan --repo .
+      # The repository's own check (tools/check_standalone.py, kept by the template): it names no other project,
+      # carries no dated history and gives its copyright to "The <repo> authors".
+      - name: Stand-alone check
+        run: python3 tools/check_standalone.py

@@ -37,7 +37,7 @@ For each changed construct, decide its verdict:
   `static_assert`, `std::array`, `if`/`switch` with an initialiser, nested namespaces, standard concepts,
   fixed-extent `std::span`, `<bit>`, `std::in_range` and `std::cmp_*`, `[[maybe_unused]]`, defaulted special
   members, default member initialisers, range-`for` over named arrays and spans, digit separators.
-- **Use with rules**: concepts (exact hook signatures, `detail::Exactly<T>`, `noexcept`), optional-hook detection
+- **Use with rules**: concepts (exact hook signatures, `detail::ExactHook`, `noexcept`), optional-hook detection
   (named `Has<Hook>` and `Declares<Hook>` concepts), `if constexpr` (each branch instantiated by a test),
   dynamic `std::span` (size checked before the first access, never stored), designated initialisers (every member
   defaulted), defaulted `operator==` (integral members only), lambdas (explicit captures, never stored), CRTP
@@ -63,7 +63,7 @@ pointer and a length instead of a span (042).
 | KB-CPP20-003 Nothing C++20 deprecates | required | compiler `-Wdeprecated`; compiler `-Wdeprecated-enum-enum-conversion`; compiler `-Wdeprecated-enum-float-conversion`; clang-tidy `cppcoreguidelines-misleading-capture-default-by-value` |
 | KB-CPP20-004 No feature-test macros to choose behaviour | advisory | source check `cpp20-profile/forbidden-features` |
 | KB-CPP20-005 Every template parameter is constrained by a named concept | required | review (CodeQL query planned); review: Every new template parameter names its concept. |
-| KB-CPP20-006 Port concepts check the exact hook signature and `noexcept` | required | `compile-fail-tests`; review (CodeQL query planned); review: Each port concept probes with `detail::Exactly<T>` and states `noexcept` on every hook. |
+| KB-CPP20-006 Port concepts check the exact hook signature and `noexcept` | required | `compile-fail-tests`; review (CodeQL query planned); review: Each port concept matches every hook with `detail::ExactHook` and states `noexcept` on it. |
 | KB-CPP20-007 Optional hooks use named detection concepts; a misdeclared hook is an error | required | source check `cpp20-profile/inline-requires`; `compile-fail-tests` |
 | KB-CPP20-008 One dependent-false helper | advisory | review: Discarded branches use `detail::kAlwaysFalse`. |
 | KB-CPP20-009 Code that does not depend on the port lives outside the class template | advisory | review (CodeQL query planned); review: A static member that never names the port moves out. |

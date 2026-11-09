@@ -1,7 +1,7 @@
 /**
  * @file xmpl100_types.hpp
  * @brief Public types of the XMPL100 driver: errors, `Result<T>`, configuration and presets.
- * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ * @copyright Copyright (c) 2026 The driver-template authors. SPDX-License-Identifier: MIT
  *
  * @details
  * Everything here is plain data with no platform dependency, so handlers, tests and tools can

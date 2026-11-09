@@ -30,10 +30,10 @@ commits, pull requests or comments, or upload or attach the licensed copy. Cite 
    profile allows is checked against its KB-CPP20 guidelines and the profile page's mapping table (a concept as a
    template, span indexing as array access, and so on). A forbidden feature, a deprecated one or anything from
    C++23 or later is a violation of Rule 4.1.1 with no deviation. Run the `cpp20-profile` skill for these.
-5. **Private notes, only with access.** If `gh repo view N3b3x/standards-private` succeeds, read
-   `misra/notes/<guideline>.md` for a guideline you are unsure how to apply: it holds the maintainer's own
-   reasoning and examples. Use it to decide; never copy from it into this repository, a pull request or a review
-   comment, and never mention its contents. Without access, the matrix and the handbook pages are enough.
+5. **Licensed text and private notes, only if you hold them.** If you hold a licensed copy of MISRA C++:2023
+   and the maintainers' private interpretation notes, use them to decide how a guideline applies; otherwise work
+   from the handbook's compliance matrix: guideline numbers and its summaries only. Never quote the standard or
+   the notes in this repository, a pull request or a review comment.
 6. **Deviations follow the handbook's model.** A project-wide deviation (`MD-CPP-NNN`) covers a finding only
    inside its `scope`. A finding in one place that is correct and deliberate gets a suppression that names the
    check and the reason on the line (`// NOLINTNEXTLINE(<check>): <reason>`), and at the high and safety levels an

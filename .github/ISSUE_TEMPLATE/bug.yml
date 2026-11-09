@@ -37,16 +37,12 @@ body:
       description: Tag or commit SHA of this repo (and of the parent repo if it is used as a submodule).
     validations:
       required: true
-  - type: dropdown
+  - type: input
     id: target
     attributes:
-      label: Target
-      options:
-        - Vortex V1
-        - Flux V1
-        - ESP32 dev kit
-        - Host (tests or simulation)
-        - Other
+      label: Board / MCU / port
+      description: The board, the MCU and the port you run the driver on, or "host" for the tests or simulation.
+      placeholder: ESP32-S3 dev board, examples/esp32 port
     validations:
       required: true
   - type: input

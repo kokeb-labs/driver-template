@@ -8,6 +8,14 @@ version bump (a minor bump before 1.0).
 
 ### Breaking
 
+- The exact port concepts match each hook's address with `detail::ExactHook<Port, Sig>` instead of probing it
+  with `detail::Exactly<T>`, which needed an implicit conversion operator (MISRA C++:2023 Rule 15.1.3). A hook
+  must be a member function, `const` or not, of exactly the documented signature; `detail::Exactly` is gone.
+- `detail::kAlwaysFalse` takes a class type (`ClassType`) and `detail::EnumLast`, `ToUnderlying` and
+  `IsEnumerator` an enumeration (`Enumeration`) (KB-CPP20-005), each pinned by a compile-fail test.
+- The copyright holder is the repository's authors: `The <repo> authors` (`The driver-template authors` here)
+  in `LICENSE`, every source header, `driver.yml` (new `authors` field) and the docs footer (`_config/mkdocs.yml`
+  `copyright`). The scaffold's `--author` default is now `The <repo> authors`; `--author` still overrides it.
 - I2C overlay: `kDefaultI2cAddress` is now `kI2cAddress` (handbook KB-CPP-123).
 - Port concepts check each hook's exact signature and `noexcept` (handbook KB-CPP20-006): a hook with a narrower
   or different parameter type, or without `noexcept`, no longer satisfies `SpiPort` (and the I2C, UART, ADC and
@@ -20,6 +28,15 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- `tools/check_standalone.py`, run in the repository checks and kept in every scaffolded repository by the drift
+  check: a repository names no other project, carries no dated history and gives its copyright to its authors.
+  It also reports a private repository, a personal account outside `.github/CODEOWNERS` and a local path.
+  `scaffold.py --selftest` runs it with `--strict` on the template and on every scaffolded case.
+- The `misra-review` skill names no private repository: it uses a licensed copy of the standard and the
+  maintainers' private notes only when the reviewer holds them, and the handbook's matrix otherwise.
+- `AGENTS.md`: sections on reading and citing the datasheet, the standards, branches and pull requests (squash
+  merge once green), the definition of done and the safety rules.
+- Issue and PR templates ask for the board, MCU and port in one free-text field.
 - The handbook's C++20 profile in the template (KB-CPP20-001 to 058):
   - a strict-dialect build: `CMAKE_CXX_EXTENSIONS OFF` in the root, `tests/`, `examples/host/` and the install
     consumer, `-pedantic-errors` and the C++20 deprecation warnings as errors, and `xmpl100_header_checks`, one

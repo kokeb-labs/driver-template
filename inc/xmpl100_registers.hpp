@@ -1,7 +1,7 @@
 /**
  * @file xmpl100_registers.hpp
  * @brief XMPL100 register map: addresses, bit fields and reset values (datasheet section 7).
- * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ * @copyright Copyright (c) 2026 The driver-template authors. SPDX-License-Identifier: MIT
  *
  * @details
  * Registers are 8 bits wide with 7-bit addresses. Multi-byte values are big-endian (MSB at the

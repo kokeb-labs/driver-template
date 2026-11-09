@@ -57,7 +57,7 @@ settings an owner applies.
 | `--include-root` | the name | Library only: headers live in `inc/<root>/` and are included as `"<root>/X.h"` |
 | `--org` | the owner in `git remote get-url origin`, else `kokeb-labs` | The GitHub organisation in repository, docs-site and discussion links |
 | `--repo` | the remote's repository name, else `driver-<name>` / `<name>` | The repository name in links |
-| `--author` | `The <Org> Authors` (`The Kokeb Labs Authors` for `kokeb-labs`) | The copyright holder in `LICENSE` and the source headers. Organisations with a display name are listed in `ORGS` at the top of `tools/scaffold.py` |
+| `--author` | `The <repo> authors` (`The driver-tmp117 authors` for `driver-tmp117`) | The copyright holder in `LICENSE`, the source headers, `driver.yml` `authors` and the docs footer (`_config/mkdocs.yml` `copyright`). The default names the repository's authors rather than a company or a person, so the repository can move and have many owners |
 | `--license MIT\|Apache-2.0` | `MIT` | `LICENSE` gets the full text (`tools/scaffold/license/`); the SPDX identifiers, the README badge and the licence line follow |
 | `--datasheet` | none | Driver only: the datasheet URL, written into `docs/datasheets.yml` and linked on the Hardware page and in the `datasheet-conformance` skill; never fetched |
 | `--out DIR` | in place | `scaffold.py` only: write a scaffolded copy instead of rewriting this checkout |
@@ -126,7 +126,7 @@ manifest or a wrapper folder. `--selftest` fails when a scaffolded root holds an
 | Path | What it is | Standard |
 | --- | --- | --- |
 | `inc/xmpl100.hpp` | Umbrella header: the driver class `xmpl100::XMPL100<Port>`, constrained by the port concept; optional hooks detected by named `Declares*`/`Has*` concepts in `xmpl100::detail`; the register encoders as free `constexpr` functions with `static_assert`s | driver.md: Namespace, Lifecycle |
-| `inc/xmpl100_detail.hpp` | Compile-time helpers: `detail::Exactly<T>` (exact hook probes), `kAlwaysFalse`, `ToUnderlying`, `IsEnumerator`/`EnumLast`, typed register fields `detail::Field` | C++20 profile |
+| `inc/xmpl100_detail.hpp` | Compile-time helpers, each constrained by a concept: `detail::ExactHook` (exact hook matching, no conversion operator), `kAlwaysFalse` (`ClassType`), `ToUnderlying`, `IsEnumerator`/`EnumLast` (`Enumeration`), typed register fields `detail::Field` | C++20 profile |
 | `inc/xmpl100_spi_interface.hpp` | The CRTP base `SpiInterface<Derived>` (declares no hook), `CtrlPin`, `GpioSignal`, the exact `SpiPort` concept, the register framing on spans | driver.md: The port |
 | `inc/xmpl100_types.hpp` | `[[nodiscard]] Error` (base set 0 to 9, `UnexpectedReset` = 16), `Result<T>`, `ToString()`, `Config` with datasheet defaults and unit suffixes, presets with `static_assert`ed validity, `Validate()`, the `Resolution` strong type with `ToCounts()`/`ToCelsius()`, `CheckedConfig`, version getters | driver.md: Errors, Config |
 | `inc/xmpl100_registers.hpp` | The register map with section references, typed fields, the CRC-8 with its check vectors | driver.md: layout |
@@ -150,6 +150,7 @@ manifest or a wrapper folder. `--selftest` fails when a scaffolded root holds an
 | `tests/check_doxygen.cmake`, `_config/Doxyfile` | Doxygen with `EXTRACT_ALL = NO`, `WARN_AS_ERROR = FAIL_ON_WARNINGS` on `inc/` | docs.md: Doxygen |
 | `docs/`, `_config/mkdocs.yml`, `docs/.nav.yml` | The driver page set on the shared theme (`kokeb-mkdocs-theme`), with `contract.md` under Concepts, `platforms.md` and `repo-setup.md`; this page is template only | docs.md |
 | `docs/diagrams/` | The layer figure (figkit), drawn from the headers | docs.md |
+| `tools/check_standalone.py` | The stand-alone check, run in the repository checks: the repository names no other project (boards, test projects, other driver repositories), carries no dated history (dates only in release headings, datasheet revisions and waiver expiries) and gives its copyright to `The <repo> authors` in `LICENSE`, the headers, `driver.yml` `authors` and `_config/mkdocs.yml` `copyright`. Managed: every repository keeps it as the template makes it | Owner decision: stand-alone repositories |
 | `tools/docs/generators/snippets.py` | The README's quickstart region, copied from the compiled snippet | docs.md: README |
 | `docs/datasheets.yml`, `docs/datasheet.md`, `tools/docs/generators/datasheet.py` | The datasheet record (document, revision, SHA-256, and each topic with its section, page, driver API and docs pages); the generator builds the README and home-page card (`datasheet-card`), the Datasheet map (`datasheet-map`) and the box after each page's intro (`datasheet-refs`). The template's is a fictional placeholder; drivers only | ADR-0019 |
 | `.github/workflows/ci.yml` | Runs every check (the small ones, DCO and the org standard included, in the one `Repository checks` job) and ends in `CI gate` (`CI gate / gate`) | repo-governance.md: The required check |
@@ -162,7 +163,7 @@ manifest or a wrapper folder. `--selftest` fails when a scaffolded root holds an
 | `_config/` | All tool configuration: the org `.clang-format` and `.clang-tidy` (copied unchanged from the standard), `Doxyfile`, `mkdocs.yml`, `Kconfig`, markdownlint, yamllint, lychee. No copies or symlinks at the root ([Editor setup](porting.md#editor-setup)) | naming-and-style.md, ADR-0011 |
 | `AGENTS.md`, `CLAUDE.md`, `.claude/skills/`, `.claude/agents/` | Agent entry point and skills: `verify`, `release`, `bump-pin`, `add-driver-feature`, `new-driver-from-template`, `datasheet-conformance`, `add-port`, and the review skills `cpp20-profile`, `misra-review`, `hardware-lessons-review`; the read-only `safety-reviewer` agent runs the review skills and `datasheet-conformance` | agents.md |
 | `tools/setup.py` | Template only: the one entry point; infers, asks, scaffolds, builds and tests | |
-| `tools/scaffold.py`, `tools/scaffold/` | Template only: the scaffold, its organisation settings (`ORGS`, `LICENSES`), the overlays (`bus/<bus>/`, `library/`: files ending in `.tmpl`, and `blocks/` for marked prose) and the licence texts (`license/`) | |
+| `tools/scaffold.py`, `tools/scaffold/` | Template only: the scaffold, its organisation settings (`DEFAULT_ORG`, `LICENSES`), the overlays (`bus/<bus>/`, `library/`: files ending in `.tmpl`, and `blocks/` for marked prose) and the licence texts (`license/`) | |
 
 ## Rules the example chip shows
 
@@ -179,7 +180,7 @@ from working examples of them:
 | Single-shot raw access and the last raw reply (KB-CPP-129) | `ReadRegister()` and `GetLastStatusByte()` (ADC: `ReadRawVoltageMv()`, `GetLastVoltageMv()`; GPIO: `ReadRawOutput()`, `GetLastOutput()`) |
 | Unsigned operands for bit operations (MISRA C++:2023 Rules 7.0.4, 7.0.5) | Narrow values are cast to `uint32_t` before `<<`, `~`, `\|` and `^`; `hicpp-signed-bitwise` is on |
 | Strict ISO C++20 everywhere (KB-CPP20-001) | `CMAKE_CXX_EXTENSIONS OFF` in every folder that builds a target, `-pedantic-errors`, the header checks, and the ESP-IDF header self-check |
-| Exact port concepts and named hook concepts (KB-CPP20-006, -007) | `detail::Exactly<T>` in the `SpiPort` concept; `DeclaresDelayUs`/`HasDelayUs` and friends in `xmpl100.hpp`; the compile-fail tests |
+| Exact port concepts and named hook concepts (KB-CPP20-006, -007) | `detail::ExactHook` in the `SpiPort` concept; `DeclaresDelayUs`/`HasDelayUs` and friends in `xmpl100.hpp`; the compile-fail tests |
 | Bounded loops and masked shifts (KB-CPP20-058, -020) | `kConversionTimeoutMaxMs` checked by `Validate()` and capping `WaitDataReady()`; `SamplesPerResult()` and `PeriodUs()` mask their shift counts |
 | `[[nodiscard]]` error types (KB-CPP20-037) | `enum class [[nodiscard]] Error` |
 
@@ -191,9 +192,13 @@ profile) on every pull request, from the handbook commit pinned in `.github/work
 The handbook's C++20 profile (KB-CPP20-001 to 058) asks for patterns that cost nothing on the run-time path. The
 template uses these, each with tests:
 
-- **Exact port concepts** (`detail::Exactly<T>`): a hook argument is probed with a type that converts to the
-  documented parameter type and nothing else, and every hook is required `noexcept`, so `Transfer(..., uint16_t
-  len)` is a compile error, not a silent truncation. Compile time only.
+- **Exact port concepts** (`detail::ExactHook<Port, Sig>`): the address of each hook must match a member function
+  (`const` or not) of exactly the documented signature, `noexcept` included, so `Transfer(..., uint16_t len)` is a
+  compile error, not a silent truncation. No value is converted, so no implicit conversion operator is needed.
+  Compile time only.
+- **Constrained helpers** (KB-CPP20-005): `ExactHook` takes a class and a function type, `kAlwaysFalse` a class
+  (`ClassType`), `EnumLast`, `ToUnderlying` and `IsEnumerator` an enumeration (`Enumeration`); a compile-fail test
+  pins each constraint.
 - **Typed register fields** (`detail::Field<Reg, Shift, Width>` in `inc/xmpl100_registers.hpp`): every shift is
   a constant in range and every operand is widened once; `static_assert`s tie each field to the register map.
 - **Strong unit types for public conversions** (`Resolution`, `ToCounts()`, `ToCelsius()`): the register
@@ -259,7 +264,7 @@ drift check finds the copies that fell behind. `python3 tools/scaffold.py --chec
 every file the template manages:
 
 - managed: `.github/`, `_config/` (except `Kconfig`), `.claude/skills/`, `cmake/` (except
-  `<name>_build_settings.cmake`), `CLAUDE.md` and the `tests/check_*.cmake` helpers;
+  `<name>_build_settings.cmake`), `CLAUDE.md`, the `tests/check_*.cmake` helpers and `tools/check_standalone.py`;
 - the repository's own: code, tests, docs, the README, the changelog, `driver.yml`, `_config/Kconfig`.
 
 Each scaffolded repository runs it in CI as the `Template drift` job (ci-tools `ru-template-drift`), which warns on

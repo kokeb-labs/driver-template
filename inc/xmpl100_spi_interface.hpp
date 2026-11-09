@@ -3,7 +3,7 @@
  * @file xmpl100_spi_interface.hpp
  * @brief The SPI port of the XMPL100 driver: the CRTP base, its pin enums, the `SpiPort` concept
  * and the register framing.
- * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ * @copyright Copyright (c) 2026 The driver-template authors. SPDX-License-Identifier: MIT
  *
  * @details
  * The driver never calls an SDK. It calls hooks on a class you derive from
@@ -102,19 +102,19 @@ protected:
  * @brief Satisfied by a class that derives from `SpiInterface<Port>` and implements the required
  * hooks with exactly the types above, `noexcept` and returning `bool`.
  *
- * Each argument is probed with `detail::Exactly<T>`, which converts to `T` and nothing else: a
- * hook declared with a narrower length (`uint16_t len`) or without `noexcept` does not satisfy the
- * concept, instead of truncating every transfer silently (KB-CPP20-006).
+ * Each hook's address is matched with `detail::ExactHook`, which takes a member function of exactly
+ * the signature and converts no value: a hook declared with a narrower length (`uint16_t len`) or
+ * without `noexcept` does not satisfy the concept, instead of truncating every transfer silently
+ * (KB-CPP20-006).
  *
  * @tparam Port The port class.
  */
 template <typename Port>
-concept SpiPort = std::derived_from<Port, SpiInterface<Port>> &&
-                  requires(Port& port, detail::Exactly<const uint8_t*> tx,
-                           detail::Exactly<uint8_t*> rx, detail::Exactly<std::size_t> len) {
-                    { port.EnsureInitialized() } noexcept -> std::same_as<bool>;
-                    { port.Transfer(tx, rx, len) } noexcept -> std::same_as<bool>;
-                  };
+concept SpiPort = std::derived_from<Port, SpiInterface<Port>> && requires {
+  detail::ExactHook<Port, bool() noexcept>::Take(&Port::EnsureInitialized);
+  detail::ExactHook<Port, bool(const uint8_t*, uint8_t*, std::size_t) noexcept>::Take(
+      &Port::Transfer);
+};
 
 namespace detail {
 

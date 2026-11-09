@@ -53,13 +53,10 @@ OVERLAYS = ROOT / "tools" / "scaffold"
 
 # ---------------------------------------------------------------------------------------------------------------
 # Organisation settings. --org, --repo, --author and --license override them; --org defaults to the owner in
-# `git remote get-url origin`, then to DEFAULT_ORG. An organisation that is not listed gets "The <Org> Authors"
-# with its name title-cased.
+# `git remote get-url origin`, then to DEFAULT_ORG. The copyright holder defaults to "The <repo> authors": the
+# repository owns its code whoever hosts it, so it can move and have many owners.
 # ---------------------------------------------------------------------------------------------------------------
 DEFAULT_ORG = "kokeb-labs"
-ORGS = {
-    "kokeb-labs": {"display": "Kokeb Labs"},
-}
 DEFAULT_LICENSE = "MIT"
 LICENSES = {
     # id: (licence text in tools/scaffold/license/, README badge, README sentence)
@@ -72,7 +69,7 @@ LICENSES = {
 # What the template itself says; the scaffold replaces each of these.
 TEMPLATE_ORG = "kokeb-labs"
 TEMPLATE_REPO = "driver-template"
-TEMPLATE_AUTHOR = "The Kokeb Labs Authors"
+TEMPLATE_AUTHOR = "The driver-template authors"
 TEMPLATE_LICENSE = "MIT"
 TEMPLATE_DESCRIPTION = (
     "C++20 driver for the XMPL100, a fictional example SPI temperature sensor: chip ID, one-shot and continuous"
@@ -121,7 +118,7 @@ TEMPLATE_ONLY = [
 TEMPLATE_RECORD = ".kokeb/template.yml"
 MANAGED_PREFIXES = (".github/", "_config/", ".claude/skills/", ".claude/agents/", "cmake/")
 MANAGED_FILES = {"CLAUDE.md", "tests/check_doxygen.cmake", "tests/check_install.cmake",
-                 "tests/check_version_copy.cmake"}
+                 "tests/check_version_copy.cmake", "tools/check_standalone.py"}
 # Inside those folders but the repository's own from the first commit.
 UNMANAGED_RE = re.compile(r"_config/Kconfig|cmake/[a-z0-9_]+_build_settings\.cmake")
 # The arguments the record keeps, in order; each is a scaffold option of the same name.
@@ -304,9 +301,9 @@ def git_remote(cwd: Path) -> tuple[str, str] | None:
     return parse_remote(out)
 
 
-def default_author(org: str) -> str:
-    display = ORGS.get(org, {}).get("display") or " ".join(w[:1].upper() + w[1:] for w in re.split(r"[-_.]+", org) if w)
-    return f"The {display} Authors"
+def default_author(repo: str) -> str:
+    """The copyright holder: the repository's authors, not a company or a person."""
+    return f"The {repo} authors"
 
 
 def default_repo(kind: str, name: str) -> str:
@@ -771,7 +768,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--include-root", help="library only: headers in inc/<root>/ (default: the name), e.g. ring")
     p.add_argument("--org", help=f"GitHub organisation (default: from git remote origin, else {DEFAULT_ORG})")
     p.add_argument("--repo", help="repository name (default: from git remote origin, else driver-<name> or <name>)")
-    p.add_argument("--author", help="copyright holder (default: 'The <Org> Authors')")
+    p.add_argument("--author", help="copyright holder (default: 'The <repo> authors')")
     p.add_argument("--license", choices=tuple(LICENSES), help=f"licence (default {DEFAULT_LICENSE})")
     p.add_argument("--datasheet", help="driver only: datasheet URL for the Hardware page (only linked, never fetched)")
     p.add_argument(
@@ -819,7 +816,7 @@ def resolve(a: argparse.Namespace, p: argparse.ArgumentParser, remote: tuple[str
     for value, what in ((a.org, "--org"), (a.repo, "--repo")):
         if not re.fullmatch(r"[A-Za-z0-9][\w.-]*", value):
             p.error(f"{what}: a GitHub name (letters, digits, '-', '_', '.')")
-    a.author = a.author or default_author(a.org)
+    a.author = a.author or default_author(a.repo)
     a.license = a.license or DEFAULT_LICENSE
     wanted = [x.strip() for x in (a.platforms or DEFAULT_PLATFORMS[a.kind]).split(",") if x.strip()]
     unknown = [x for x in wanted if x not in PLATFORMS]
@@ -966,7 +963,20 @@ def check_output(out: Path, a: argparse.Namespace) -> list[str]:
         bad.append(f"LICENSE: not {a.license}")
     if f"github.com/{a.org}/{a.repo}" not in (out / "README.md").read_text():
         bad.append(f"README.md: no link to {a.org}/{a.repo}")
+    bad += standalone_problems(out, a.repo)
     return bad
+
+
+def standalone_problems(root: Path, repo: str) -> list[str]:
+    """tools/check_standalone.py --strict: no other project's name (boards, test projects, driver repositories),
+    no dated history, and the copyright of "The <repo> authors" (or --author) everywhere it is stated."""
+    script = root / "tools/check_standalone.py"
+    if not script.is_file():
+        return ["tools/check_standalone.py: missing"]
+    done = subprocess.run([sys.executable, str(script), "--root", str(root), "--repo", repo, "--strict"],
+                          capture_output=True, text=True, check=False)
+    return [] if done.returncode == 0 else [f"stand-alone check: {line}" for line in done.stdout.splitlines()
+                                            if line.strip() and not line.startswith("stand-alone check:")]
 
 
 def selftest(only: str | None) -> int:
@@ -975,7 +985,7 @@ def selftest(only: str | None) -> int:
         if parse_remote(url) != want:
             print(f"parse_remote({url!r}) = {parse_remote(url)!r}, expected {want!r}")
             return 1
-    if default_author("kokeb-labs") != "The Kokeb Labs Authors" or default_author("acme-robotics") != "The Acme Robotics Authors":
+    if default_author("driver-tmp117") != "The driver-tmp117 authors":
         print("default_author: wrong")
         return 1
     bad = root_problems(ROOT, tracked_root_entries())
@@ -985,6 +995,12 @@ def selftest(only: str | None) -> int:
     bad = guard_problems(ROOT, "xmpl100")
     if bad:
         print("the template's include guards are wrong:", *bad, sep="\n  ")
+        return 1
+    if subprocess.run([sys.executable, str(ROOT / "tools/check_standalone.py"), "--selftest"], check=False).returncode:
+        return 1
+    bad = standalone_problems(ROOT, TEMPLATE_REPO)
+    if bad:
+        print("the template is not stand-alone:", *bad, sep="\n  ")
         return 1
     with tempfile.TemporaryDirectory(prefix="scaffold-") as tmp:
         for case in SELFTEST_CASES:

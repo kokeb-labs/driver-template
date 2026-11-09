@@ -1,7 +1,7 @@
 /**
  * @file xmpl100_kconfig.hpp
  * @brief Optional ESP-IDF layer: a `Config` built from the `CONFIG_XMPL100_*` Kconfig options.
- * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ * @copyright Copyright (c) 2026 The driver-template authors. SPDX-License-Identifier: MIT
  *
  * @details
  * Include this header only where you want menuconfig to choose the defaults; the driver never

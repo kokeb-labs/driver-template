@@ -7,3 +7,4 @@ bus: [spi]          # spi, i2c, uart, adc, pio, gpio, can, canopen, modbus, onew
 mcus: [any]         # any, or the MCU families it needs, e.g. [esp32]
 peripheral: null    # an MCU peripheral it needs with mcus, e.g. rmt
 kb_core_min: null   # the oldest kb-core release whose handler works with this version; null until kb-core exists
+authors: ["The driver-template authors"]  # the copyright holder, as in LICENSE

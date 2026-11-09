@@ -35,14 +35,28 @@ cmake --build build --parallel && ctest --test-dir build --output-on-failure
 kokeb-docs gen && kokeb-docs check && mkdocs build -f _config/mkdocs.yml --strict -d /tmp/site
 ```
 
+The `verify` skill (`.claude/skills/verify/SKILL.md`) runs every check CI runs, including
+`tools/check_standalone.py`: the repository describes this library only, carries no dated history and gives its
+copyright to its authors.
+
+## Branches, commits and pull requests
+
+- Branch from `main` as `feat/`, `fix/`, `docs/`, `ci/` or `chore/<topic>`; one logical change per branch.
+- Commit with a sign-off (`git commit -s`) and an imperative subject.
+- Open a pull request with the template filled in. When every check is green, including `CI gate / gate`, the
+  change is merged with a squash merge; the PR title becomes the commit subject on `main`.
+
 ## Definition of done
 
-`standards/agents.md#definition-of-done`: one change; standard followed or deviation named; every check above
+A change is done when it is merged: one change; the standards followed or each deviation named; every check
 passes locally (the `verify` skill); tests for new behaviour including failure paths; docs and Doxygen updated;
-`CHANGELOG.md` under `## [Unreleased]`; CI green including `CI gate / gate`.
+`CHANGELOG.md` under `## [Unreleased]`; CI green including `CI gate / gate`; squash-merged.
 
-## Rules specific to this repo
+## Safety rules
 
-- No attribution lines anywhere: no `Co-Authored-By:` trailers, no "Generated with" footers.
-- Work on a `feat/`, `fix/`, `docs/`, `ci/` or `chore/` branch; never push to `main`, force-push, merge or change
-  settings.
+- Every commit is signed off (DCO).
+- No attribution lines in commits, pull requests or files: no `Co-Authored-By:` trailers, no "Generated with"
+  footers.
+- No secrets or credentials in the repository.
+- No force-push to `main` and no history rewrites on it.
+- Repository settings are the maintainers'; `docs/repo-setup.md` lists them.

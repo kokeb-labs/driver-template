@@ -39,7 +39,7 @@ def data():
         itext = (ROOT / iface).read_text()
         d["bus"] = re.search(rf"{NAME}_(\w+)_interface", iface).group(1).upper()
         d["base"] = re.search(r"^class (\w+) \{", itext, re.M).group(1)
-        d["hooks"] = re.findall(r"\{ port\.(\w+)\(", itext)
+        d["hooks"] = re.findall(r"::Take\(\s*&Port::(\w+)\)", itext)
         d["sources"].append(f"{iface}:{d['base']}")
     return d
 
