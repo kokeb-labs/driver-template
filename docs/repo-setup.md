@@ -27,13 +27,14 @@ the About: the description is the README's first sentence (`C++20 driver for the
 device category, the vendor and the part (`spi eeprom microchip at25040b`):
 
 ```bash
-./org/apply-metadata.sh       --repo driver-<chip> --apply
-./org/apply-merge-settings.sh --repo driver-<chip> --apply
-./org/apply-security.sh       --repo driver-<chip> --apply   # public repositories
-./org/apply-rulesets.sh       --repo driver-<chip> --apply   # public repositories
+python3 org/kokeb_org.py --repo driver-<chip>           # the plan: every setting that would change
+python3 org/kokeb_org.py --repo driver-<chip> --apply   # settings, security, Actions, rulesets, labels
 ```
 
-Run each without `--apply` first to see what changes.
+A private repository on the free plan gets the settings, Actions policy and labels; security features and
+rulesets need it public (the tool says which sections it skips).
+
+Run it without `--apply` first to see what changes.
 
 ## 3. Create the labels
 
