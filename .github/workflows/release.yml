@@ -10,6 +10,7 @@ on:
     types: [completed]
 
 permissions:
+  actions: read   # find the tag build's firmware artifacts (private repositories)
   contents: write
 
 jobs:
@@ -20,7 +21,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       startsWith(github.event.workflow_run.head_branch, 'v')
-    uses: kokeb-labs/ci-tools/.github/workflows/ru-release-with-artifacts.yml@v1
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-release-firmware.yml@v1
     with:
       build_workflow: 'ci.yml'
       artifact_pattern: 'fw-.*'
