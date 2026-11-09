@@ -25,3 +25,18 @@ Rules the transfers must follow:
 - **Raw bytes only.** Do not retry; the driver owns the framing.
 - **Return `false` for a NACK or a bus error.** The driver turns it into `Error::Bus`.
 - **Bounded time-outs.** A stuck bus fails the call; it does not block forever.
+
+## Bus requirements
+
+The driver states what the XMPL100 needs from the bus as `constexpr` values in
+[`inc/xmpl100_i2c_interface.hpp`](../inc/xmpl100_i2c_interface.hpp) (handbook KB-CPP-123). Check your port's
+settings against them with `static_assert`, as both example ports do:
+
+| Constant | Value | Meaning (datasheet 6.2) |
+| --- | --- | --- |
+| `kI2cAddress` | `0x48` | 7-bit address with ADDR low (0x48 to 0x4B by the ADDR pin) |
+| `kMaxClockHz` | `400'000` | Standard or fast mode |
+| `kRepeatedStart` | `true` | A register read is one write-read with a repeated START |
+
+
+The driver never probes with an empty or zero-length transfer. A NACK from the address is `Error::Bus`.

@@ -3,7 +3,8 @@
  * @brief XMPL100 driver implementation, included by `xmpl100.hpp`.
  * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
  */
-#pragma once
+#ifndef XMPL100_IPP
+#define XMPL100_IPP
 
 namespace xmpl100 {
 
@@ -97,14 +98,32 @@ Result<float> XMPL100<Port>::ReadTemperatureC() noexcept {
 }
 
 template <SpiPort Port>
+Result<uint32_t> XMPL100<Port>::ReadRawVoltageMv() noexcept {
+  if (!initialized_) {
+    return Result<uint32_t>::Failure(Error::NotInitialized);
+  }
+  return readOnce();
+}
+
+template <SpiPort Port>
+Result<uint32_t> XMPL100<Port>::readOnce() noexcept {
+  uint32_t mv = 0;
+  if (!port_.ReadVoltageMv(config_.channel, mv)) {
+    return Result<uint32_t>::Failure(Error::Bus);
+  }
+  last_mv_ = mv;
+  return Result<uint32_t>::Success(mv);
+}
+
+template <SpiPort Port>
 Result<uint32_t> XMPL100<Port>::readAveraged() noexcept {
   uint64_t sum = 0;
   for (uint16_t i = 0; i < config_.samples; ++i) {
-    uint32_t mv = 0;
-    if (!port_.ReadVoltageMv(config_.channel, mv)) {
-      return Result<uint32_t>::Failure(Error::Bus);
+    const auto mv = readOnce();
+    if (!mv) {
+      return mv;
     }
-    sum += mv;
+    sum += mv.value;
     if (i + 1U < config_.samples && config_.sample_interval_us > 0) {
       detail::DelayUs(port_, config_.sample_interval_us);
     }
@@ -113,3 +132,5 @@ Result<uint32_t> XMPL100<Port>::readAveraged() noexcept {
 }
 
 } // namespace xmpl100
+
+#endif // XMPL100_IPP

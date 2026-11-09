@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parents[3]
 SETTINGS = next((ROOT / "cmake").glob("*_build_settings.cmake"))
 NAME = re.match(r"(\w+)_build_settings", SETTINGS.stem).group(1)
 UMBRELLA = f"inc/{NAME}.hpp"
-SKIP = {"IsInitialized", "GetConfig", "GetRevision"}
+SKIP = {"IsInitialized", "GetConfig", "GetRevision", "GetLatchedStatus", "ClearLatchedStatus", "GetLastStatusByte",
+        "GetLastVoltageMv", "GetLastOutput"}
 
 
 def _interface():

@@ -15,11 +15,13 @@
  * | `bool Transfer(const uint8_t* tx, uint8_t* rx, std::size_t len) noexcept` | One full-duplex transfer, CS low for all `len` bytes; `rx` may be `nullptr` |
  *
  * The port moves raw bytes: it never retries, never interprets the frame and never configures the
- * chip. SPI mode 0 or 3, MSB first, up to 10 MHz (datasheet section 6.2). The optional hooks
- * (`DelayUs`, `GpioSet`, `Log`) are described in `xmpl100.hpp`.
+ * chip. What the chip needs from the bus is below as `constexpr` values (`kSpiMode` to
+ * `kContinuousWord`, datasheet section 6.2); a port checks its settings against them with
+ * `static_assert`. The optional hooks (`DelayUs`, `GpioSet`, `Log`) are described in `xmpl100.hpp`.
  */
 // clang-format on
-#pragma once
+#ifndef XMPL100_SPI_INTERFACE_HPP
+#define XMPL100_SPI_INTERFACE_HPP
 
 #include <array>
 #include <concepts>
@@ -30,9 +32,37 @@
 
 namespace xmpl100 {
 
-/** @brief Control pins the port may drive through the optional `GpioSet()` hook. */
+/**
+ * @name Bus requirements
+ * What the XMPL100 needs from the SPI bus (datasheet section 6.2, Table 6-1). A port and a board
+ * configuration check their settings against these with `static_assert` (handbook KB-CPP-123).
+ * @{
+ */
+/// SPI mode the driver is tested with: CPOL 0, CPHA 0. The chip also accepts mode 3.
+inline constexpr uint8_t kSpiMode = 0;
+/// Each byte is clocked most significant bit first.
+inline constexpr bool kMsbFirst = true;
+/// Highest SCK frequency, f_SCK max.
+inline constexpr uint32_t kMaxClockHz = 10'000'000;
+/// Shortest time CS stays high between two transfers, t_CSH.
+inline constexpr uint32_t kMinCsHighNs = 50;
+/// CS low to the first SCK edge, t_CSS.
+inline constexpr uint32_t kCsSetupNs = 20;
+/// Last SCK edge to CS high, t_CSHD.
+inline constexpr uint32_t kCsHoldNs = 20;
+/// `false`: the chip accepts idle SCK time between the bytes of one transfer.
+inline constexpr bool kContinuousWord = false;
+/** @} */
+
+/**
+ * @brief Control pins the port may drive through the optional `GpioSet()` hook.
+ *
+ * The port drives each pin to INACTIVE before it enables the pin's output and before the first
+ * transfer (handbook KB-HW-018), so the chip never sees a reset pulse it did not ask for.
+ */
 enum class CtrlPin : uint8_t {
-  Reset = 0, ///< RESET_N, active low on the package pin. ACTIVE holds the chip in reset.
+  Reset = 0, ///< RESET_N, active low on the package pin; idles high (INACTIVE). ACTIVE holds the
+             ///< chip in reset.
 };
 
 /** @brief Logical level of a control pin; the port maps it to the physical polarity. */
@@ -104,7 +134,8 @@ public:
     }
     std::array<uint8_t, 1 + kMaxBurst> tx{};
     std::array<uint8_t, 1 + kMaxBurst> rx{};
-    tx[0] = static_cast<uint8_t>(kReadFlag | (reg & kAddressMask));
+    tx[0] = static_cast<uint8_t>(static_cast<uint32_t>(kReadFlag) |
+                                 (static_cast<uint32_t>(reg) & kAddressMask));
     if (!port_.Transfer(tx.data(), rx.data(), len + 1)) {
       return Error::Bus;
     }
@@ -120,7 +151,7 @@ public:
       return Error::InvalidArgument;
     }
     std::array<uint8_t, 1 + kMaxBurst> tx{};
-    tx[0] = static_cast<uint8_t>(reg & kAddressMask);
+    tx[0] = static_cast<uint8_t>(static_cast<uint32_t>(reg) & kAddressMask);
     for (std::size_t i = 0; i < len; ++i) {
       tx[1 + i] = data[i];
     }
@@ -134,3 +165,5 @@ private:
 } // namespace detail
 
 } // namespace xmpl100
+
+#endif // XMPL100_SPI_INTERFACE_HPP

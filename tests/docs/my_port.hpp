@@ -5,7 +5,8 @@
  * Every platform call goes through the `platform_*` functions declared below; a real port replaces
  * them with its SDK (ESP-IDF, STM32 HAL, Zephyr, Linux spidev).
  */
-#pragma once
+#ifndef XMPL100_MY_PORT_HPP
+#define XMPL100_MY_PORT_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -43,3 +44,5 @@ private:
   bool ready_ = false;
 };
 // --8<-- [end:port]
+
+#endif // XMPL100_MY_PORT_HPP

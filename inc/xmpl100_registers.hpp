@@ -8,7 +8,8 @@
  * lower address) and the address auto-increments within one transfer, so a temperature read is one
  * 3-byte burst from TEMP_MSB.
  */
-#pragma once
+#ifndef XMPL100_REGISTERS_HPP
+#define XMPL100_REGISTERS_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -42,6 +43,9 @@ inline constexpr uint8_t kStatusAlertHi = 1U << 2; ///< STATUS.ALERT_HI.
 inline constexpr uint8_t kStatusAlertLo = 1U << 3; ///< STATUS.ALERT_LO.
 inline constexpr uint8_t kStatusPor = 1U << 6;   ///< STATUS.POR: reset since the last STATUS read.
 inline constexpr uint8_t kStatusFault = 1U << 7; ///< STATUS.FAULT: sensing element open or shorted.
+/// STATUS bits a read clears (section 7.3): the driver ORs them into its latch on every STATUS
+/// read.
+inline constexpr uint8_t kStatusClearOnRead = kStatusPor;
 
 inline constexpr uint8_t kCtrlModeMask = 0x03;     ///< CTRL.MODE, bits 1..0 (xmpl100::Mode).
 inline constexpr uint8_t kCtrlAlertEn = 1U << 2;   ///< CTRL.ALERT_EN.
@@ -73,10 +77,11 @@ inline constexpr uint8_t kCrcInit = 0xFF;       ///< CRC-8 initial value.
 constexpr uint8_t Crc8(const uint8_t* data, std::size_t len) noexcept {
   uint8_t crc = kCrcInit;
   for (std::size_t i = 0; i < len; ++i) {
-    crc = static_cast<uint8_t>(crc ^ data[i]);
+    crc = static_cast<uint8_t>(static_cast<uint32_t>(crc) ^ static_cast<uint32_t>(data[i]));
     for (int bit = 0; bit < 8; ++bit) {
-      crc = (crc & 0x80U) != 0 ? static_cast<uint8_t>((crc << 1) ^ kCrcPolynomial)
-                               : static_cast<uint8_t>(crc << 1);
+      const uint32_t wide = crc; // promote as unsigned (MISRA C++:2023 Rule 7.0.5)
+      crc = (wide & 0x80U) != 0 ? static_cast<uint8_t>((wide << 1U) ^ uint32_t{kCrcPolynomial})
+                                : static_cast<uint8_t>(wide << 1U);
     }
   }
   return crc;
@@ -85,3 +90,5 @@ constexpr uint8_t Crc8(const uint8_t* data, std::size_t len) noexcept {
 /** @} */
 
 } // namespace xmpl100::reg
+
+#endif // XMPL100_REGISTERS_HPP

@@ -14,7 +14,8 @@
     "ReadTemperatureC",
     "TriggerOneShot",
     "WaitDataReady",
-    "MeasureOnceC"
+    "MeasureOnceC",
+    "ReadRegister"
   ],
   "sources": [
     "inc/xmpl100.hpp:public calls",

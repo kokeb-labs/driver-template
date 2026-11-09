@@ -26,11 +26,29 @@ ctest --test-dir build --output-on-failure
 | [`tests/test_version.cpp`](../tests/test_version.cpp) | The version getters follow the generated header (also against a 9.8.7 probe) |
 | [`tests/test_kconfig.cpp`](../tests/test_kconfig.cpp) | `KconfigDefaults()` with and without `CONFIG_` values |
 | [`tests/compile_fail/`](../tests/compile_fail/port_without_delay.cpp) | Code that must not compile, each for its `EXPECT:` diagnostic: a port without `DelayUs()`, a `void GpioSet()`, a class that is not a port |
-| [`tests/mock_xmpl100.hpp`](../tests/mock_xmpl100.hpp) | The register model; the bus framing is in `mock_xmpl100_bus.hpp` |
+| [`tests/mock_xmpl100.hpp`](../tests/mock_xmpl100.hpp) | The register model, with its own register map; the bus framing is in `mock_xmpl100_bus.hpp` |
+| [`tests/test_model.cpp`](../tests/test_model.cpp) | The model's register map, reset values, timing and CRC against the driver's, with `static_assert` |
 | [`tests/check_version_copy.cmake`](../tests/check_version_copy.cmake) | `_config/Doxyfile` carries the CMake version |
 | [`examples/host/`](../examples/host/README.md) | The host example, built with the test flags and run (`xmpl100_host_example`) |
 | [`tests/check_install.cmake`](../tests/check_install.cmake) | Installs into a scratch prefix and builds [`tests/install_consumer/`](../tests/install_consumer/CMakeLists.txt) with `find_package(xmpl100)` |
 | [`tests/check_doxygen.cmake`](../tests/check_doxygen.cmake) | Doxygen with `_config/Doxyfile` and warnings as errors, when `doxygen` is installed |
+
+### The model stands alone
+
+[`tests/mock_xmpl100.hpp`](../tests/mock_xmpl100.hpp) is written from the datasheet, not from the driver: it does
+not include `xmpl100_registers.hpp` or `xmpl100_types.hpp`. Its register map, field masks, reset values, timing and
+CRC-8 are its own (namespace `xmpl100_test::chip`, each with the datasheet section), so a wrong constant in the
+driver cannot hide behind the same wrong constant in the model (handbook KB-TST-030).
+[`tests/test_model.cpp`](../tests/test_model.cpp) compares the two at compile time:
+
+```cpp
+--8<-- "tests/test_model.cpp:cross-check"
+```
+
+When the build stops on one of these, one of the two maps is wrong: check it against the section the model names,
+and fix that one. A new register goes into both, with its check. Every behaviour found on hardware becomes a fault
+mode of the model and a test that fails on the code before the fix; a chip with timing gets a virtual clock in the
+model (here `Elapse()`, driven by the mock port's `DelayUs()`).
 
 ## Fuzz tests
 
@@ -122,7 +140,7 @@ the `CI gate` job, the single required check (`CI gate / gate`).
 | Cross-compile | `arm-none-eabi-g++` for Cortex-M0+, M4F and M7F with the strict flags, warnings as errors (nothing linked) |
 | C++ lint | clang-format and clang-tidy over the sources |
 | Docs | Strict site build (`_config/mkdocs.yml`), figure and generated-region drift, Doxygen (`_config/Doxyfile`), offline link check, Lighthouse |
-| Repository checks | One job: DCO on pull requests, the org standard, Markdown and YAML lint, the [Kokeb Labs handbook](https://github.com/kokeb-labs/handbook) rules for `.kokeb/handbook.yml` (by rule ID), template drift (warns only) and cppcheck over the driver sources |
+| Repository checks | One job: DCO on pull requests, the org standard, Markdown and YAML lint, the [Kokeb Labs handbook](https://github.com/kokeb-labs/handbook) rules for `.kokeb/handbook.yml` (by rule ID), template drift (warns only) and cppcheck over the driver sources; a second job runs the handbook's source checks (include guards, bus requirements, raw access) |
 | CI gate | Passes only if every job above passed: the one required check |
 <!-- scaffold:platform-esp32 -->
 

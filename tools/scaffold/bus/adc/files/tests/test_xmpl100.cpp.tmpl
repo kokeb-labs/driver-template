@@ -17,6 +17,7 @@ TEST_CASE("The constructor does no I/O, and every read returns NotInitialized be
   CHECK_EQ(sensor.ReadVoltageMv().error, Error::NotInitialized);
   CHECK_EQ(sensor.ReadTemperatureC().error, Error::NotInitialized);
   CHECK_EQ(sensor.Sleep().error, Error::NotInitialized);
+  CHECK_EQ(sensor.ReadRawVoltageMv().error, Error::NotInitialized);
   CHECK_EQ(port.state.transfers, 0);
   CHECK_EQ(port.state.bus_up_calls, 0); // no read starts the sensor as a side effect
   CHECK(!sensor.IsInitialized());
@@ -137,4 +138,18 @@ TEST_CASE("Deinitialize is idempotent") {
   REQUIRE(sensor.EnsureInitialized().ok());
   CHECK(sensor.Deinitialize().ok());
   CHECK_EQ(sensor.ReadVoltageMv().error, Error::NotInitialized);
+}
+
+TEST_CASE("ReadRawVoltageMv converts once, and GetLastVoltageMv keeps the last conversion") {
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  REQUIRE(sensor.EnsureInitialized().ok());
+  const int transfers = port.state.transfers;
+  const auto raw = sensor.ReadRawVoltageMv();
+  REQUIRE(raw.ok());
+  CHECK_EQ(port.state.transfers, transfers + 1); // one conversion, no averaging
+  CHECK_EQ(sensor.GetLastVoltageMv(), raw.value);
+  CHECK_EQ(port.state.transfers, transfers + 1); // the getter does no I/O
+  port.state.fail_transfer = port.state.transfers;
+  CHECK_EQ(sensor.ReadRawVoltageMv().error, Error::Bus);
 }

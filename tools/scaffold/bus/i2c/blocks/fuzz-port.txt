@@ -1,7 +1,7 @@
   /// START, address + W, register and data, STOP. The fuzzer may NACK it, or acknowledge and lose
   /// it.
   bool Write(uint8_t addr, const uint8_t* data, std::size_t len) noexcept {
-    Check(addr == xmpl100::kDefaultI2cAddress && data != nullptr && len >= 2 &&
+    Check(addr == xmpl100::kI2cAddress && data != nullptr && len >= 2 &&
           len <= 1 + xmpl100::detail::kMaxBurst);
     const uint8_t action = nextAction();
     if (action == kFail) {
@@ -16,7 +16,7 @@
   /// START, address + W, register, repeated START, address + R, the bytes the fuzzer lets through.
   bool WriteRead(uint8_t addr, const uint8_t* tx, std::size_t tx_len, uint8_t* rx,
                  std::size_t rx_len) noexcept {
-    Check(addr == xmpl100::kDefaultI2cAddress && tx != nullptr && rx != nullptr && tx_len == 1 &&
+    Check(addr == xmpl100::kI2cAddress && tx != nullptr && rx != nullptr && tx_len == 1 &&
           rx_len >= 1 && rx_len <= xmpl100::detail::kMaxBurst);
     const uint8_t action = nextAction();
     if (action == kFail || !bus_.DoWriteRead(addr, tx, tx_len, rx, rx_len)) {

@@ -6,7 +6,28 @@ version bump (a minor bump before 1.0).
 
 ## [Unreleased]
 
+### Breaking
+
+- I2C overlay: `kDefaultI2cAddress` is now `kI2cAddress` (handbook KB-CPP-123).
+
 ### Added
+
+- Bus requirements as `constexpr` in the bus interface header (handbook KB-CPP-123): `kSpiMode`, `kMsbFirst`,
+  `kMaxClockHz`, `kMinCsHighNs`, `kCsSetupNs`, `kCsHoldNs` and `kContinuousWord` for SPI; `kI2cAddress`,
+  `kMaxClockHz` and `kRepeatedStart` for I2C; `kMaxBaudRate` and `kTurnaroundUs` for UART. Both example ports
+  `static_assert` their settings against them, the ESP32 SPI port also checks its run-time clock and mode, and the
+  Porting page lists them.
+- Diagnostics (handbook KB-CPP-119, KB-CPP-129): `ReadRegister()` (one transfer, no retry), `GetLastStatusByte()`,
+  and a latch for STATUS.POR fed by every STATUS read the driver makes, internal ones included
+  (`GetLatchedStatus()`, `ClearLatchedStatus()`); the start-up empties it. The ADC and GPIO overlays get
+  `ReadRawVoltageMv()` / `GetLastVoltageMv()` and `ReadRawOutput()` / `GetLastOutput()`.
+- `tests/test_model.cpp`: the chip model's register map, reset values, timing and CRC-8 against the driver's, with
+  `static_assert` (handbook KB-TST-030). The Testing page explains the pattern.
+- A `Handbook source checks` job in `ci-repo-checks.yml`: the handbook's `checks/source_checks.py` (include guards,
+  bus requirements, raw access) from a pinned handbook commit.
+- The Porting page lists each control pin with its idle level; the port drives it there before it enables the
+  output (handbook KB-HW-018). `docs/template.md` lists which handbook rules the example chip shows and which are
+  the driver author's.
 
 - Template drift check: the scaffold records the template commit and its arguments in `.kokeb/template.yml`, and
   `tools/scaffold.py --check-drift DIR [--fix]` scaffolds the template again with them and compares the files the
@@ -17,6 +38,23 @@ version bump (a minor bump before 1.0).
   private repository skips it.
 
 ### Changed
+
+- Every header, generated ones and the scaffold's overlays included, has an `#ifndef` include guard named
+  `<NAME>_<FILE_STEM>_<EXT>` instead of `#pragma once` (handbook KB-CPP-019, MISRA C++:2023 Rule 19.2.1). The
+  scaffold renames the guards with the chip and the bus, and its self-test checks every guard of the template and
+  of each scaffolded repository.
+- `_config/.clang-tidy` follows the handbook's: `hicpp-signed-bitwise`, `readability-uppercase-literal-suffix`
+  (L, LL, UL, ULL), `misc-no-recursion`, `misc-static-assert`, `misc-definitions-in-headers`,
+  `misc-unconventional-assign-operator`, `hicpp-no-assembler`, `hicpp-multiway-paths-covered` and
+  `fuchsia-virtual-inheritance` are on; the exemptions for union access (there are no unions), varargs (the `Log`
+  hook takes a plain string) and `#pragma once` are gone. The host tests and the host example turn
+  `cppcoreguidelines-pro-type-vararg` off in their own folders, for their `std::printf` output.
+- Narrow unsigned operands are cast to `uint32_t` before `<<`, `~`, `|` and `^` (MISRA C++:2023 Rules 7.0.4,
+  7.0.5), in the driver, the model, the tests and the overlays.
+- `tests/mock_xmpl100.hpp` no longer includes `xmpl100_registers.hpp` or `xmpl100_types.hpp`: it carries its own
+  register map, reset values, timing and CRC-8 (namespace `xmpl100_test::chip`) with datasheet sections. The UART
+  overlay's bus mock uses the model's CRC.
+- The ESP32 ports set RESET_N high, or SHDN_N low, before they enable the pin's output.
 
 - No workflow has a `workflow_dispatch` trigger any more (ci-tools trigger policy): a manual run is a re-run. A
   dispatched run executes in the default branch's context and can write the cache that `main` restores. The ESP32

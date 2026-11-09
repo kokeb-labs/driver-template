@@ -8,7 +8,8 @@
  * (see `xmpl100_gpio_interface.hpp`). No data bus, no platform code, no heap, no exceptions, no
  * lock.
  */
-#pragma once
+#ifndef XMPL100_HPP
+#define XMPL100_HPP
 
 #include <cstdint>
 
@@ -146,12 +147,26 @@ public:
     return config_;
   }
 
+  /**
+   * @brief Sample OUT once: no debouncing, no retry (handbook KB-CPP-129). For bring-up and
+   * diagnostics.
+   * @return The level, or `NotInitialized` or `Bus`.
+   */
+  Result<GpioSignal> ReadRawOutput() noexcept;
+
+  /** @return The last OUT sample any read took; INACTIVE before the first. No I/O. */
+  [[nodiscard]] GpioSignal GetLastOutput() const noexcept {
+    return last_output_;
+  }
+
 private:
   Result<void> initialize() noexcept;
   Result<GpioSignal> readStable() noexcept;
+  Result<GpioSignal> readOnce() noexcept;
 
   Port& port_;
   Config config_{};
+  GpioSignal last_output_{GpioSignal::INACTIVE}; ///< The last OUT sample (GetLastOutput()).
   bool initialized_{false};
 };
 
@@ -160,3 +175,5 @@ private:
 } // namespace xmpl100
 
 #include "../src/xmpl100.ipp" // IWYU pragma: export
+
+#endif // XMPL100_HPP

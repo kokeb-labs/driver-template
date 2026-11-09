@@ -136,7 +136,8 @@ manifest or a wrapper folder. `--selftest` fails when a scaffolded root holds an
 | `cmake/xmpl100Config.cmake.in`, `CMakeLists.txt` | INTERFACE target `xmpl100`, the `xmpl100::xmpl100` alias, `EXPORT_NAME`, install rules, package config; under `ESP_PLATFORM` the ESP-IDF component (`idf_component_register`, `KCONFIG _config/Kconfig`). No `idf_component.yml`: only registry publishing needs one | driver.md: Build |
 | `examples/host/` | The host example: a host port over the register model and a program that initialises and reads; built and run by the host tests and on its own in CI | driver.md: Examples |
 | `examples/esp32/` | ESP-IDF project: `app_config.yml`, `sdkconfig.defaults` (`CONFIG_FREERTOS_HZ=1000`), `EXTRA_COMPONENT_DIRS` at the repository root, `main/` with the port and a basic example, `scripts/` (submodule) | driver.md: Examples |
-| `tests/mock_xmpl100.hpp`, `tests/mock_xmpl100_bus.hpp` | Register model of the chip; mock ports with and without the optional hooks | driver.md: Tests |
+| `tests/mock_xmpl100.hpp`, `tests/mock_xmpl100_bus.hpp` | Register model of the chip, written without the driver's headers; mock ports with and without the optional hooks | driver.md: Tests |
+| `tests/test_model.cpp` | The model's register map against the driver's, at compile time | KB-TST-030 |
 | `tests/test_xmpl100.cpp` | Lifecycle, configuration, measurement, every failure path | driver.md: Tests |
 | `tests/test_errors.cpp` | Base `Error` values fixed; every chip-specific value returned by some call | driver.md: Errors |
 | `tests/test_version.cpp`, `tests/check_version_copy.cmake` | Version getters follow CMake (also against a 9.8.7 probe); `_config/Doxyfile` agrees | driver.md: Tests |
@@ -160,6 +161,44 @@ manifest or a wrapper folder. `--selftest` fails when a scaffolded root holds an
 | `AGENTS.md`, `CLAUDE.md`, `.claude/skills/` | Agent entry point and skills: `verify`, `release`, `bump-pin`, `add-driver-feature`, `new-driver-from-template`, `datasheet-conformance`, `add-port` | agents.md |
 | `tools/setup.py` | Template only: the one entry point; infers, asks, scaffolds, builds and tests | |
 | `tools/scaffold.py`, `tools/scaffold/` | Template only: the scaffold, its organisation settings (`ORGS`, `LICENSES`), the overlays (`bus/<bus>/`, `library/`: files ending in `.tmpl`, and `blocks/` for marked prose) and the licence texts (`license/`) | |
+
+## Rules the example chip shows
+
+The XMPL100 is fictional, but it follows the handbook rules a driver author meets first, so a new driver starts
+from working examples of them:
+
+| Rule | Where the template shows it |
+| --- | --- |
+| Include guards, `<NAME>_<FILE_STEM>_<EXT>`, no `#pragma` (KB-CPP-019) | Every header; the scaffold renames them with the chip and the bus (`TMP117_I2C_INTERFACE_HPP`) and its self-test checks each one. `python3 checks/source_checks.py guard --repo . <path>` in the handbook prints the guard a new file needs |
+| Bus requirements as `constexpr` (KB-CPP-123) | `kSpiMode` to `kContinuousWord` in `inc/xmpl100_spi_interface.hpp` (I2C: `kI2cAddress`, `kMaxClockHz`, `kRepeatedStart`; UART: `kMaxBaudRate`, `kTurnaroundUs`), listed on [Porting](porting.md#bus-requirements) and `static_assert`ed by both example ports |
+| Control pins idle before they are enabled (KB-HW-018) | [Porting](porting.md#control-pins) lists each pin's idle level; the ESP32 port sets RESET_N high before it enables the output |
+| An independent chip model (KB-TST-030) | `tests/mock_xmpl100.hpp` has its own register map; `tests/test_model.cpp` cross-checks it ([Testing](testing.md#the-model-stands-alone)) |
+| One latch for clear-on-read flags (KB-CPP-119) | `GetLatchedStatus()` / `ClearLatchedStatus()`, fed by every STATUS read through `readStatusByte()` |
+| Single-shot raw access and the last raw reply (KB-CPP-129) | `ReadRegister()` and `GetLastStatusByte()` (ADC: `ReadRawVoltageMv()`, `GetLastVoltageMv()`; GPIO: `ReadRawOutput()`, `GetLastOutput()`) |
+| Unsigned operands for bit operations (MISRA C++:2023 Rules 7.0.4, 7.0.5) | Narrow values are cast to `uint32_t` before `<<`, `~`, `\|` and `^`; `hicpp-signed-bitwise` is on |
+
+The repository checks run the handbook's source checks (include guards, bus requirements, raw access) on every
+pull request, from the handbook commit pinned in `.github/workflows/ci-repo-checks.yml`.
+
+Rules that depend on the chip are the driver author's to apply; the example chip is too simple to show them. Read
+the handbook's driver contract, *Replies, retries and resynchronisation* to *Values and diagnostics*, before
+writing the bus code:
+
+- a reply is decoded only when CRC, type or width and the echoed tag prove it answers the request (KB-ARCH-042);
+- a reply a stuck, floating or looped-back line produces is never data: give the model `StuckLow`, `FloatHigh`,
+  `Echo` and `Deaf` line modes and test start-up and every read against them (KB-CPP-116), and use an identity
+  check such a line cannot pass, such as a write and read-back (KB-CPP-117);
+- a pipelined chip's request and reply stay in one call, matched on reply content (KB-ARCH-043); after a failed
+  transfer the next frame resynchronises the chip (KB-CPP-118); retries repeat only idempotent frames, bounded and
+  counted (KB-ARCH-044);
+- setters update the copy after success and change only what they name (KB-CPP-120, KB-CPP-121); control registers
+  are written whole from the copy (KB-CPP-122);
+- start-up waits for the chip's ready indication with a `Config` deadline (KB-CPP-124), clears faults latched
+  before it (KB-CPP-058), confirms the variant (KB-CPP-125) and arms load diagnostics only on loaded channels
+  (KB-CPP-131);
+- values are checked against the operating range, never clamped (KB-CPP-126); a non-measurement is an error
+  (KB-CPP-127); a conversion uses the chip's actual setting (KB-CPP-128); an I2C driver handles NACK by design and
+  never sends an empty probe (KB-CPP-130).
 
 ## Changing the template
 

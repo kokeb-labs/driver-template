@@ -5,7 +5,8 @@
  * Built with -fno-exceptions -fno-rtti like the firmware, so it uses plain function pointers and a
  * fixed table.
  */
-#pragma once
+#ifndef XMPL100_TEST_HARNESS_HPP
+#define XMPL100_TEST_HARNESS_HPP
 
 #include <cstdio>
 
@@ -90,3 +91,5 @@ inline void ReportFailureValues(const char* file, int line, const char* what, lo
       return;                                                                                      \
     }                                                                                              \
   } while (0)
+
+#endif // XMPL100_TEST_HARNESS_HPP

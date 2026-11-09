@@ -8,7 +8,8 @@
  * returns at once: the model converts instantly) and `Log()` to the console. A port for a real ADC
  * on a PC (a USB DAQ, an IIO device) implements the same hooks: see docs/porting.md.
  */
-#pragma once
+#ifndef XMPL100_HOST_XMPL100_PORT_HPP
+#define XMPL100_HOST_XMPL100_PORT_HPP
 
 #include <cstdint>
 #include <cstdio>
@@ -29,3 +30,5 @@ public:
     (void)std::puts(message); // plain text: never pass it as a format string
   }
 };
+
+#endif // XMPL100_HOST_XMPL100_PORT_HPP

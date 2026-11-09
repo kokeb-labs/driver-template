@@ -33,6 +33,7 @@ TEST_CASE("Every I/O call returns NotInitialized before EnsureInitialized, and d
   CHECK_EQ(sensor.WaitDataReady().error, Error::NotInitialized);
   CHECK_EQ(sensor.MeasureOnceC().error, Error::NotInitialized);
   CHECK_EQ(sensor.SoftReset().error, Error::NotInitialized);
+  CHECK_EQ(sensor.ReadRegister(reg::kChipId).error, Error::NotInitialized);
   CHECK_EQ(port.state.transfers, 0);
   CHECK_EQ(port.state.bus_up_calls, 0); // no call starts the chip as a side effect
   CHECK(!sensor.IsInitialized());
@@ -151,7 +152,7 @@ TEST_CASE("ApplyConfig and its setters before the start store the config with no
   REQUIRE(sensor.EnsureInitialized().ok()); // applies what was stored
   CHECK_EQ(port.state.chip.Register(reg::kCtrl) & reg::kCtrlModeMask, 0);
   CHECK_EQ(port.state.chip.Register(reg::kConfig) & reg::kConfigOdrMask, 0); // 1 Hz
-  CHECK_EQ(port.state.chip.Register(reg::kAlertHighMsb), (50 * 128) >> 8);
+  CHECK_EQ(port.state.chip.Register(reg::kAlertHighMsb), (50U * 128U) >> 8U);
 }
 
 TEST_CASE("A port that cannot bring the bus up fails with Bus and logs it") {
@@ -261,12 +262,15 @@ TEST_CASE("ApplyConfig writes CTRL, CONFIG, the thresholds and the offset") {
   c.offset_c = -0.5F;
   REQUIRE(sensor.ApplyConfig(c).ok());
   const auto& chip = port.state.chip;
-  CHECK_EQ(chip.Register(reg::kCtrl), 0x02 | reg::kCtrlAlertEn | reg::kCtrlAlertPol);
-  CHECK_EQ(chip.Register(reg::kConfig), 0x03 | (0x03 << reg::kConfigAvgShift) | reg::kConfigCrcEn);
-  const int high = (chip.Register(reg::kAlertHighMsb) << 8) | chip.Register(reg::kAlertHighMsb + 1);
-  CHECK_EQ(high, 7744); // 60.5 °C * 128
-  const auto low = static_cast<int16_t>((chip.Register(reg::kAlertLowMsb) << 8) |
-                                        chip.Register(reg::kAlertLowMsb + 1));
+  CHECK_EQ(chip.Register(reg::kCtrl), 0x02U | reg::kCtrlAlertEn | reg::kCtrlAlertPol);
+  CHECK_EQ(chip.Register(reg::kConfig),
+           0x03U | (0x03U << reg::kConfigAvgShift) | reg::kConfigCrcEn);
+  const uint32_t high = (static_cast<uint32_t>(chip.Register(reg::kAlertHighMsb)) << 8U) |
+                        chip.Register(reg::kAlertHighMsb + 1);
+  CHECK_EQ(high, 7744U); // 60.5 °C * 128
+  const auto low =
+      static_cast<int16_t>((static_cast<uint32_t>(chip.Register(reg::kAlertLowMsb)) << 8U) |
+                           chip.Register(reg::kAlertLowMsb + 1));
   CHECK_EQ(low, -1280);
   CHECK_EQ(static_cast<int8_t>(chip.Register(reg::kOffset)), -8);
   CHECK(sensor.GetConfig().crc_enable);
@@ -427,6 +431,55 @@ TEST_CASE(
   REQUIRE(sensor.EnsureInitialized().ok());
   CHECK_EQ(port.state.chip.Register(reg::kConfig) & reg::kConfigOdrMask, 0); // 1 Hz again
   CHECK(sensor.ReadTemperatureC().ok());
+}
+
+// --- Diagnostics (handbook KB-CPP-119, KB-CPP-129)
+// --------------------------------------------------------------------------------------------------
+
+TEST_CASE("ReadRegister reads one register in one transfer and refuses an unknown address") {
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  REQUIRE(sensor.EnsureInitialized().ok());
+  const int transfers = port.state.transfers;
+  const auto id = sensor.ReadRegister(reg::kChipId);
+  REQUIRE(id.ok());
+  CHECK_EQ(id.value, xmpl100::kChipId);
+  CHECK_EQ(port.state.transfers, transfers + 1); // single shot, no retry
+  CHECK_EQ(sensor.ReadRegister(reg::kLastRegister + 1).error, Error::InvalidArgument);
+  CHECK_EQ(port.state.transfers, transfers + 1); // nothing sent
+}
+
+TEST_CASE("The start-up leaves the latch empty and GetLastStatusByte holds the last STATUS read") {
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port);
+  CHECK_EQ(sensor.GetLastStatusByte(), 0);
+  REQUIRE(sensor.EnsureInitialized().ok()); // read STATUS, POR included: the driver's own reset
+  CHECK(!sensor.GetLatchedStatus().power_on_reset);
+  port.state.chip.fault = true;
+  REQUIRE(sensor.ReadStatus().ok());
+  CHECK((sensor.GetLastStatusByte() & reg::kStatusFault) != 0);
+  const int transfers = port.state.transfers;
+  (void)sensor.GetLastStatusByte(); // no I/O
+  (void)sensor.GetLatchedStatus();
+  CHECK_EQ(port.state.transfers, transfers);
+}
+
+TEST_CASE("POR seen by an internal STATUS read stays in the latch until ClearLatchedStatus") {
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port, xmpl100::LowPowerPreset());
+  REQUIRE(sensor.EnsureInitialized().ok());
+  port.state.chip.PowerOn(); // POR set; the next STATUS read clears it on the chip
+  CHECK_EQ(sensor.ReadTemperatureC().error, Error::UnexpectedReset);
+  CHECK(sensor.GetLatchedStatus().power_on_reset); // the internal read did not lose it
+  REQUIRE(sensor.EnsureInitialized().ok());        // a new start: its own POR is not news
+  CHECK(!sensor.GetLatchedStatus().power_on_reset);
+  port.state.chip.PowerOn();
+  const auto raw = sensor.ReadRegister(reg::kStatus); // the raw read latches too
+  REQUIRE(raw.ok());
+  CHECK((raw.value & reg::kStatusPor) != 0);
+  CHECK(sensor.GetLatchedStatus().power_on_reset);
+  sensor.ClearLatchedStatus();
+  CHECK(!sensor.GetLatchedStatus().power_on_reset);
 }
 
 TEST_CASE("A bus error during a read is reported as Bus") {

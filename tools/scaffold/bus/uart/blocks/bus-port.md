@@ -22,3 +22,17 @@ Rules the port must follow:
 - **`Read()` is all or nothing**: exactly `len` bytes, or `false` when the time-out expires.
 - **`FlushInput()` really flushes**: the driver calls it before each request so a stale byte cannot shift a reply.
 - **115200 baud, 8N1**, no flow control.
+
+## Bus requirements
+
+The driver states what the XMPL100 needs from the line as `constexpr` values in
+[`inc/xmpl100_uart_interface.hpp`](../inc/xmpl100_uart_interface.hpp) (handbook KB-CPP-123). Check your port's
+settings against them with `static_assert`, as both example ports do:
+
+| Constant | Value | Meaning (datasheet 6.3) |
+| --- | --- | --- |
+| `kMaxBaudRate` | `115'200` | The chip's baud rate, 8N1 |
+| `kTurnaroundUs` | `100` | Last request byte to first reply byte, at most; the `Read()` time-out covers it |
+
+
+Input is flushed before a request, never between the request and its reply.
