@@ -13,6 +13,7 @@
 
 #include <cstdint>
 
+#include "xmpl100_detail.hpp"
 #include "xmpl100_spi_interface.hpp"
 #include "xmpl100_types.hpp"
 #include "xmpl100_version.h"
@@ -21,6 +22,10 @@ namespace xmpl100 {
 
 namespace detail {
 
+// Optional hooks: a `Declares*` concept only tests the name, the `Has*` concept the exact
+// signature, `noexcept` and the result type; the driver rejects a hook that is declared but does not
+// match (handbook KB-CPP20-007).
+
 /// The port declares something called `GpioSet` (used to reject a misdeclared hook).
 template <typename Port>
 concept DeclaresGpioSet =
@@ -28,30 +33,51 @@ concept DeclaresGpioSet =
 
 /// The port drives control pins: `bool GpioSet(CtrlPin, GpioSignal) noexcept`.
 template <typename Port>
-concept HasGpioSet = requires(Port& port) {
-  { port.GpioSet(CtrlPin::Enable, GpioSignal::ACTIVE) } -> std::same_as<bool>;
+concept HasGpioSet =
+    requires(Port& port, Exactly<CtrlPin> pin, Exactly<GpioSignal> signal) {
+      { port.GpioSet(pin, signal) } noexcept -> std::same_as<bool>;
+    };
+
+/// The port declares something called `DelayUs`.
+template <typename Port>
+concept DeclaresDelayUs = requires(Port& port) { port.DelayUs(1U); };
+
+/// The port waits: `void DelayUs(uint32_t us) noexcept`.
+template <typename Port>
+concept HasDelayUs = requires(Port& port, Exactly<uint32_t> us) {
+  { port.DelayUs(us) } noexcept -> std::same_as<void>;
 };
+
+/// The port declares something called `Log`.
+template <typename Port>
+concept DeclaresLog = requires(Port& port) { port.Log(LogLevel::Info, ""); };
+
+/// The port takes log lines: `void Log(LogLevel, const char* message) noexcept`.
+template <typename Port>
+concept HasLog =
+    requires(Port& port, Exactly<LogLevel> level, Exactly<const char*> message) {
+      { port.Log(level, message) } noexcept -> std::same_as<void>;
+    };
 
 /// Wait through the port; a port without `DelayUs()` fails to compile at the first wait.
 template <typename Port>
 void DelayUs(Port& port, uint32_t us) noexcept {
-  if constexpr (requires { port.DelayUs(us); }) {
+  if constexpr (HasDelayUs<Port>) {
     port.DelayUs(us);
   } else {
-    static_assert(sizeof(Port) == 0,
+    static_assert(kAlwaysFalse<Port>,
                   "xmpl100: the port must implement `void DelayUs(uint32_t us) noexcept`");
   }
 }
 
 /// Log through the port, or nothing when the port has no `Log()`.
 template <typename Port>
-void Log(Port& port, LogLevel level, const char* message) noexcept {
-  if constexpr (requires { port.Log(level, message); }) {
+void Log(Port& port, [[maybe_unused]] LogLevel level,
+         [[maybe_unused]] const char* message) noexcept {
+  if constexpr (HasLog<Port>) {
     port.Log(level, message);
   } else {
     (void)port;
-    (void)level;
-    (void)message;
   }
 }
 
@@ -82,6 +108,12 @@ class XMPL100 {
   static_assert(!detail::DeclaresGpioSet<Port> || detail::HasGpioSet<Port>,
                 "xmpl100: the optional GpioSet hook must be `bool GpioSet(CtrlPin, GpioSignal) "
                 "noexcept`, so that a failed pin write is reported");
+  static_assert(!detail::DeclaresDelayUs<Port> || detail::HasDelayUs<Port>,
+                "xmpl100: the DelayUs hook must be `void DelayUs(uint32_t us) noexcept`, so that no "
+                "wait is truncated");
+  static_assert(!detail::DeclaresLog<Port> || detail::HasLog<Port>,
+                "xmpl100: the optional Log hook must be `void Log(LogLevel, const char* message) "
+                "noexcept`");
 
 public:
   /**
@@ -143,9 +175,11 @@ public:
   Result<bool> IsOverTemperature() noexcept;
 
   /** @return The configuration stored or last applied. No I/O. */
-  [[nodiscard]] const Config& GetConfig() const noexcept {
+  [[nodiscard]] const Config& GetConfig() const& noexcept {
     return config_;
   }
+  /** @brief Not on a temporary driver: the reference would dangle (handbook KB-CPP20-044). */
+  void GetConfig() const&& = delete;
 
   /**
    * @brief Sample OUT once: no debouncing, no retry (handbook KB-CPP-129). For bring-up and

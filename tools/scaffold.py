@@ -119,7 +119,7 @@ TEMPLATE_ONLY = [
 # Template drift (--check-drift): the files every scaffolded repository keeps as the template makes them. Everything
 # else (code, tests, docs, README, CHANGELOG) is the repository's own.
 TEMPLATE_RECORD = ".kokeb/template.yml"
-MANAGED_PREFIXES = (".github/", "_config/", ".claude/skills/", "cmake/")
+MANAGED_PREFIXES = (".github/", "_config/", ".claude/skills/", ".claude/agents/", "cmake/")
 MANAGED_FILES = {"CLAUDE.md", "tests/check_doxygen.cmake", "tests/check_install.cmake",
                  "tests/check_version_copy.cmake"}
 # Inside those folders but the repository's own from the first commit.
@@ -162,6 +162,7 @@ LIBRARY_REMOVE = [
     ".claude/skills/add-driver-feature",
     ".claude/skills/add-port",
     ".claude/skills/datasheet-conformance",
+    ".claude/skills/hardware-lessons-review",
     # A library has no datasheet (handbook ADR-0019 applies to drivers): no map, no generator, no regions.
     "docs/datasheets.yml",
     "docs/datasheet.md",

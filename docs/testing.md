@@ -25,7 +25,7 @@ ctest --test-dir build --output-on-failure
 | [`tests/test_errors.cpp`](../tests/test_errors.cpp) | The base `Error` values are 0 to 9; every chip-specific value (16 and up) is returned by some call |
 | [`tests/test_version.cpp`](../tests/test_version.cpp) | The version getters follow the generated header (also against a 9.8.7 probe) |
 | [`tests/test_kconfig.cpp`](../tests/test_kconfig.cpp) | `KconfigDefaults()` with and without `CONFIG_` values |
-| [`tests/compile_fail/`](../tests/compile_fail/port_without_delay.cpp) | Code that must not compile, each for its `EXPECT:` diagnostic: a port without `DelayUs()`, a `void GpioSet()`, a class that is not a port |
+| [`tests/compile_fail/`](../tests/compile_fail/port_without_delay.cpp) | Code that must not compile, each for its `EXPECT:` diagnostic: a port without `DelayUs()`, a `void GpioSet()`, a `DelayUs(uint16_t)`, a hook with a narrowed parameter or without `noexcept`, an invalid `CheckedConfig`, a class that is not a port |
 | [`tests/mock_xmpl100.hpp`](../tests/mock_xmpl100.hpp) | The register model, with its own register map; the bus framing is in `mock_xmpl100_bus.hpp` |
 | [`tests/test_model.cpp`](../tests/test_model.cpp) | The model's register map, reset values, timing and CRC against the driver's, with `static_assert` |
 | [`tests/check_version_copy.cmake`](../tests/check_version_copy.cmake) | `_config/Doxyfile` carries the CMake version |

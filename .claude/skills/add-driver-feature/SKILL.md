@@ -18,11 +18,17 @@ One feature per PR, branch `feat/<feature>`. Cite the datasheet section for ever
 4. **Add the registers** to `inc/xmpl100_registers.hpp` and the types (enums, `Config` fields with unit suffixes
    and datasheet defaults, a `Status` field) to `inc/xmpl100_types.hpp`; extend `Validate()`.
 5. **Add the API** to `inc/xmpl100.hpp` (PascalCase, `noexcept`, `Result<T>`, Doxygen with units, return values,
-   errors and whether it does I/O) and implement it in `src/xmpl100.ipp` (private helpers camelBack).
+   errors and whether it does I/O) and implement it in `src/xmpl100.ipp` (private helpers camelBack). Follow the
+   handbook's C++20 profile as you write: buffers as spans (fixed extent when the size is known), register fields
+   through `detail::Field`, every shift count masked or checked, narrow operands widened to `uint32_t`, loops
+   bounded by a validated maximum, pure encoders as free `constexpr` functions with a datasheet `static_assert`
+   and a round trip, a new optional hook as named `Declares`/`Has` concepts. Run the `cpp20-profile` skill on the
+   change, and `hardware-lessons-review` for anything that touches replies, retries, setters or start-up.
    A new chip-specific `Error` value takes the next free value from 16, gets a `ToString()` case and a scenario in
    `tests/test_errors.cpp`.
 6. **Docs.** A compiled snippet in `tests/docs/api_tasks.cpp` and a section in `docs/api-guide.md`; update
    `docs/configuration.md`, `docs/contract.md` (errors table) and `docs/hardware.md` if they change. Run
    `kokeb-docs figures && kokeb-docs gen`.
 7. **Changelog** under `## [Unreleased]` (`### Added`, or `### Breaking` with what callers change).
-8. Run the `verify` skill and open the PR with the bench steps for the feature.
+8. Run the `verify` skill (strict-dialect build, source checks, the review skills or the `safety-reviewer` agent)
+   and open the PR with the bench steps for the feature and the review's findings, each fixed or explained.

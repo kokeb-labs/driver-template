@@ -13,6 +13,7 @@
 
 #include <cstdint>
 
+#include "xmpl100_detail.hpp"
 #include "xmpl100_version.h"
 
 /** @brief The XMPL100 driver: everything it declares lives here; internals in `detail`. */
@@ -27,9 +28,10 @@ namespace xmpl100 {
 /**
  * @brief Why a call failed. Every call of the driver returns one of these in its `Result`.
  *
- * Values 0 to 9 are the shared base set; chip-specific values start at 16.
+ * Values 0 to 9 are the shared base set; chip-specific values start at 16. `[[nodiscard]]` on
+ * the type: a function that returns a bare `Error` cannot have it ignored either (KB-CPP20-037).
  */
-enum class Error : uint8_t {
+enum class [[nodiscard]] Error : uint8_t {
   // Base set: the same names and values in every driver of the org (standards/driver.md).
   Ok = 0,               ///< The call succeeded.
   NotInitialized = 1,   ///< `EnsureInitialized()` has not succeeded, or `Deinitialize()` ran since.
@@ -217,12 +219,28 @@ inline constexpr uint32_t kConversionTimeMaxUs = 10000;
 inline constexpr uint32_t kResetTimeMaxUs = 1000;
 /// Shortest RESET_N low pulse, in microseconds (datasheet t_RST_PW, minimum).
 inline constexpr uint32_t kResetPulseMinUs = 10;
+/// Longest `Config::conversion_timeout_ms` the driver accepts: it bounds `WaitDataReady()`
+/// (KB-CPP20-058; the Kconfig range is the same).
+inline constexpr uint32_t kConversionTimeoutMaxMs = 10000;
+
+/**
+ * @brief The resolution of a temperature register: counts per degree Celsius. A strong type, so a
+ * conversion cannot be handed a plain integer in the wrong place (KB-CPP20-030).
+ */
+struct Resolution {
+  int32_t counts_per_degree_c{1}; ///< Counts per °C; positive.
+};
+/// TEMP, ALERT_HIGH and ALERT_LOW: 1/128 °C per count.
+inline constexpr Resolution kTemperatureResolution{kCountsPerDegreeC};
+/// OFFSET: 1/16 °C per count.
+inline constexpr Resolution kOffsetResolution{kOffsetCountsPerDegreeC};
 
 /**
  * @brief Everything `EnsureInitialized()` and `ApplyConfig()` write to the chip.
  *
  * The defaults are the reset values of the datasheet, so `Config{}` changes nothing on a freshly
- * reset chip except the driver-side timeouts. Fields with a unit carry it as a suffix.
+ * reset chip except the driver-side timeouts. Fields with a unit carry it as a suffix. It has no
+ * `operator==`: its `float` members would compare exactly (KB-CPP20-033).
  */
 struct Config {
   Mode mode{Mode::Continuous};             ///< CTRL.MODE. Reset value: continuous.
@@ -235,7 +253,8 @@ struct Config {
   float alert_low_c{-40.0F};           ///< ALERT_LOW threshold, °C. Reset value: -40 °C.
   float alert_high_c{125.0F};          ///< ALERT_HIGH threshold, °C. Reset value: +125 °C.
   float offset_c{0.0F};                ///< OFFSET added to every result, °C, -8 to +7.9375.
-  uint32_t conversion_timeout_ms{100}; ///< Driver side: longest wait for a one-shot result.
+  uint32_t conversion_timeout_ms{100}; ///< Driver side: longest wait for a result, 1 to
+                                       ///< `kConversionTimeoutMaxMs`.
 };
 
 /**
@@ -278,7 +297,8 @@ constexpr Config OneShotPreset() noexcept {
  * @return 1, 2, 4 or 8.
  */
 constexpr uint32_t SamplesPerResult(Averaging averaging) noexcept {
-  return 1U << static_cast<uint8_t>(averaging);
+  // The mask keeps the shift in range for any value the enumeration can hold (KB-CPP20-020).
+  return uint32_t{1} << (static_cast<uint32_t>(averaging) & 0x03U);
 }
 
 /**
@@ -287,26 +307,74 @@ constexpr uint32_t SamplesPerResult(Averaging averaging) noexcept {
  * @return 1000000 / rate.
  */
 constexpr uint32_t PeriodUs(OutputDataRate odr) noexcept {
-  return 1000000U >> static_cast<uint8_t>(odr);
+  // The mask keeps the shift in range for any value the enumeration can hold (KB-CPP20-020).
+  return uint32_t{1000000} >> (static_cast<uint32_t>(odr) & 0x07U);
 }
+
+/**
+ * @brief A temperature in register counts, rounded half away from zero.
+ * @param celsius The temperature in °C.
+ * @param resolution The register's resolution (`kTemperatureResolution`, `kOffsetResolution`).
+ * @return The counts, or `InvalidArgument` when the value is NaN or outside the 16-bit register.
+ */
+constexpr Result<int16_t> ToCounts(float celsius, Resolution resolution) noexcept {
+  const float scaled = celsius * static_cast<float>(resolution.counts_per_degree_c);
+  // "Not in range" on purpose: a NaN fails every comparison, so it is rejected here.
+  // NOLINTNEXTLINE(readability-simplify-boolean-expr)
+  if (!(scaled >= -32768.0F && scaled <= 32767.0F)) {
+    return Result<int16_t>::Failure(Error::InvalidArgument);
+  }
+  const auto rounded = static_cast<int32_t>(scaled >= 0.0F ? scaled + 0.5F : scaled - 0.5F);
+  return Result<int16_t>::Success(static_cast<int16_t>(rounded)); // in range: checked above
+}
+
+/**
+ * @brief Register counts in degrees Celsius.
+ * @param counts The two's complement register value.
+ * @param resolution The register's resolution.
+ * @return `counts / resolution` in °C.
+ */
+constexpr float ToCelsius(int16_t counts, Resolution resolution) noexcept {
+  return static_cast<float>(counts) / static_cast<float>(resolution.counts_per_degree_c);
+}
+
+namespace detail {
+/// Last enumerator of `Mode` (detail::IsEnumerator).
+template <>
+struct EnumLast<Mode> {
+  static constexpr Mode kValue = Mode::Continuous; ///< The last enumerator.
+};
+/// Last enumerator of `OutputDataRate`.
+template <>
+struct EnumLast<OutputDataRate> {
+  static constexpr OutputDataRate kValue = OutputDataRate::Hz16; ///< The last enumerator.
+};
+/// Last enumerator of `Averaging`.
+template <>
+struct EnumLast<Averaging> {
+  static constexpr Averaging kValue = Averaging::X8; ///< The last enumerator.
+};
+/// Last enumerator of `AlertPolarity`.
+template <>
+struct EnumLast<AlertPolarity> {
+  static constexpr AlertPolarity kValue = AlertPolarity::ActiveHigh; ///< The last enumerator.
+};
+} // namespace detail
 
 /**
  * @brief Check a configuration without touching the chip.
  *
  * Fails when an enum holds a value that is not an enumerator, a threshold or the offset is out of
- * range, the low threshold is not below the high one, the timeout is zero, or averaging makes one
- * result take longer than the period of the data rate in continuous mode (16 Hz allows at most 4
- * samples).
+ * range, the low threshold is not below the high one, the timeout is zero or above
+ * `kConversionTimeoutMaxMs`, or averaging makes one result take longer than the period of the
+ * data rate in continuous mode (16 Hz allows at most 4 samples).
  *
  * @param config The configuration.
  * @return `Error::Ok` or `Error::InvalidArgument`.
  */
 constexpr Error Validate(const Config& config) noexcept {
-  if (static_cast<uint8_t>(config.mode) > static_cast<uint8_t>(Mode::Continuous) ||
-      static_cast<uint8_t>(config.odr) > static_cast<uint8_t>(OutputDataRate::Hz16) ||
-      static_cast<uint8_t>(config.averaging) > static_cast<uint8_t>(Averaging::X8) ||
-      static_cast<uint8_t>(config.alert_polarity) >
-          static_cast<uint8_t>(AlertPolarity::ActiveHigh)) {
+  if (!detail::IsEnumerator(config.mode) || !detail::IsEnumerator(config.odr) ||
+      !detail::IsEnumerator(config.averaging) || !detail::IsEnumerator(config.alert_polarity)) {
     return Error::InvalidArgument;
   }
   // Written as "not in range" on purpose: a NaN fails every comparison, so it is rejected here.
@@ -319,7 +387,8 @@ constexpr Error Validate(const Config& config) noexcept {
   if (!(config.offset_c >= kOffsetMinC && config.offset_c <= kOffsetMaxC)) {
     return Error::InvalidArgument;
   }
-  if (config.conversion_timeout_ms == 0) {
+  if (config.conversion_timeout_ms == 0U ||
+      config.conversion_timeout_ms > kConversionTimeoutMaxMs) {
     return Error::InvalidArgument;
   }
   if (config.mode == Mode::Continuous &&
@@ -328,6 +397,52 @@ constexpr Error Validate(const Config& config) noexcept {
   }
   return Error::Ok;
 }
+
+// Every preset is valid, proved at build time (KB-CPP20-012).
+static_assert(Validate(Config{}) == Error::Ok);
+static_assert(Validate(LowPowerPreset()) == Error::Ok);
+static_assert(Validate(HighAccuracyPreset()) == Error::Ok);
+static_assert(Validate(OneShotPreset()) == Error::Ok);
+// The reset values of the threshold registers are the default thresholds (section 7.7).
+static_assert(ToCounts(125.0F, kTemperatureResolution).value == 0x3E80);
+static_assert(ToCounts(-40.0F, kTemperatureResolution).value == -5120); // 0xEC00
+static_assert(ToCelsius(0x3E80, kTemperatureResolution) == 125.0F);
+static_assert(!ToCounts(256.0F, kTemperatureResolution).ok());
+
+/**
+ * @brief Reached only when a `CheckedConfig` is built from an invalid configuration: it is never
+ * defined, so the build fails and names it (KB-CPP20-013).
+ */
+void ConfigIsInvalid() noexcept;
+
+/**
+ * @brief A configuration proven valid at build time.
+ *
+ * `constexpr CheckedConfig kBoard{Config{.odr = OutputDataRate::Hz8}};` fails to compile, naming
+ * `ConfigIsInvalid`, when `Validate()` rejects the configuration. Pass `kBoard.Get()` to the
+ * driver; the driver still validates at start-up, for configurations built at run time.
+ */
+class CheckedConfig {
+public:
+  /**
+   * @brief Check `config` at build time.
+   * @param config The configuration; it must pass `Validate()`.
+   */
+  consteval explicit CheckedConfig(const Config& config) noexcept : config_(config) {
+    if (Validate(config) != Error::Ok) {
+      ConfigIsInvalid();
+    }
+  }
+  /** @return The checked configuration. */
+  [[nodiscard]] constexpr const Config& Get() const& noexcept {
+    return config_;
+  }
+  /** @brief Not on a temporary: the reference would dangle (KB-CPP20-044). */
+  void Get() const&& = delete;
+
+private:
+  Config config_;
+};
 
 /** @return The driver version, e.g. `"0.1.0"`, from the generated `xmpl100_version.h`. No I/O. */
 constexpr const char* GetDriverVersion() noexcept {

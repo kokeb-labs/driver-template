@@ -1,0 +1,89 @@
+---
+name: hardware-lessons-review
+description: Review a driver against the handbook rules that came from testing drivers on real hardware - reply validity, stuck and floating lines, resynchronisation, retries, latches, setters, ready waits, bus requirements, an independent chip model and pin idle levels. Use when writing or reviewing a driver's protocol, start-up, setters or port, and before its first release.
+---
+
+# Hardware lessons review
+
+Each step is one handbook rule (Rules > Architecture, C++ code, Testing, Hardware and porting). For each, find
+where the driver does it, and the model test in `tests/` that proves it. A rule with no code path and no test is
+a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), never from another driver.
+
+## Replies, retries and resynchronisation
+
+1. **A reply is accepted only when the protocol proves it answers the request** (KB-ARCH-042). Every check the
+   protocol offers runs before decoding: CRC or checksum, reply type and width, the echoed opcode, address or
+   tag. A failed check returns `Crc` or a chip-specific mismatch, or retries per step 3; it is never decoded.
+2. **A pipelined exchange completes inside one public call** (KB-ARCH-043). If the chip answers a frame late, the
+   same call sends the request and collects the reply, matching them by content, never by position; the Porting
+   page says no other access may come between the frames.
+3. **Retries repeat only idempotent frames, are bounded and counted** (KB-ARCH-044). No retry repeats a reset
+   pulse, an enable toggle or a deinitialise; an unknown write outcome re-sends only the reply request; the loop
+   has a fixed bound and the count is visible to the caller or in diagnostics.
+4. **A reply a stuck or floating line can produce is never data** (KB-CPP-116). All zeros, all ones, the command
+   echoed back, the same word repeated: each maps to `NoDevice` or another error, and a ready or idle status a
+   line could fake is confirmed by a second read. The model has a fault mode for each pattern.
+5. **After a failed transfer the chip's protocol state is restored first** (KB-CPP-118): a harmless no-op, a frame
+   that closes an open sequence, or the command byte again, before any new command.
+
+## Start-up
+
+6. **The identity check is one a dead or looped bus cannot pass** (KB-CPP-117): an echo, a bit the chip toggles,
+   or a write and read-back; a partial, shifted or phantom ID is refused.
+7. **Start-up waits for the chip's own ready indication** (KB-CPP-124): the datasheet minimum first, then a
+   bounded poll with a deadline from `Config`; a correct ID is not readiness, and a delay never returns early.
+8. **The variant is confirmed before any variant-specific write** (KB-CPP-125).
+9. **Load-dependent diagnostics run only on channels `Config` declares as loaded** (KB-CPP-131), and the fault
+   pin routing comes from the same declaration, before the chip is armed.
+
+## State, shadows and latches
+
+10. **Clear-on-read and write-1-to-clear flags collect in one driver-owned latch** (KB-CPP-119): every internal
+    read ORs them in; a `Get*` accessor without I/O reads it and an explicit `Clear*` empties it.
+11. **A setter updates the driver's copy only after the chip accepted the change** (KB-CPP-120), and **changes
+    only what it names** (KB-CPP-121); a state-gated change outside its state returns an error and sends nothing.
+12. **Control and output registers are written whole from the validated copy** (KB-CPP-122); a read-modify-write
+    uses only a read validated per step 1.
+
+## Values and diagnostics
+
+13. **Values are checked against the operating range, never silently clamped** (KB-CPP-126); a quantised value
+    reports what was programmed.
+14. **A state that is not a measurement is an error, never a number** (KB-CPP-127): settling sentinels, frozen
+    feedback, the first conversion after reset, a sensor not fitted; a multi-item read reports validity per item.
+15. **A conversion that depends on another setting uses the chip's actual setting** (KB-CPP-128).
+16. **Single-shot raw access and the last raw reply** (KB-CPP-129): a raw access with no retry and a `GetLast*`
+    accessor with no I/O; side effects of diagnostic reads are documented. The source check `raw-access` checks
+    the declarations.
+
+## The bus and the port
+
+17. **The bus requirements are `constexpr` in the bus interface header** (KB-CPP-123): SPI mode, bit order,
+    clock, CS timing and continuous-word need; I2C address, clock and repeated START; UART baud rate and
+    turnaround. The example ports `static_assert` their settings against them; the source check
+    `bus-requirements` checks the declarations.
+18. **I2C** (KB-CPP-130): NACK-by-design transfers are documented and not reported as bus errors, no empty or
+    zero-length probe is ever sent, and a combined write-read is used wherever the chip needs a repeated START.
+19. **Control outputs reach their inactive level before they are enabled** (KB-HW-018): the port drives reset,
+    enable, soft chip-select and write-protect to INACTIVE before enabling the output and before the first frame;
+    the Porting page states each pin's idle level and polarity.
+20. **Port conformance covers the shared-bus faults** (KB-HW-019): the first frame after a mode or clock change is
+    intact, chip-selects idle before any driver starts, UART input is flushed before a transmit and never between
+    transmit and receive, an I2C bus clear runs before a retried start-up, every operation has a timeout, and
+    transfer buffers live in memory the bus and its DMA reach (owned by the driver object, never on a caller's
+    stack or in a function-local static).
+
+## Tests
+
+21. **Hardware findings become model faults and tests; the model stands alone** (KB-TST-030). Each behaviour
+    found on hardware is a fault mode of `tests/mock_xmpl100.hpp` and a regression test that fails on the code
+    before the fix, citing the datasheet. The model carries its own register map with datasheet references (it
+    does not include the driver's register header), a test cross-checks the two maps with `static_assert`, and
+    a chip with timing has a virtual clock. Evidence from a bench or a customer stays out of the repository.
+
+## Report
+
+One line per finding: rule id, `file:line` (or the missing test), what the hardware would do, and the fix with
+the test that proves it, most severe first (a value returned as data when it is not, then lost or repeated
+frames, then missing diagnostics). Mark anything only a bench can confirm as **not verified on hardware**, with
+the bench steps.

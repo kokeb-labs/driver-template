@@ -28,7 +28,9 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
+#include "xmpl100_detail.hpp"
 #include "xmpl100_registers.hpp"
 #include "xmpl100_types.hpp"
 
@@ -85,23 +87,33 @@ protected:
 
 /**
  * @brief Satisfied by a class that derives from `SpiInterface<Port>` and implements the required
- * hooks with the right types.
+ * hooks with exactly the types above, `noexcept` and returning `bool`.
+ *
+ * Each argument is probed with `detail::Exactly<T>`, which converts to `T` and nothing else: a
+ * hook declared with a narrower length or timeout, or without `noexcept`, does not satisfy the
+ * concept (handbook KB-CPP20-006).
+ *
  * @tparam Port The port class.
  */
 template <typename Port>
 concept SpiPort =
     std::derived_from<Port, SpiInterface<Port>> &&
-    requires(Port& port, const uint8_t* tx, uint8_t* rx, std::size_t len, uint32_t ms) {
-      { port.EnsureInitialized() } -> std::same_as<bool>;
-      { port.Write(tx, len) } -> std::same_as<bool>;
-      { port.Read(rx, len, ms) } -> std::same_as<bool>;
-      { port.FlushInput() } -> std::same_as<bool>;
+    requires(Port& port, detail::Exactly<const uint8_t*> tx, detail::Exactly<uint8_t*> rx,
+             detail::Exactly<std::size_t> len, detail::Exactly<uint32_t> ms) {
+      { port.EnsureInitialized() } noexcept -> std::same_as<bool>;
+      { port.Write(tx, len) } noexcept -> std::same_as<bool>;
+      { port.Read(rx, len, ms) } noexcept -> std::same_as<bool>;
+      { port.FlushInput() } noexcept -> std::same_as<bool>;
     };
 
 namespace detail {
 
 /// Longest register burst the driver issues, in data bytes.
 inline constexpr std::size_t kMaxBurst = 4;
+
+/// A burst size the register helpers accept: 1 to `kMaxBurst` bytes, checked at compile time.
+template <std::size_t N>
+concept BurstSize = (N >= 1U) && (N <= kMaxBurst);
 /// First byte of every frame in both directions (datasheet 6.3.1).
 inline constexpr uint8_t kSync = 0xA5;
 /// Command flag of a read request.
@@ -121,42 +133,59 @@ class RegisterBus {
 public:
   explicit RegisterBus(Port& port) noexcept : port_(port) {}
 
-  Port& GetPort() noexcept {
+  Port& GetPort() & noexcept {
     return port_;
   }
 
-  /// Read `len` registers from `reg`. `Bus` on a write error or bad sync, `Timeout` without a
-  /// reply, `Crc` on a corrupted reply.
-  Error Read(uint8_t reg, uint8_t* out, std::size_t len) noexcept {
-    if (len == 0 || len > kMaxBurst) {
+  /// Read `out.size()` consecutive registers from `reg`; the size is checked at compile time.
+  template <std::size_t N>
+    requires BurstSize<N>
+  Error Read(uint8_t reg, std::span<uint8_t, N> out) noexcept {
+    return Read(reg, std::span<uint8_t>{out});
+  }
+
+  /// Read `out.size()` registers from `reg`. `InvalidArgument` (nothing sent) for 0 or more than
+  /// `kMaxBurst` bytes, `Bus` on a write error or bad sync, `Timeout` without a reply, `Crc` on a
+  /// corrupted reply.
+  Error Read(uint8_t reg, std::span<uint8_t> out) noexcept {
+    if (out.empty() || out.size() > kMaxBurst) {
       return Error::InvalidArgument;
     }
-    if (const Error e = request(static_cast<uint8_t>(static_cast<uint32_t>(kReadFlag) | static_cast<uint32_t>(reg)), nullptr, len);
+    const std::size_t len = out.size();
+    if (const Error e = request(static_cast<uint8_t>(static_cast<uint32_t>(kReadFlag) | static_cast<uint32_t>(reg)), {}, len);
         e != Error::Ok) {
       return e;
     }
     std::array<uint8_t, 1 + kMaxBurst + 1> reply{};
-    if (!port_.Read(reply.data(), len + 2, kReplyTimeoutMs)) {
+    if (!port_.Read(reply.data(), len + 2U, kReplyTimeoutMs)) {
       return Error::Timeout;
     }
     if (reply[0] != kSync) {
       return Error::Bus;
     }
-    if (reg::Crc8(reply.data() + 1, len) != reply[1 + len]) {
+    if (reg::Crc8(std::span{reply}.subspan(1U, len)) != reply[1U + len]) {
       return Error::Crc;
     }
     for (std::size_t i = 0; i < len; ++i) {
-      out[i] = reply[1 + i];
+      out[i] = reply[1U + i];
     }
     return Error::Ok;
   }
 
-  /// Write `len` registers from `reg`; the chip acknowledges each request.
-  Error Write(uint8_t reg, const uint8_t* data, std::size_t len) noexcept {
-    if (len == 0 || len > kMaxBurst) {
+  /// Write `data.size()` consecutive registers from `reg`; the size is checked at compile time.
+  template <std::size_t N>
+    requires BurstSize<N>
+  Error Write(uint8_t reg, std::span<const uint8_t, N> data) noexcept {
+    return Write(reg, std::span<const uint8_t>{data});
+  }
+
+  /// Write `data.size()` registers from `reg`; the chip acknowledges each request.
+  /// `InvalidArgument` (nothing sent) for 0 or more than `kMaxBurst` bytes.
+  Error Write(uint8_t reg, std::span<const uint8_t> data) noexcept {
+    if (data.empty() || data.size() > kMaxBurst) {
       return Error::InvalidArgument;
     }
-    if (const Error e = request(reg, data, len); e != Error::Ok) {
+    if (const Error e = request(reg, data, data.size()); e != Error::Ok) {
       return e;
     }
     std::array<uint8_t, 2> reply{};
@@ -167,13 +196,14 @@ public:
   }
 
 private:
-  Error request(uint8_t cmd, const uint8_t* data, std::size_t len) noexcept {
+  /// One request frame; `data` is empty for a read, which sends only the count `len`.
+  Error request(uint8_t cmd, std::span<const uint8_t> data, std::size_t len) noexcept {
     std::array<uint8_t, 3 + kMaxBurst + 1> frame{kSync, cmd, static_cast<uint8_t>(len)};
     std::size_t n = 3;
-    for (std::size_t i = 0; data != nullptr && i < len; ++i) {
-      frame[n++] = data[i];
+    for (const uint8_t byte : data) {
+      frame[n++] = byte;
     }
-    frame[n] = reg::Crc8(frame.data() + 1, n - 1);
+    frame[n] = reg::Crc8(std::span{frame}.subspan(1U, n - 1U));
     ++n;
     if (!port_.FlushInput() || !port_.Write(frame.data(), n)) {
       return Error::Bus;

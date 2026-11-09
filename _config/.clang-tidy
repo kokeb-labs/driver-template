@@ -32,6 +32,8 @@ Checks: >-
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-special-member-functions,
+  -modernize-use-std-format,
+  -modernize-use-std-print,
   -modernize-use-trailing-return-type,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
@@ -48,6 +50,8 @@ Checks: >-
 #   *-magic-numbers                  register addresses, masks and datasheet constants
 #   cppcoreguidelines-pro-bounds-*   byte-buffer and register-table access in bus frames
 #   cppcoreguidelines-special-member  the rule-of-five is written out where it matters
+#   modernize-use-std-format/-print  would suggest <format> and std::print, which the C++20 profile forbids
+#                                    (KB-CPP20-051)
 #   modernize-use-trailing-return    not the Kokeb Labs style
 #   readability-function-cognitive  register sequences are long but flat
 #   readability-identifier-length    i, n, T and reg are fine
@@ -69,6 +73,7 @@ Checks: >-
 #                                    the Log hook takes a plain `const char*`, so nothing needs them off
 #   cert-*                           Rules 21.2.1 (cert-err34-c), 21.2.3 (cert-env33-c), 21.10.2 (cert-err52-cpp),
 #                                    Dir 0.3.1 (cert-flp30-c)
+#   bugprone-dangling-handle         Rules 6.8.1 to 6.8.4, KB-CPP20-044: std::span is a handle too (HandleClasses)
 # Include guards (KB-CPP-019, Rule 19.2.1) are checked by the handbook's source checks, not llvm-header-guard,
 # whose path-based names differ from the convention.
 
@@ -84,6 +89,8 @@ CheckOptions:
   - { key: readability-uppercase-literal-suffix.NewSuffixes,            value: 'L;LL;UL;ULL' }
   # A positive literal (1U << 0, x << 8) is not flagged; a narrow unsigned operand promoted to int is.
   - { key: hicpp-signed-bitwise.IgnorePositiveIntegerLiterals,          value: true }
+  # A span or string_view built from a temporary dangles (KB-CPP20-044).
+  - { key: bugprone-dangling-handle.HandleClasses,                      value: 'std::basic_string_view;std::experimental::basic_string_view;std::span' }
   # Types: PascalCase. Chip classes keep the part number (PCA9685, TMC9660).
   - { key: readability-identifier-naming.NamespaceCase,                 value: lower_case }
   - { key: readability-identifier-naming.ClassCase,                     value: CamelCase }

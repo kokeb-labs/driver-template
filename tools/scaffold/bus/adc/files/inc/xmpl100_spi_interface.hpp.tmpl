@@ -24,6 +24,8 @@
 #include <concepts>
 #include <cstdint>
 
+#include "xmpl100_detail.hpp"
+
 namespace xmpl100 {
 
 /** @brief Control pins the port may drive through the optional `GpioSet()` hook. */
@@ -62,14 +64,14 @@ protected:
 
 /**
  * @brief Satisfied by a class that derives from `SpiInterface<Port>` and implements the required
- * hooks with the right types.
+ * hooks with exactly the types above, `noexcept` and returning `bool` (handbook KB-CPP20-006).
  * @tparam Port The port class.
  */
 template <typename Port>
 concept SpiPort = std::derived_from<Port, SpiInterface<Port>> &&
-                  requires(Port& port, uint8_t channel, uint32_t& voltage_mv) {
-                    { port.EnsureInitialized() } -> std::same_as<bool>;
-                    { port.ReadVoltageMv(channel, voltage_mv) } -> std::same_as<bool>;
+                  requires(Port& port, detail::Exactly<uint8_t> channel, uint32_t& voltage_mv) {
+                    { port.EnsureInitialized() } noexcept -> std::same_as<bool>;
+                    { port.ReadVoltageMv(channel, voltage_mv) } noexcept -> std::same_as<bool>;
                   };
 
 } // namespace xmpl100

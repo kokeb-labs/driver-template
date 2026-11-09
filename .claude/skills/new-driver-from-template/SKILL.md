@@ -21,7 +21,8 @@ If `tools/setup.py` is gone, the setup already ran: start at step 2.
    `--repo`, `--author` and `--license MIT|Apache-2.0` override what it reads from the git remote;
    `--platforms` picks the example platforms (`host,esp32` for a driver, `host` for a library).
 3. Read the checklist it prints; it is also the PR description's to-do list.
-4. Run the `verify` skill: the renamed example must still build, pass and publish before you change anything.
+4. Run the `verify` skill: the renamed example must still build (including the strict-dialect header checks),
+   pass its source checks and publish before you change anything.
    Commit this state on its own, signed off (`git commit -s -m "Scaffold <CHIP> from driver-template"`).
 
 ## 2. Replace the example chip (drivers)
@@ -36,7 +37,11 @@ Use the `datasheet-conformance` skill for every step, one subsystem at a time:
 4. The port (`inc/<chip>_<bus>_interface.hpp`): keep the standard hooks for the bus; add a hook only for a
    protocol that does not fit, and list it on the Porting page.
 5. `examples/host/`: the host port over the new register model and the example program.
-6. `examples/esp32/main/` (when scaffolded with `esp32`): the ESP-IDF port pins and the example.
+6. `examples/esp32/main/` (when scaffolded with `esp32`): the ESP-IDF port pins and the example. Keep the
+   header self-check `<chip>_cxx20_check.cpp`: it is the only C++20 conformance check inside the ESP-IDF build.
+7. Write the driver to the handbook's C++20 profile from the first line (the `cpp20-profile` skill), and before
+   the first PR run the `misra-review` and `hardware-lessons-review` skills, or the `safety-reviewer` agent, over
+   the whole repository.
 
 ## 3. Docs and metadata
 

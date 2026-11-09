@@ -28,7 +28,9 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
+#include "xmpl100_detail.hpp"
 #include "xmpl100_types.hpp"
 
 namespace xmpl100 {
@@ -86,22 +88,32 @@ protected:
 
 /**
  * @brief Satisfied by a class that derives from `SpiInterface<Port>` and implements the required
- * hooks with the right types.
+ * hooks with exactly the types above, `noexcept` and returning `bool`.
+ *
+ * Each argument is probed with `detail::Exactly<T>`, which converts to `T` and nothing else: a
+ * hook declared with a narrower length or without `noexcept` does not satisfy the concept
+ * (handbook KB-CPP20-006).
+ *
  * @tparam Port The port class.
  */
 template <typename Port>
 concept SpiPort =
     std::derived_from<Port, SpiInterface<Port>> &&
-    requires(Port& port, uint8_t addr, const uint8_t* tx, uint8_t* rx, std::size_t len) {
-      { port.EnsureInitialized() } -> std::same_as<bool>;
-      { port.Write(addr, tx, len) } -> std::same_as<bool>;
-      { port.WriteRead(addr, tx, len, rx, len) } -> std::same_as<bool>;
+    requires(Port& port, detail::Exactly<uint8_t> addr, detail::Exactly<const uint8_t*> tx,
+             detail::Exactly<uint8_t*> rx, detail::Exactly<std::size_t> len) {
+      { port.EnsureInitialized() } noexcept -> std::same_as<bool>;
+      { port.Write(addr, tx, len) } noexcept -> std::same_as<bool>;
+      { port.WriteRead(addr, tx, len, rx, len) } noexcept -> std::same_as<bool>;
     };
 
 namespace detail {
 
 /// Longest register burst the driver issues, in data bytes.
 inline constexpr std::size_t kMaxBurst = 4;
+
+/// A burst size the register helpers accept: 1 to `kMaxBurst` bytes, checked at compile time.
+template <std::size_t N>
+concept BurstSize = (N >= 1U) && (N <= kMaxBurst);
 
 /// Register access over I2C: the register address is the first payload byte; reads use a repeated
 /// START. The address auto-increments within one transaction.
@@ -110,29 +122,48 @@ class RegisterBus {
 public:
   RegisterBus(Port& port, uint8_t address) noexcept : port_(port), address_(address) {}
 
-  Port& GetPort() noexcept {
+  Port& GetPort() & noexcept {
     return port_;
   }
 
-  /// Read `len` consecutive registers from `reg`. `Error::Bus` on a NACK or bus error.
-  Error Read(uint8_t reg, uint8_t* out, std::size_t len) noexcept {
-    if (len == 0 || len > kMaxBurst) {
-      return Error::InvalidArgument;
-    }
-    return port_.WriteRead(address_, &reg, 1, out, len) ? Error::Ok : Error::Bus;
+  /// Read `out.size()` consecutive registers from `reg`; the size is checked at compile time.
+  template <std::size_t N>
+    requires BurstSize<N>
+  Error Read(uint8_t reg, std::span<uint8_t, N> out) noexcept {
+    return Read(reg, std::span<uint8_t>{out});
   }
 
-  /// Write `len` consecutive registers from `reg`. `Error::Bus` on a NACK or bus error.
-  Error Write(uint8_t reg, const uint8_t* data, std::size_t len) noexcept {
-    if (len == 0 || len > kMaxBurst) {
+  /// Read `out.size()` consecutive registers from `reg`. `InvalidArgument` (nothing sent) for 0 or
+  /// more than `kMaxBurst` bytes, `Bus` on a NACK or bus error.
+  Error Read(uint8_t reg, std::span<uint8_t> out) noexcept {
+    if (out.empty() || out.size() > kMaxBurst) {
+      return Error::InvalidArgument;
+    }
+    const std::array<uint8_t, 1> pointer{reg};
+    return port_.WriteRead(address_, pointer.data(), pointer.size(), out.data(), out.size())
+               ? Error::Ok
+               : Error::Bus;
+  }
+
+  /// Write `data.size()` consecutive registers from `reg`; the size is checked at compile time.
+  template <std::size_t N>
+    requires BurstSize<N>
+  Error Write(uint8_t reg, std::span<const uint8_t, N> data) noexcept {
+    return Write(reg, std::span<const uint8_t>{data});
+  }
+
+  /// Write `data.size()` consecutive registers from `reg`. `InvalidArgument` (nothing sent) for 0
+  /// or more than `kMaxBurst` bytes, `Bus` on a NACK or bus error.
+  Error Write(uint8_t reg, std::span<const uint8_t> data) noexcept {
+    if (data.empty() || data.size() > kMaxBurst) {
       return Error::InvalidArgument;
     }
     std::array<uint8_t, 1 + kMaxBurst> frame{};
     frame[0] = reg;
-    for (std::size_t i = 0; i < len; ++i) {
-      frame[1 + i] = data[i];
+    for (std::size_t i = 0; i < data.size(); ++i) {
+      frame[1U + i] = data[i];
     }
-    return port_.Write(address_, frame.data(), len + 1) ? Error::Ok : Error::Bus;
+    return port_.Write(address_, frame.data(), data.size() + 1U) ? Error::Ok : Error::Bus;
   }
 
 private:

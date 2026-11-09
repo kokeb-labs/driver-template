@@ -3,6 +3,8 @@
  * @brief Driver behaviour over the register model: lifecycle, configuration, measurement, port
  * hooks.
  */
+#include <limits>
+
 #include "mock_xmpl100.hpp"
 #include "test_harness.hpp"
 #include "xmpl100.hpp"
@@ -431,6 +433,66 @@ TEST_CASE(
   REQUIRE(sensor.EnsureInitialized().ok());
   CHECK_EQ(port.state.chip.Register(reg::kConfig) & reg::kConfigOdrMask, 0); // 1 Hz again
   CHECK(sensor.ReadTemperatureC().ok());
+}
+
+TEST_CASE(
+    "A conversion timeout above kConversionTimeoutMaxMs is rejected, so every wait is bounded") {
+  MinimalPort port;
+  xmpl100::Config c = xmpl100::OneShotPreset();
+  c.conversion_timeout_ms = xmpl100::kConversionTimeoutMaxMs + 1U;
+  CHECK_EQ(xmpl100::Validate(c), Error::InvalidArgument);
+  c.conversion_timeout_ms = UINT32_MAX; // with `<=` this bound once made the poll loop endless
+  CHECK_EQ(xmpl100::Validate(c), Error::InvalidArgument);
+  xmpl100::XMPL100<MinimalPort> sensor(port, c);
+  CHECK_EQ(sensor.EnsureInitialized().error, Error::InvalidArgument);
+  CHECK_EQ(port.state.transfers, 0);
+  c.conversion_timeout_ms = xmpl100::kConversionTimeoutMaxMs;
+  CHECK_EQ(xmpl100::Validate(c), Error::Ok);
+}
+
+// --- Compile-time helpers (handbook C++20 profile)
+// ------------------------------------------------------------------------------
+
+TEST_CASE("The rate helpers keep their shifts in range for any value an enumeration can hold") {
+  // A value made by static_cast from a raw byte: the masks make the shift defined (KB-CPP20-020).
+  const auto avg = static_cast<xmpl100::Averaging>(0xFFU);
+  const auto odr = static_cast<xmpl100::OutputDataRate>(0xFFU);
+  CHECK_EQ(xmpl100::SamplesPerResult(avg), 8U);
+  CHECK_EQ(xmpl100::PeriodUs(odr), 1000000U >> 7U);
+  CHECK_EQ(xmpl100::SamplesPerResult(xmpl100::Averaging::X4), 4U);
+  CHECK_EQ(xmpl100::PeriodUs(xmpl100::OutputDataRate::Hz16), 62500U);
+  xmpl100::Config c{};
+  c.averaging = avg;
+  CHECK_EQ(xmpl100::Validate(c), Error::InvalidArgument); // not an enumerator
+}
+
+TEST_CASE("Temperature conversions round, round-trip, and refuse what the register cannot hold") {
+  const auto counts = xmpl100::ToCounts(25.5F, xmpl100::kTemperatureResolution);
+  REQUIRE(counts.ok());
+  CHECK_EQ(counts.value, 3264);
+  CHECK_EQ(xmpl100::ToCelsius(counts.value, xmpl100::kTemperatureResolution), 25.5F);
+  CHECK_EQ(xmpl100::ToCounts(-0.03F, xmpl100::kOffsetResolution).value, 0); // rounds half away
+  CHECK_EQ(xmpl100::ToCounts(-0.04F, xmpl100::kOffsetResolution).value, -1);
+  CHECK_EQ(xmpl100::ToCounts(300.0F, xmpl100::kTemperatureResolution).error,
+           Error::InvalidArgument);
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  CHECK_EQ(xmpl100::ToCounts(nan, xmpl100::kTemperatureResolution).error, Error::InvalidArgument);
+}
+
+TEST_CASE("Typed register fields insert and extract only their own bits") {
+  const uint8_t raw = 0xFFU;
+  CHECK_EQ(reg::ConfigAvg::Insert(raw, 1U), static_cast<uint8_t>(0xEFU));
+  CHECK_EQ(reg::ConfigAvg::Extract(0x10U), 2U);
+  CHECK_EQ(reg::ConfigOdr::Extract(raw), 7U);
+  CHECK_EQ(reg::CtrlMode::Extract(xmpl100::detail::CtrlValue(xmpl100::OneShotPreset(), false)), 1U);
+}
+
+TEST_CASE("A CheckedConfig is a configuration proven valid at build time") {
+  static constexpr xmpl100::CheckedConfig kBoard{xmpl100::HighAccuracyPreset()};
+  CHECK_EQ(xmpl100::Validate(kBoard.Get()), Error::Ok);
+  MinimalPort port;
+  xmpl100::XMPL100<MinimalPort> sensor(port, kBoard.Get());
+  CHECK(sensor.GetConfig().crc_enable);
 }
 
 // --- Diagnostics (handbook KB-CPP-119, KB-CPP-129)

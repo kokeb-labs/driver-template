@@ -125,24 +125,26 @@ manifest or a wrapper folder. `--selftest` fails when a scaffolded root holds an
 
 | Path | What it is | Standard |
 | --- | --- | --- |
-| `inc/xmpl100.hpp` | Umbrella header: the driver class `xmpl100::XMPL100<Port>`, constrained by the port concept; optional hooks detected in `xmpl100::detail` | driver.md: Namespace, Lifecycle |
-| `inc/xmpl100_spi_interface.hpp` | The CRTP base `SpiInterface<Derived>` (declares no hook), `CtrlPin`, `GpioSignal`, the `SpiPort` concept, the register framing | driver.md: The port |
-| `inc/xmpl100_types.hpp` | `Error` (base set 0 to 9, `UnexpectedReset` = 16), `Result<T>`, `ToString()`, `Config` with datasheet defaults and unit suffixes, presets, `Validate()`, version getters | driver.md: Errors, Config |
-| `inc/xmpl100_registers.hpp` | The register map with section references; the CRC-8 | driver.md: layout |
+| `inc/xmpl100.hpp` | Umbrella header: the driver class `xmpl100::XMPL100<Port>`, constrained by the port concept; optional hooks detected by named `Declares*`/`Has*` concepts in `xmpl100::detail`; the register encoders as free `constexpr` functions with `static_assert`s | driver.md: Namespace, Lifecycle |
+| `inc/xmpl100_detail.hpp` | Compile-time helpers: `detail::Exactly<T>` (exact hook probes), `kAlwaysFalse`, `ToUnderlying`, `IsEnumerator`/`EnumLast`, typed register fields `detail::Field` | C++20 profile |
+| `inc/xmpl100_spi_interface.hpp` | The CRTP base `SpiInterface<Derived>` (declares no hook), `CtrlPin`, `GpioSignal`, the exact `SpiPort` concept, the register framing on spans | driver.md: The port |
+| `inc/xmpl100_types.hpp` | `[[nodiscard]] Error` (base set 0 to 9, `UnexpectedReset` = 16), `Result<T>`, `ToString()`, `Config` with datasheet defaults and unit suffixes, presets with `static_assert`ed validity, `Validate()`, the `Resolution` strong type with `ToCounts()`/`ToCelsius()`, `CheckedConfig`, version getters | driver.md: Errors, Config |
+| `inc/xmpl100_registers.hpp` | The register map with section references, typed fields, the CRC-8 with its check vectors | driver.md: layout |
 | `inc/xmpl100_kconfig.hpp`, `_config/Kconfig` | The only place `CONFIG_XMPL100_*` is read: `KconfigDefaults()` | driver.md: Config and Kconfig |
 | `inc/xmpl100_version.h.in` | Version header template, configured into the build tree | driver.md: Build |
 | `src/xmpl100.ipp` | The implementation, included at the end of the umbrella header; private helpers camelBack | naming-and-style.md |
 | `cmake/xmpl100_build_settings.cmake` | The single source of the version, target name, sources and IDF requirements | driver.md: Build |
 | `cmake/xmpl100Config.cmake.in`, `CMakeLists.txt` | INTERFACE target `xmpl100`, the `xmpl100::xmpl100` alias, `EXPORT_NAME`, install rules, package config; under `ESP_PLATFORM` the ESP-IDF component (`idf_component_register`, `KCONFIG _config/Kconfig`). No `idf_component.yml`: only registry publishing needs one | driver.md: Build |
 | `examples/host/` | The host example: a host port over the register model and a program that initialises and reads; built and run by the host tests and on its own in CI | driver.md: Examples |
-| `examples/esp32/` | ESP-IDF project: `app_config.yml`, `sdkconfig.defaults` (`CONFIG_FREERTOS_HZ=1000`), `EXTRA_COMPONENT_DIRS` at the repository root, `main/` with the port and a basic example, `scripts/` (submodule) | driver.md: Examples |
+| `examples/esp32/` | ESP-IDF project: `app_config.yml`, `sdkconfig.defaults` (`CONFIG_FREERTOS_HZ=1000`), `EXTRA_COMPONENT_DIRS` at the repository root, `main/` with the port, a basic example and the header self-check `xmpl100_cxx20_check.cpp` (built at `-std=c++20 -pedantic-errors`), `scripts/` (submodule) | driver.md: Examples |
 | `tests/mock_xmpl100.hpp`, `tests/mock_xmpl100_bus.hpp` | Register model of the chip, written without the driver's headers; mock ports with and without the optional hooks | driver.md: Tests |
 | `tests/test_model.cpp` | The model's register map against the driver's, at compile time | KB-TST-030 |
 | `tests/test_xmpl100.cpp` | Lifecycle, configuration, measurement, every failure path | driver.md: Tests |
 | `tests/test_errors.cpp` | Base `Error` values fixed; every chip-specific value returned by some call | driver.md: Errors |
 | `tests/test_version.cpp`, `tests/check_version_copy.cmake` | Version getters follow CMake (also against a 9.8.7 probe); `_config/Doxyfile` agrees | driver.md: Tests |
 | `tests/test_kconfig.cpp` | `KconfigDefaults()` with and without `CONFIG_` values | |
-| `tests/compile_fail/` | Code that must not compile, each with its expected diagnostic (`EXPECT:`) | driver.md: Optional hooks |
+| `tests/compile_fail/` | Code that must not compile, each with its expected diagnostic (`EXPECT:`): a missing or misdeclared hook, a narrowed hook parameter, a hook without `noexcept`, an invalid `CheckedConfig` | driver.md: Optional hooks, KB-CPP20-006 |
+| `tests/CMakeLists.txt` (header checks) | One generated translation unit per public header, built as ISO C++20 with `-pedantic-errors` and asserting `__cplusplus == 202002L`, in the host tests and the Cortex-M cross-build | KB-CPP20-001 |
 | `tests/docs/` | Every C++ block on the site, compiled | docs.md: Code on the site |
 | `tests/install_consumer/`, `tests/check_install.cmake` | `cmake --install`, then `find_package(xmpl100)` and `xmpl100::xmpl100` | driver.md: Tests |
 | `tests/check_doxygen.cmake`, `_config/Doxyfile` | Doxygen with `EXTRACT_ALL = NO`, `WARN_AS_ERROR = FAIL_ON_WARNINGS` on `inc/` | docs.md: Doxygen |
@@ -158,7 +160,7 @@ manifest or a wrapper folder. `--selftest` fails when a scaffolded root holds an
 | `.github/CODEOWNERS`, `pull_request_template.md`, `ISSUE_TEMPLATE/`, `labels.yml` | Governance; the PR template has a bench-status section | repo-governance.md |
 | `.github/CONTRIBUTING.md`, `.github/SECURITY.md`, `LICENSE`, `CHANGELOG.md` | Branch names, squash merges, definition of done; private reports; MIT (or Apache-2.0 with `--license`); Keep a Changelog with `### Breaking` | repo-governance.md, release.md |
 | `_config/` | All tool configuration: the org `.clang-format` and `.clang-tidy` (copied unchanged from the standard), `Doxyfile`, `mkdocs.yml`, `Kconfig`, markdownlint, yamllint, lychee. No copies or symlinks at the root ([Editor setup](porting.md#editor-setup)) | naming-and-style.md, ADR-0011 |
-| `AGENTS.md`, `CLAUDE.md`, `.claude/skills/` | Agent entry point and skills: `verify`, `release`, `bump-pin`, `add-driver-feature`, `new-driver-from-template`, `datasheet-conformance`, `add-port` | agents.md |
+| `AGENTS.md`, `CLAUDE.md`, `.claude/skills/`, `.claude/agents/` | Agent entry point and skills: `verify`, `release`, `bump-pin`, `add-driver-feature`, `new-driver-from-template`, `datasheet-conformance`, `add-port`, and the review skills `cpp20-profile`, `misra-review`, `hardware-lessons-review`; the read-only `safety-reviewer` agent runs the review skills and `datasheet-conformance` | agents.md |
 | `tools/setup.py` | Template only: the one entry point; infers, asks, scaffolds, builds and tests | |
 | `tools/scaffold.py`, `tools/scaffold/` | Template only: the scaffold, its organisation settings (`ORGS`, `LICENSES`), the overlays (`bus/<bus>/`, `library/`: files ending in `.tmpl`, and `blocks/` for marked prose) and the licence texts (`license/`) | |
 
@@ -176,9 +178,48 @@ from working examples of them:
 | One latch for clear-on-read flags (KB-CPP-119) | `GetLatchedStatus()` / `ClearLatchedStatus()`, fed by every STATUS read through `readStatusByte()` |
 | Single-shot raw access and the last raw reply (KB-CPP-129) | `ReadRegister()` and `GetLastStatusByte()` (ADC: `ReadRawVoltageMv()`, `GetLastVoltageMv()`; GPIO: `ReadRawOutput()`, `GetLastOutput()`) |
 | Unsigned operands for bit operations (MISRA C++:2023 Rules 7.0.4, 7.0.5) | Narrow values are cast to `uint32_t` before `<<`, `~`, `\|` and `^`; `hicpp-signed-bitwise` is on |
+| Strict ISO C++20 everywhere (KB-CPP20-001) | `CMAKE_CXX_EXTENSIONS OFF` in every folder that builds a target, `-pedantic-errors`, the header checks, and the ESP-IDF header self-check |
+| Exact port concepts and named hook concepts (KB-CPP20-006, -007) | `detail::Exactly<T>` in the `SpiPort` concept; `DeclaresDelayUs`/`HasDelayUs` and friends in `xmpl100.hpp`; the compile-fail tests |
+| Bounded loops and masked shifts (KB-CPP20-058, -020) | `kConversionTimeoutMaxMs` checked by `Validate()` and capping `WaitDataReady()`; `SamplesPerResult()` and `PeriodUs()` mask their shift counts |
+| `[[nodiscard]]` error types (KB-CPP20-037) | `enum class [[nodiscard]] Error` |
 
-The repository checks run the handbook's source checks (include guards, bus requirements, raw access) on every
-pull request, from the handbook commit pinned in `.github/workflows/ci-repo-checks.yml`.
+The repository checks run the handbook's source checks (include guards, bus requirements, raw access, the C++20
+profile) on every pull request, from the handbook commit pinned in `.github/workflows/ci-repo-checks.yml`.
+
+## C++20 patterns
+
+The handbook's C++20 profile (KB-CPP20-001 to 058) asks for patterns that cost nothing on the run-time path. The
+template uses these, each with tests:
+
+- **Exact port concepts** (`detail::Exactly<T>`): a hook argument is probed with a type that converts to the
+  documented parameter type and nothing else, and every hook is required `noexcept`, so `Transfer(..., uint16_t
+  len)` is a compile error, not a silent truncation. Compile time only.
+- **Typed register fields** (`detail::Field<Reg, Shift, Width>` in `inc/xmpl100_registers.hpp`): every shift is
+  a constant in range and every operand is widened once; `static_assert`s tie each field to the register map.
+- **Strong unit types for public conversions** (`Resolution`, `ToCounts()`, `ToCelsius()`): the register
+  resolution cannot be passed as a plain integer in the wrong place; a one-member struct is passed in a register.
+- **Fixed-extent spans on the bus helpers** (`RegisterBus::Read(reg, std::span<uint8_t, N>)`): the burst size is
+  checked at compile time; the dynamic-extent overload checks it before the first access.
+- **Build-time checked configurations** (`CheckedConfig`, a `consteval` constructor): an invalid board
+  configuration fails the build, naming `ConfigIsInvalid`; the driver still validates at run time.
+- **Round-trip and datasheet `static_assert`s**: the reset `Config` encodes to the CTRL and CONFIG reset values,
+  each field decodes back, the CRC-8 matches its catalogue check value, and every preset passes `Validate()`.
+
+Patterns a driver adopts when its chip needs them, written the same way:
+
+- **Enumeration decoding** with `detail::IsEnumerator` and an `EnumLast<E>` specialisation next to each
+  contiguous enumeration, and a decoder that returns an error for a raw value that is not an enumerator
+  (KB-CPP20-025), instead of `static_cast<E>(raw)`.
+- **A compile-time CRC table** (`constexpr std::array<uint8_t, 256>` built by a `constexpr` function) for a CRC
+  on a timing-critical path: two lookups instead of 16 loop steps per byte pair, for 256 bytes of flash. Measure on
+  the target first, and `static_assert` it against the bitwise version.
+- **Defaulted `operator==` on integral-only value types**, so an encode and decode pair gets a one-line
+  round-trip `static_assert` (never on a type with `float` members, such as this `Config`).
+- **`&`-qualified accessors** that return a reference into the driver (`GetConfig() const&`, rvalue overload
+  deleted), so a reference into a temporary driver cannot dangle.
+- **A code-size budget** for small parts: compile the host example for `-Os -mcpu=cortex-m0plus` with
+  `-ffunction-sections -fdata-sections -Wl,--gc-sections` and record the size per release; keep port-independent
+  code out of the class template so two port types share it.
 
 Rules that depend on the chip are the driver author's to apply; the example chip is too simple to show them. Read
 the handbook's driver contract, *Replies, retries and resynchronisation* to *Values and diagnostics*, before

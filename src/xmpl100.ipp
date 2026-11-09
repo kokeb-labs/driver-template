@@ -53,7 +53,7 @@ Result<void> XMPL100<Port>::Deinitialize() noexcept {
   initialized_ = false;
   Config shutdown = config_;
   shutdown.mode = Mode::Shutdown;
-  return writeRegister(reg::kCtrl, ctrlValue(shutdown, false));
+  return writeRegister(reg::kCtrl, detail::CtrlValue(shutdown, false));
 }
 
 template <SpiPort Port>
@@ -133,7 +133,7 @@ Result<Status> XMPL100<Port>::ReadStatus() noexcept {
   if (!raw) {
     return Result<Status>::Failure(raw.error);
   }
-  return Result<Status>::Success(decodeStatus(raw.value));
+  return Result<Status>::Success(detail::DecodeStatus(raw.value));
 }
 
 template <SpiPort Port>
@@ -154,11 +154,13 @@ Result<int16_t> XMPL100<Port>::ReadRawTemperature() noexcept {
   // TEMP_MSB, TEMP_LSB and TEMP_CRC in one burst: the chip latches the pair on the first byte
   // (section 7.6).
   std::array<uint8_t, 3> bytes{};
-  const std::size_t len = config_.crc_enable ? 3 : 2;
-  if (const Error e = bus_.Read(reg::kTempMsb, bytes.data(), len); e != Error::Ok) {
+  const auto burst = std::span{bytes};
+  const Error e = config_.crc_enable ? bus_.Read(reg::kTempMsb, burst)
+                                     : bus_.Read(reg::kTempMsb, burst.first<2>());
+  if (e != Error::Ok) {
     return Result<int16_t>::Failure(e);
   }
-  if (config_.crc_enable && reg::Crc8(bytes.data(), 2) != bytes[2]) {
+  if (config_.crc_enable && reg::Crc8(burst.first<2>()) != bytes[2]) {
     return Result<int16_t>::Failure(Error::Crc);
   }
   const auto counts = static_cast<int16_t>(static_cast<uint16_t>(
@@ -172,8 +174,7 @@ Result<float> XMPL100<Port>::ReadTemperatureC() noexcept {
   if (!raw) {
     return Result<float>::Failure(raw.error);
   }
-  return Result<float>::Success(static_cast<float>(raw.value) /
-                                static_cast<float>(kCountsPerDegreeC));
+  return Result<float>::Success(ToCelsius(raw.value, kTemperatureResolution));
 }
 
 template <SpiPort Port>
@@ -193,7 +194,7 @@ Result<void> XMPL100<Port>::TriggerOneShot() noexcept {
   }
   Config one_shot = config_;
   one_shot.mode = Mode::OneShot;
-  return writeRegister(reg::kCtrl, ctrlValue(one_shot, true));
+  return writeRegister(reg::kCtrl, detail::CtrlValue(one_shot, true));
 }
 
 template <SpiPort Port>
@@ -201,7 +202,14 @@ Result<void> XMPL100<Port>::WaitDataReady() noexcept {
   if (!initialized_) {
     return Result<void>::Failure(Error::NotInitialized);
   }
-  for (uint32_t ms = 0; ms <= config_.conversion_timeout_ms; ++ms) {
+  // One poll per millisecond, timeout + 1 polls. The bound is the validated timeout, capped by the
+  // same maximum, so the loop ends even for a configuration that bypassed Validate()
+  // (KB-CPP20-058).
+  const uint32_t timeout_ms = config_.conversion_timeout_ms < kConversionTimeoutMaxMs
+                                  ? config_.conversion_timeout_ms
+                                  : kConversionTimeoutMaxMs;
+  const uint32_t polls = timeout_ms + 1U;
+  for (uint32_t poll = 0U; poll < polls; ++poll) {
     const auto status = ReadStatus();
     if (!status) {
       return Result<void>::Failure(status.error);
@@ -322,27 +330,31 @@ Result<void> XMPL100<Port>::writeConfigRegisters(const Config& config) noexcept 
   // Shutdown while the thresholds and averaging change, so no result mixes old and new settings.
   Config idle = config;
   idle.mode = Mode::Shutdown;
-  if (auto r = writeRegister(reg::kCtrl, ctrlValue(idle, false)); !r) {
+  if (auto r = writeRegister(reg::kCtrl, detail::CtrlValue(idle, false)); !r) {
     return r;
   }
+  // Every caller passes a configuration that passed Validate(), which keeps each value inside its
+  // register, so each conversion succeeds.
+  const auto high_counts = ToCounts(config.alert_high_c, kTemperatureResolution);
+  const auto low_counts = ToCounts(config.alert_low_c, kTemperatureResolution);
+  const auto offset_counts = ToCounts(config.offset_c, kOffsetResolution);
   // Two's complement counts as 16-bit words, widened unsigned before the shifts (Rule 7.0.5).
-  const uint32_t high = static_cast<uint16_t>(toCounts(config.alert_high_c, kCountsPerDegreeC));
-  const uint32_t low = static_cast<uint16_t>(toCounts(config.alert_low_c, kCountsPerDegreeC));
+  const uint32_t high = static_cast<uint16_t>(high_counts.value);
+  const uint32_t low = static_cast<uint16_t>(low_counts.value);
   const std::array<uint8_t, 4> thresholds = {
       static_cast<uint8_t>(high >> 8U), static_cast<uint8_t>(high & 0xFFU),
       static_cast<uint8_t>(low >> 8U), static_cast<uint8_t>(low & 0xFFU)};
-  if (const Error e = bus_.Write(reg::kAlertHighMsb, thresholds.data(), thresholds.size());
-      e != Error::Ok) {
+  if (const Error e = bus_.Write(reg::kAlertHighMsb, std::span{thresholds}); e != Error::Ok) {
     return Result<void>::Failure(e);
   }
-  const auto offset = static_cast<uint8_t>(toCounts(config.offset_c, kOffsetCountsPerDegreeC));
+  const auto offset = static_cast<uint8_t>(offset_counts.value);
   if (auto r = writeRegister(reg::kOffset, offset); !r) {
     return r;
   }
-  if (auto r = writeRegister(reg::kConfig, configValue(config)); !r) {
+  if (auto r = writeRegister(reg::kConfig, detail::ConfigValue(config)); !r) {
     return r;
   }
-  if (auto r = writeRegister(reg::kCtrl, ctrlValue(config, false)); !r) {
+  if (auto r = writeRegister(reg::kCtrl, detail::CtrlValue(config, false)); !r) {
     return r;
   }
   config_ = config;
@@ -351,11 +363,11 @@ Result<void> XMPL100<Port>::writeConfigRegisters(const Config& config) noexcept 
 
 template <SpiPort Port>
 Result<uint8_t> XMPL100<Port>::readRegister(uint8_t reg) noexcept {
-  uint8_t value = 0;
-  if (const Error e = bus_.Read(reg, &value, 1); e != Error::Ok) {
+  std::array<uint8_t, 1> value{};
+  if (const Error e = bus_.Read(reg, std::span{value}); e != Error::Ok) {
     return Result<uint8_t>::Failure(e);
   }
-  return Result<uint8_t>::Success(value);
+  return Result<uint8_t>::Success(value[0]);
 }
 
 template <SpiPort Port>
@@ -373,7 +385,8 @@ Result<uint8_t> XMPL100<Port>::readStatusByte() noexcept {
 
 template <SpiPort Port>
 Result<void> XMPL100<Port>::writeRegister(uint8_t reg, uint8_t value) noexcept {
-  if (const Error e = bus_.Write(reg, &value, 1); e != Error::Ok) {
+  const std::array<uint8_t, 1> data{value};
+  if (const Error e = bus_.Write(reg, std::span{data}); e != Error::Ok) {
     return Result<void>::Failure(e);
   }
   return Result<void>::Success();
@@ -383,53 +396,6 @@ template <SpiPort Port>
 Result<void> XMPL100<Port>::fail(Error error, const char* message) noexcept {
   detail::Log(bus_.GetPort(), LogLevel::Error, message);
   return Result<void>::Failure(error);
-}
-
-template <SpiPort Port>
-uint8_t XMPL100<Port>::ctrlValue(const Config& config, bool start) noexcept {
-  auto value = static_cast<uint8_t>(static_cast<uint8_t>(config.mode) & reg::kCtrlModeMask);
-  if (config.alert_enable) {
-    value = static_cast<uint8_t>(value | reg::kCtrlAlertEn);
-  }
-  if (config.alert_polarity == AlertPolarity::ActiveHigh) {
-    value = static_cast<uint8_t>(value | reg::kCtrlAlertPol);
-  }
-  if (start) {
-    value = static_cast<uint8_t>(value | reg::kCtrlStart);
-  }
-  return value;
-}
-
-template <SpiPort Port>
-uint8_t XMPL100<Port>::configValue(const Config& config) noexcept {
-  auto value = static_cast<uint8_t>(static_cast<uint8_t>(config.odr) & reg::kConfigOdrMask);
-  value = static_cast<uint8_t>(
-      static_cast<uint32_t>(value) |
-      ((static_cast<uint32_t>(config.averaging) << reg::kConfigAvgShift) & reg::kConfigAvgMask));
-  if (config.crc_enable) {
-    value = static_cast<uint8_t>(value | reg::kConfigCrcEn);
-  }
-  return value;
-}
-
-template <SpiPort Port>
-Status XMPL100<Port>::decodeStatus(uint8_t raw) noexcept {
-  Status s{};
-  s.data_ready = (raw & reg::kStatusDrdy) != 0;
-  s.busy = (raw & reg::kStatusBusy) != 0;
-  s.alert_high = (raw & reg::kStatusAlertHi) != 0;
-  s.alert_low = (raw & reg::kStatusAlertLo) != 0;
-  s.power_on_reset = (raw & reg::kStatusPor) != 0;
-  s.fault = (raw & reg::kStatusFault) != 0;
-  return s;
-}
-
-template <SpiPort Port>
-int16_t XMPL100<Port>::toCounts(float celsius, int32_t counts_per_degree) noexcept {
-  // Round half away from zero without <cmath>; Validate() keeps the result inside int16_t.
-  const float scaled = celsius * static_cast<float>(counts_per_degree);
-  const auto rounded = static_cast<int32_t>(scaled >= 0.0F ? scaled + 0.5F : scaled - 0.5F);
-  return static_cast<int16_t>(rounded);
 }
 
 } // namespace xmpl100
