@@ -149,8 +149,8 @@ manifest or a wrapper folder. `--selftest` fails when a scaffolded root holds an
 | `docs/diagrams/` | The layer figure (figkit), drawn from the headers | docs.md |
 | `tools/docs/generators/snippets.py` | The README's quickstart region, copied from the compiled snippet | docs.md: README |
 | `docs/datasheets.yml`, `docs/datasheet.md`, `tools/docs/generators/datasheet.py` | The datasheet record (document, revision, SHA-256, and each topic with its section, page, driver API and docs pages); the generator builds the README and home-page card (`datasheet-card`), the Datasheet map (`datasheet-map`) and the box after each page's intro (`datasheet-refs`). The template's is a fictional placeholder; drivers only | ADR-0019 |
-| `.github/workflows/ci.yml` | Runs every check, DCO (pull requests only) and the org-standard check, and ends in `CI gate` (`CI gate / gate`) | repo-governance.md: The required check |
-| `.github/workflows/ci-*.yml`, `esp32-examples-build-ci.yml` | One check each, calling the shared workflows in `kokeb-labs/ci-tools` at `@v1`; callable alone | |
+| `.github/workflows/ci.yml` | Runs every check (the small ones, DCO and the org standard included, in the one `Repository checks` job) and ends in `CI gate` (`CI gate / gate`) | repo-governance.md: The required check |
+| `.github/workflows/ci-*.yml`, `esp32-examples-build-ci.yml` | One check (or, `ci-repo-checks.yml`, the small checks in one job) each, calling the shared workflows in `kokeb-labs/ci-tools` at `@v1`; no manual trigger ([trigger policy](https://github.com/kokeb-labs/ci-tools/blob/main/docs/triggers.md)) | |
 | `.github/workflows/release.yml`, `.github/dependabot.yml` | Release on a `v*` tag; Actions updates | release.md, repo-governance.md |
 | `.github/workflows/template-selftest.yml` | Template only: scaffolds every case and runs its checks | |
 | `.github/workflows/template-init.yml` | Template only: in a new repository, opens the "Finish setup" issue with the setup command | |

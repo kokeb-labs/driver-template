@@ -5,13 +5,6 @@ name: ESP32 examples build
 
 on:
   workflow_call:
-  workflow_dispatch:
-    inputs:
-      clean_build:
-        description: 'Clean build (no cache)'
-        required: false
-        default: false
-        type: boolean
 
 env:
   PROJECT_DIR: examples/esp32
@@ -60,7 +53,6 @@ jobs:
     with:
       project_dir: ${{ needs.validate.outputs.project_dir }}
       project_tools_dir: ${{ needs.validate.outputs.tools_dir }}
-      clean_build: ${{ github.event.inputs.clean_build == 'true' }}
 
   lint:
     uses: kokeb-labs/ci-tools/.github/workflows/ru-cpp-lint.yml@v1

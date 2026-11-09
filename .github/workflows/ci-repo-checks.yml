@@ -1,0 +1,34 @@
+---
+# The small repository checks in one job (ci-tools ru-repo-checks): DCO on pull requests, the org standard
+# (licence, governance files), Markdown and YAML lint, the handbook rules against .kokeb/handbook.yml, template
+# drift (warns only; scaffold.py --check-drift --fix takes the template's version) and cppcheck over the driver
+# sources (a finding fails CI).
+name: Repository checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Repository checks
+    uses: kokeb-labs/ci-tools/.github/workflows/ru-repo-checks.yml@v1
+    permissions:
+      contents: read
+      pull-requests: read
+    with:
+      markdown_globs: 'docs/** *.md **/*.md'
+      markdown_config_file: '_config/.markdownlint.json'
+      yaml_paths: '.github/workflows/*.yml,**/*.yml,**/*.yaml'
+      yaml_config_file: '_config/.yamllint'
+      yaml_exclude_patterns: >-
+        .git/**,node_modules/**,venv/**,.venv/**,_site/**,**/espidf-tools/**,examples/esp32/scripts/**
+      # scaffold:cppcheck-paths
+      cppcheck_paths: "inc src"
+      # /scaffold:cppcheck-paths
+      cppcheck_std: "c++20"
+      cppcheck_enable: "warning,style,performance,portability,information"
+      cppcheck_force: true
+      cppcheck_strict: true  # a cppcheck finding fails CI

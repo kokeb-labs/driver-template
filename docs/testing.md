@@ -101,7 +101,7 @@ The fuzz gate runs locally as shown in [Fuzz tests](#fuzz-tests).
 
 clang-tidy 20 ([`_config/.clang-tidy`](../_config/.clang-tidy): bugprone, CERT, clang-analyzer,
 cppcoreguidelines, modernize, performance, portability and readability, each disabled check with its reason) and
-cppcheck (strict) run in the `C++ lint` and `C++ analysis` jobs and fail on any finding.
+cppcheck (strict) run in the `C++ lint` and `Repository checks` jobs and fail on any finding.
 
 ## Documentation snippets
 
@@ -117,13 +117,12 @@ the `CI gate` job, the single required check (`CI gate / gate`).
 
 | Job | What it checks |
 | --- | --- |
-| Host tests | GCC and Clang build and run every test above, then build and run `examples/host` on its own |
+| Host tests | GCC, then Clang (one job), build and run every test above, then build and run `examples/host` on its own |
 | Host quality | The gates above: complexity, coverage, sanitizers, fuzzing |
 | Cross-compile | `arm-none-eabi-g++` for Cortex-M0+, M4F and M7F with the strict flags, warnings as errors (nothing linked) |
-| Handbook check | The [Kokeb Labs handbook](https://github.com/kokeb-labs/handbook) rules for `.kokeb/handbook.yml`, reported by rule ID |
-| C++ lint, cppcheck | clang-format, clang-tidy and cppcheck over `inc/` and `src/` |
+| C++ lint | clang-format and clang-tidy over the sources |
 | Docs | Strict site build (`_config/mkdocs.yml`), figure and generated-region drift, Doxygen (`_config/Doxyfile`), offline link check, Lighthouse |
-| Markdown lint, YAML lint | Repository text files |
+| Repository checks | One job: DCO on pull requests, the org standard, Markdown and YAML lint, the [Kokeb Labs handbook](https://github.com/kokeb-labs/handbook) rules for `.kokeb/handbook.yml` (by rule ID), template drift (warns only) and cppcheck over the driver sources |
 | CI gate | Passes only if every job above passed: the one required check |
 <!-- scaffold:platform-esp32 -->
 
