@@ -57,7 +57,7 @@ constexpr Config KconfigDefaults() noexcept {
 #else
   c.odr = OutputDataRate::Hz4;
 #endif
-  constexpr int kSamples = CONFIG_XMPL100_AVERAGING_SAMPLES;
+  constexpr std::int32_t kSamples = CONFIG_XMPL100_AVERAGING_SAMPLES;
   if constexpr (kSamples >= 8) {
     c.averaging = Averaging::X8;
   } else if constexpr (kSamples >= 4) {

@@ -156,11 +156,11 @@ Result<int16_t> XMPL100<Port>::ReadRawTemperature() noexcept {
   std::array<uint8_t, 3> bytes{};
   const auto burst = std::span{bytes};
   const Error e = config_.crc_enable ? bus_.Read(reg::kTempMsb, burst)
-                                     : bus_.Read(reg::kTempMsb, burst.first<2>());
+                                     : bus_.Read(reg::kTempMsb, burst.template first<2>());
   if (e != Error::Ok) {
     return Result<int16_t>::Failure(e);
   }
-  if (config_.crc_enable && (reg::Crc8(burst.first<2>()) != bytes[2])) {
+  if (config_.crc_enable && (reg::Crc8(burst.template first<2>()) != bytes[2])) {
     return Result<int16_t>::Failure(Error::Crc);
   }
   const auto counts = static_cast<int16_t>(static_cast<uint16_t>(

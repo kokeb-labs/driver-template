@@ -106,8 +106,9 @@ constexpr uint8_t Crc8(std::span<const uint8_t> data) noexcept {
   return static_cast<uint8_t>(crc);
 }
 
-/// The CRC-8 catalogue check: "123456789" gives 0xF7 for these parameters.
-static_assert(Crc8(std::array<uint8_t, 9>{'1', '2', '3', '4', '5', '6', '7', '8', '9'}) == 0xF7U);
+/// The CRC-8 catalogue check: "123456789" (ASCII 0x31 to 0x39) gives 0xF7 for these parameters.
+static_assert(Crc8(std::array<uint8_t, 9>{0x31U, 0x32U, 0x33U, 0x34U, 0x35U, 0x36U, 0x37U, 0x38U,
+                                          0x39U}) == 0xF7U);
 /// The reset value of ALERT_HIGH, 0x3E80, gives 0x24.
 static_assert(Crc8(std::array<uint8_t, 2>{0x3EU, 0x80U}) == 0x24U);
 
