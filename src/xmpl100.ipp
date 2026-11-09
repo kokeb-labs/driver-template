@@ -5,7 +5,8 @@
  *
  * Section numbers refer to the XMPL100 datasheet.
  */
-#pragma once
+#ifndef XMPL100_IPP
+#define XMPL100_IPP
 
 namespace xmpl100 {
 
@@ -128,18 +129,11 @@ Result<Status> XMPL100<Port>::ReadStatus() noexcept {
   if (!initialized_) {
     return Result<Status>::Failure(Error::NotInitialized);
   }
-  const auto raw = readRegister(reg::kStatus);
+  const auto raw = readStatusByte();
   if (!raw) {
     return Result<Status>::Failure(raw.error);
   }
-  Status s{};
-  s.data_ready = (raw.value & reg::kStatusDrdy) != 0;
-  s.busy = (raw.value & reg::kStatusBusy) != 0;
-  s.alert_high = (raw.value & reg::kStatusAlertHi) != 0;
-  s.alert_low = (raw.value & reg::kStatusAlertLo) != 0;
-  s.power_on_reset = (raw.value & reg::kStatusPor) != 0;
-  s.fault = (raw.value & reg::kStatusFault) != 0;
-  return Result<Status>::Success(s);
+  return Result<Status>::Success(decodeStatus(raw.value));
 }
 
 template <SpiPort Port>
@@ -167,7 +161,8 @@ Result<int16_t> XMPL100<Port>::ReadRawTemperature() noexcept {
   if (config_.crc_enable && reg::Crc8(bytes.data(), 2) != bytes[2]) {
     return Result<int16_t>::Failure(Error::Crc);
   }
-  const auto counts = static_cast<int16_t>(static_cast<uint16_t>((bytes[0] << 8) | bytes[1]));
+  const auto counts = static_cast<int16_t>(static_cast<uint16_t>(
+      (static_cast<uint32_t>(bytes[0]) << 8U) | static_cast<uint32_t>(bytes[1])));
   return Result<int16_t>::Success(counts);
 }
 
@@ -220,6 +215,17 @@ Result<void> XMPL100<Port>::WaitDataReady() noexcept {
     detail::DelayUs(bus_.GetPort(), 1000);
   }
   return Result<void>::Failure(Error::Timeout);
+}
+
+template <SpiPort Port>
+Result<uint8_t> XMPL100<Port>::ReadRegister(uint8_t address) noexcept {
+  if (!initialized_) {
+    return Result<uint8_t>::Failure(Error::NotInitialized);
+  }
+  if (address > reg::kLastRegister) {
+    return Result<uint8_t>::Failure(Error::InvalidArgument);
+  }
+  return address == reg::kStatus ? readStatusByte() : readRegister(address);
 }
 
 template <SpiPort Port>
@@ -278,10 +284,12 @@ Result<void> XMPL100<Port>::resetAndConfigure(const Config& config, bool soft_re
     return fail(rev.error, "xmpl100: REV_ID read failed");
   }
   revision_ = rev.value;
-  // Clear STATUS.POR, so that a later POR means an unexpected reset.
-  if (auto st = readRegister(reg::kStatus); !st) {
+  // Clear STATUS.POR, so that a later POR means an unexpected reset; the latch starts empty, since
+  // this POR is the reset just made (and anything latched before the start is not news either).
+  if (auto st = readStatusByte(); !st) {
     return fail(st.error, "xmpl100: STATUS read failed");
   }
+  latched_status_ = 0;
   if (auto r = writeConfigRegisters(config); !r) {
     return fail(r.error, r.error == Error::Unsupported ? "xmpl100: CRC needs revision B silicon"
                                                        : "xmpl100: configuration write failed");
@@ -294,7 +302,7 @@ Result<void> XMPL100<Port>::waitResetDone() noexcept {
   // BUSY stays set for at most t_RST after a reset (section 8.2): wait it, then confirm.
   detail::DelayUs(bus_.GetPort(), kResetTimeMaxUs);
   for (uint32_t i = 0; i < kResetPolls; ++i) {
-    const auto status = readRegister(reg::kStatus);
+    const auto status = readStatusByte();
     if (!status) {
       return fail(status.error, "xmpl100: STATUS read failed during reset");
     }
@@ -317,11 +325,12 @@ Result<void> XMPL100<Port>::writeConfigRegisters(const Config& config) noexcept 
   if (auto r = writeRegister(reg::kCtrl, ctrlValue(idle, false)); !r) {
     return r;
   }
-  const auto high = static_cast<uint16_t>(toCounts(config.alert_high_c, kCountsPerDegreeC));
-  const auto low = static_cast<uint16_t>(toCounts(config.alert_low_c, kCountsPerDegreeC));
+  // Two's complement counts as 16-bit words, widened unsigned before the shifts (Rule 7.0.5).
+  const uint32_t high = static_cast<uint16_t>(toCounts(config.alert_high_c, kCountsPerDegreeC));
+  const uint32_t low = static_cast<uint16_t>(toCounts(config.alert_low_c, kCountsPerDegreeC));
   const std::array<uint8_t, 4> thresholds = {
-      static_cast<uint8_t>(high >> 8), static_cast<uint8_t>(high & 0xFF),
-      static_cast<uint8_t>(low >> 8), static_cast<uint8_t>(low & 0xFF)};
+      static_cast<uint8_t>(high >> 8U), static_cast<uint8_t>(high & 0xFFU),
+      static_cast<uint8_t>(low >> 8U), static_cast<uint8_t>(low & 0xFFU)};
   if (const Error e = bus_.Write(reg::kAlertHighMsb, thresholds.data(), thresholds.size());
       e != Error::Ok) {
     return Result<void>::Failure(e);
@@ -347,6 +356,19 @@ Result<uint8_t> XMPL100<Port>::readRegister(uint8_t reg) noexcept {
     return Result<uint8_t>::Failure(e);
   }
   return Result<uint8_t>::Success(value);
+}
+
+template <SpiPort Port>
+Result<uint8_t> XMPL100<Port>::readStatusByte() noexcept {
+  // Every STATUS read goes through here: a read clears POR on the chip, so the driver keeps it.
+  const auto status = readRegister(reg::kStatus);
+  if (status) {
+    last_status_ = status.value;
+    latched_status_ =
+        static_cast<uint8_t>(static_cast<uint32_t>(latched_status_) |
+                             (static_cast<uint32_t>(status.value) & reg::kStatusClearOnRead));
+  }
+  return status;
 }
 
 template <SpiPort Port>
@@ -382,12 +404,24 @@ template <SpiPort Port>
 uint8_t XMPL100<Port>::configValue(const Config& config) noexcept {
   auto value = static_cast<uint8_t>(static_cast<uint8_t>(config.odr) & reg::kConfigOdrMask);
   value = static_cast<uint8_t>(
-      value |
-      ((static_cast<uint8_t>(config.averaging) << reg::kConfigAvgShift) & reg::kConfigAvgMask));
+      static_cast<uint32_t>(value) |
+      ((static_cast<uint32_t>(config.averaging) << reg::kConfigAvgShift) & reg::kConfigAvgMask));
   if (config.crc_enable) {
     value = static_cast<uint8_t>(value | reg::kConfigCrcEn);
   }
   return value;
+}
+
+template <SpiPort Port>
+Status XMPL100<Port>::decodeStatus(uint8_t raw) noexcept {
+  Status s{};
+  s.data_ready = (raw & reg::kStatusDrdy) != 0;
+  s.busy = (raw & reg::kStatusBusy) != 0;
+  s.alert_high = (raw & reg::kStatusAlertHi) != 0;
+  s.alert_low = (raw & reg::kStatusAlertLo) != 0;
+  s.power_on_reset = (raw & reg::kStatusPor) != 0;
+  s.fault = (raw & reg::kStatusFault) != 0;
+  return s;
 }
 
 template <SpiPort Port>
@@ -399,3 +433,5 @@ int16_t XMPL100<Port>::toCounts(float celsius, int32_t counts_per_degree) noexce
 }
 
 } // namespace xmpl100
+
+#endif // XMPL100_IPP

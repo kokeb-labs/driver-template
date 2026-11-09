@@ -30,7 +30,7 @@ this page states only what is specific to it. A change to anything here is a bre
 | --- | --- | --- |
 | A C++20 compiler | GCC 10, Clang 13 or later | Concepts constrain the port |
 | CMake | 3.16 or later | Generates `xmpl100_version.h` |
-| Your port | | The bus, the delay and optionally RESET_N and logging ([Porting](porting.md)) |
+| Your port | | The bus, within the bus requirements; the delay; optionally RESET_N, at its idle level before the first transfer; and logging ([Porting](porting.md)) |
 
 Nothing else: no RTOS, no SDK, no other repository of the org.
 

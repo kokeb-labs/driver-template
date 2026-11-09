@@ -87,6 +87,22 @@ crossed (`alert_high`, `alert_low`).
 Every value, with the calls that return it, is on the [Contract](contract.md#errors) page.
 `xmpl100::ToString()` names an error for a log.
 
+## Diagnostics
+
+For bring-up and fault finding, the driver keeps what it saw and offers one raw access (handbook KB-CPP-119,
+KB-CPP-129):
+
+| Call | I/O | What it gives |
+| --- | --- | --- |
+| `ReadRegister(address)` | one transfer, no retry | The raw byte of one register. Reading STATUS clears POR on the chip (latched below); reading TEMP_LSB clears DRDY |
+| `GetLastStatusByte()` | none | The raw STATUS byte of the last STATUS read, by any call |
+| `GetLatchedStatus()` | none | POR from every STATUS read since the last `ClearLatchedStatus()`, the driver's own polls included |
+| `ClearLatchedStatus()` | none | Empties the latch |
+
+STATUS.POR clears when STATUS is read, and the driver reads STATUS inside `WaitDataReady()`, `TriggerOneShot()`
+and the reset sequence. The latch keeps a POR that one of those reads consumed, so a reset the chip went through
+is never lost. The start-up empties it: the POR of the driver's own reset is not news.
+
 ## Shut down
 
 ```cpp

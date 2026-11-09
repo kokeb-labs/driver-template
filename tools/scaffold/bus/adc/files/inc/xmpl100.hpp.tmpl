@@ -7,7 +7,8 @@
  * `xmpl100::XMPL100<Port>` reads one XMPL100 analog temperature sensor through an ADC channel of
  * your port (see `xmpl100_adc_interface.hpp`). No platform code, no heap, no exceptions, no lock.
  */
-#pragma once
+#ifndef XMPL100_HPP
+#define XMPL100_HPP
 
 #include <cstdint>
 
@@ -143,12 +144,26 @@ public:
     return config_;
   }
 
+  /**
+   * @brief One conversion, once: no averaging, no range check, no retry (handbook KB-CPP-129).
+   * For bring-up and diagnostics.
+   * @return Millivolts as the port read them, or `NotInitialized` or `Bus`.
+   */
+  Result<uint32_t> ReadRawVoltageMv() noexcept;
+
+  /** @return The last single conversion any read made, in millivolts; 0 before the first. No I/O. */
+  [[nodiscard]] uint32_t GetLastVoltageMv() const noexcept {
+    return last_mv_;
+  }
+
 private:
   Result<void> initialize() noexcept;
   Result<uint32_t> readAveraged() noexcept;
+  Result<uint32_t> readOnce() noexcept;
 
   Port& port_;
   Config config_{};
+  uint32_t last_mv_{0}; ///< The last single conversion (GetLastVoltageMv()).
   bool initialized_{false};
 };
 
@@ -157,3 +172,5 @@ private:
 } // namespace xmpl100
 
 #include "../src/xmpl100.ipp" // IWYU pragma: export
+
+#endif // XMPL100_HPP

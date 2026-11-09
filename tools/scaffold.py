@@ -146,6 +146,7 @@ LIBRARY_REMOVE = [
     "tests/test_xmpl100.cpp",
     "tests/test_kconfig.cpp",
     "tests/test_version.cpp",
+    "tests/test_model.cpp",
     # A library has no bus, so no untrusted input to fuzz: no tests/fuzz/ and no fuzz job.
     "tests/fuzz",
     "docs/architecture.md",
@@ -346,6 +347,8 @@ class Names:
             t, f = BUS_TITLE[self.bus], BUS_FILE[self.bus]
             text = text.replace("SpiInterface", f"{t}Interface").replace("SpiPort", f"{t}Port")
             text = text.replace("_spi_interface", f"_{f}_interface")
+            # The include guard of the bus header (handbook KB-CPP-019): XMPL100_SPI_INTERFACE_HPP.
+            text = text.replace("_SPI_INTERFACE_", f"_{f.upper()}_INTERFACE_")
         # What the repository is (handbook KB-REPO-002) and, for a driver, the bus it declares (KB-REPO-018).
         if rel == ".kokeb/handbook.yml":
             text = text.replace("kind: template", f"kind: {self.kind}")
@@ -870,9 +873,49 @@ def tracked_root_entries() -> list[str] | None:
     return sorted({line.split("/", 1)[0] for line in out.splitlines() if line})
 
 
+HEADER_SUFFIXES = (".h", ".hh", ".hpp", ".hxx", ".ipp", ".inl")
+
+
+def include_guard(name: str, rel: str) -> str:
+    """The include guard handbook KB-CPP-019 gives a header: <NAME>_<FILE_STEM>_<EXT> in upper case, the name not
+    repeated when the stem starts with it (inc/tmp117_types.hpp -> TMP117_TYPES_HPP; a configured .h.in guards as
+    its .h). The handbook's checks/source_checks.py is the reference; this copy keeps the scaffold standalone."""
+    file = rel.rsplit("/", 1)[-1]
+    file = file[:-3] if file.endswith(".in") else file
+    stem, ext = file.rsplit(".", 1)
+
+    def snake(s: str) -> str:
+        s = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", s)
+        return re.sub(r"[^A-Za-z0-9]+", "_", s).strip("_").upper()
+
+    prefix, base = snake(name), snake(stem)
+    if base != prefix and not base.startswith(prefix + "_"):
+        base = f"{prefix}_{base}"
+    return f"{base}_{ext.upper()}"
+
+
+def guard_problems(out: Path, name: str) -> list[str]:
+    """Every header in the code folders has its KB-CPP-019 guard; nothing uses #pragma."""
+    bad = []
+    for path, rel, text in text_files(out):
+        r = rel.as_posix()
+        if rel.parts[0] not in ("inc", "src", "tests", "examples") or frozen(rel):
+            continue
+        if re.search(r"^\s*#\s*pragma\b", text, re.M):
+            bad.append(f"{r}: #pragma (headers use #ifndef include guards)")
+        plain = r[:-3] if r.endswith(".in") else r
+        if not plain.endswith(HEADER_SUFFIXES):
+            continue
+        want = include_guard(name, r)
+        if not re.search(rf"^#ifndef {want}\n#define {want}\n", text, re.M) or not re.search(
+                rf"^#endif // {want}\n\Z", text, re.M):
+            bad.append(f"{r}: no `#ifndef {want}` / `#define {want}` ... `#endif // {want}` include guard")
+    return bad
+
+
 def check_output(out: Path, a: argparse.Namespace) -> list[str]:
     """What a scaffolded repository must and must not contain."""
-    bad = []
+    bad = guard_problems(out, a.name)
     for path, rel, text in text_files(out):
         r = rel.as_posix()
         if r not in NO_RENAME and LEFTOVER_RE.search(text):
@@ -937,6 +980,10 @@ def selftest(only: str | None) -> int:
     bad = root_problems(ROOT, tracked_root_entries())
     if bad:
         print("the template's root breaks the root rule:", *bad, sep="\n  ")
+        return 1
+    bad = guard_problems(ROOT, "xmpl100")
+    if bad:
+        print("the template's include guards are wrong:", *bad, sep="\n  ")
         return 1
     with tempfile.TemporaryDirectory(prefix="scaffold-") as tmp:
         for case in SELFTEST_CASES:

@@ -34,6 +34,17 @@ A port with every hook:
 Calibrate in the port: return millivolts, not raw counts. The ESP32 example uses
 [`esp32_xmpl100_port.hpp`](../examples/esp32/main/esp32_xmpl100_port.hpp) (adc_oneshot with curve fitting).
 
+## Control pins
+
+Each control pin has a defined idle level, and the port drives it there before it enables the pin's output
+(handbook KB-HW-018). Configuring a pin as an output first and setting its level afterwards can glitch the sensor.
+
+| `CtrlPin` | Package pin | Polarity | Idle (`INACTIVE`) level | Before the first read |
+| --- | --- | --- | --- | --- |
+| `Enable` | SHDN_N | `ACTIVE` = powered (SHDN_N high) | low: shut down | Set low, then enable the output; `EnsureInitialized()` powers it |
+
+`GpioSignal::ACTIVE` always means "function asserted"; the port maps it to the electrical level.
+
 ## Threads
 
 The driver is not thread-safe. Give each driver object one owner task, or guard every call with one mutex.

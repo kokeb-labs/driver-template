@@ -1,0 +1,4 @@
+  /// The bus settings a real port would use; checked against the driver's bus requirements
+  /// (handbook KB-CPP-123) like any port's.
+  static constexpr uint32_t kClockHz = 100'000;
+  static_assert(kClockHz <= xmpl100::kMaxClockHz, "SCL above the XMPL100's maximum");

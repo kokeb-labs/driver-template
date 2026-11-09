@@ -2,5 +2,5 @@
     doc: ds
     section: 6.1 I2C interface
     page: 7
-    driver: "`SpiInterface`, `SpiPort`, `kDefaultI2cAddress`, every register access"
+    driver: "`SpiInterface`, `SpiPort`, `kI2cAddress`, every register access"
     docs: [hardware, porting, architecture]

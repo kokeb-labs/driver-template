@@ -10,7 +10,8 @@
  * | `MinimalPort` | the required ones plus `DelayUs()` (needed by every wait) |
  * | `FullPort` | also `GpioSet()` (SHDN_N) and `Log()` |
  */
-#pragma once
+#ifndef XMPL100_MOCK_XMPL100_HPP
+#define XMPL100_MOCK_XMPL100_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -100,3 +101,5 @@ public:
 };
 
 } // namespace xmpl100_test
+
+#endif // XMPL100_MOCK_XMPL100_HPP

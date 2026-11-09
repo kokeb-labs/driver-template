@@ -2,7 +2,8 @@
  * @file my_port.hpp
  * @brief The GPIO port shown on the Quickstart and Porting pages, compiled by the host build.
  */
-#pragma once
+#ifndef XMPL100_MY_PORT_HPP
+#define XMPL100_MY_PORT_HPP
 
 #include <cstdint>
 
@@ -44,3 +45,5 @@ private:
   bool ready_ = false;
 };
 // --8<-- [end:port]
+
+#endif // XMPL100_MY_PORT_HPP

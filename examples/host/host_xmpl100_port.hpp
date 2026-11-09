@@ -8,7 +8,8 @@
  * it advances the simulated chip's clock instead of waiting) and `Log()` to the console. A port for
  * a real bus on a PC (Linux spidev, a USB bridge) implements the same hooks: see docs/porting.md.
  */
-#pragma once
+#ifndef XMPL100_HOST_XMPL100_PORT_HPP
+#define XMPL100_HOST_XMPL100_PORT_HPP
 
 #include <cstdint>
 #include <cstdio>
@@ -18,6 +19,15 @@
 /// The host port: simulated chip, real console.
 class HostXmpl100Port : public xmpl100_test::MockPortBase<HostXmpl100Port> {
 public:
+  // scaffold:host-bus-settings
+  /// The bus settings a real port would use; checked against the driver's bus requirements
+  /// (handbook KB-CPP-123) like any port's.
+  static constexpr uint32_t kClockHz = 1'000'000;
+  static constexpr uint8_t kSpiMode = 0;
+  static_assert(kClockHz <= xmpl100::kMaxClockHz, "clock above the XMPL100's f_SCK max");
+  static_assert(kSpiMode == xmpl100::kSpiMode, "the XMPL100 is tested in SPI mode 0");
+  // /scaffold:host-bus-settings
+
   /// Time passes in the simulated chip; nothing sleeps.
   void DelayUs(uint32_t us) noexcept {
     state.chip.Elapse(us);
@@ -29,3 +39,5 @@ public:
     (void)std::puts(message); // plain text: never pass it as a format string
   }
 };
+
+#endif // XMPL100_HOST_XMPL100_PORT_HPP

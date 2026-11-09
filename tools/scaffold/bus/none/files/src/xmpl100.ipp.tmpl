@@ -3,7 +3,8 @@
  * @brief XMPL100 driver implementation, included by `xmpl100.hpp`.
  * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
  */
-#pragma once
+#ifndef XMPL100_IPP
+#define XMPL100_IPP
 
 namespace xmpl100 {
 
@@ -99,13 +100,32 @@ Result<bool> XMPL100<Port>::IsOverTemperature() noexcept {
 }
 
 template <SpiPort Port>
+Result<GpioSignal> XMPL100<Port>::ReadRawOutput() noexcept {
+  if (!initialized_) {
+    return Result<GpioSignal>::Failure(Error::NotInitialized);
+  }
+  return readOnce();
+}
+
+template <SpiPort Port>
+Result<GpioSignal> XMPL100<Port>::readOnce() noexcept {
+  GpioSignal level = GpioSignal::INACTIVE;
+  if (!port_.GpioRead(InPin::Out, level)) {
+    return Result<GpioSignal>::Failure(Error::Bus);
+  }
+  last_output_ = level;
+  return Result<GpioSignal>::Success(level);
+}
+
+template <SpiPort Port>
 Result<GpioSignal> XMPL100<Port>::readStable() noexcept {
   GpioSignal first = GpioSignal::INACTIVE;
   for (uint16_t i = 0; i < config_.samples; ++i) {
-    GpioSignal level = GpioSignal::INACTIVE;
-    if (!port_.GpioRead(InPin::Out, level)) {
-      return Result<GpioSignal>::Failure(Error::Bus);
+    const auto sample = readOnce();
+    if (!sample) {
+      return sample;
     }
+    const GpioSignal level = sample.value;
     if (i == 0) {
       first = level;
     } else if (level != first) {
@@ -120,3 +140,5 @@ Result<GpioSignal> XMPL100<Port>::readStable() noexcept {
 }
 
 } // namespace xmpl100
+
+#endif // XMPL100_IPP

@@ -8,25 +8,86 @@
  * return to shutdown, DRDY cleared by reading TEMP_LSB, POR cleared by reading STATUS, the CRC-8
  * byte when CRC_EN is set, and OFFSET added to every result. Faults are injected through the public
  * fields.
+ *
+ * The model is written from the datasheet on its own (handbook KB-TST-030): it does not include the
+ * driver's `xmpl100_registers.hpp` or `xmpl100_types.hpp`, but carries its own register map, reset
+ * values, timing and CRC below (namespace `chip`, each with its datasheet section), so a wrong
+ * constant in the driver cannot hide behind the same wrong constant in the model.
+ * tests/test_model.cpp checks the two maps against each other at compile time.
  */
-#pragma once
+#ifndef XMPL100_MOCK_XMPL100_HPP
+#define XMPL100_MOCK_XMPL100_HPP
 
 #include <cstddef>
 #include <cstdint>
 
-#include "xmpl100_registers.hpp"
-#include "xmpl100_types.hpp"
-
 namespace xmpl100_test {
 
-namespace reg = xmpl100::reg;
+/// The chip as the datasheet describes it, independent of the driver's headers.
+namespace chip {
+// Register map (section 7.1, Table 7-1): 8-bit registers, 7-bit addresses.
+inline constexpr uint8_t kChipId = 0x00;
+inline constexpr uint8_t kRevId = 0x01;
+inline constexpr uint8_t kStatus = 0x02;
+inline constexpr uint8_t kCtrl = 0x03;
+inline constexpr uint8_t kConfig = 0x04;
+inline constexpr uint8_t kTempMsb = 0x05;
+inline constexpr uint8_t kTempLsb = 0x06;
+inline constexpr uint8_t kTempCrc = 0x07;
+inline constexpr uint8_t kAlertHighMsb = 0x08; // LSB at 0x09
+inline constexpr uint8_t kAlertLowMsb = 0x0A;  // LSB at 0x0B
+inline constexpr uint8_t kOffset = 0x0C;
+inline constexpr uint8_t kLastRegister = 0x0C;
+// STATUS bits (section 7.3).
+inline constexpr uint8_t kStatusDrdy = 0x01;
+inline constexpr uint8_t kStatusBusy = 0x02;
+inline constexpr uint8_t kStatusAlertHi = 0x04;
+inline constexpr uint8_t kStatusAlertLo = 0x08;
+inline constexpr uint8_t kStatusPor = 0x40; // cleared by reading STATUS
+inline constexpr uint8_t kStatusFault = 0x80;
+// CTRL bits (section 7.4).
+inline constexpr uint8_t kCtrlModeMask = 0x03; // 0 shutdown, 1 one-shot, 2 continuous
+inline constexpr uint8_t kCtrlAlertEn = 0x04;
+inline constexpr uint8_t kCtrlAlertPol = 0x08;
+inline constexpr uint8_t kCtrlStart = 0x10;     // self-clearing
+inline constexpr uint8_t kCtrlSoftReset = 0x80; // self-clearing
+// CONFIG bits (section 7.5).
+inline constexpr uint8_t kConfigOdrMask = 0x07;
+inline constexpr uint8_t kConfigAvgShift = 3;
+inline constexpr uint8_t kConfigAvgMask = 0x18;
+inline constexpr uint8_t kConfigCrcEn = 0x20; // revision B only
+// Reset values (section 7.1, Table 7-1).
+inline constexpr uint8_t kCtrlReset = 0x02;
+inline constexpr uint8_t kConfigReset = 0x02;
+inline constexpr uint16_t kAlertHighReset = 0x3E80; // +125 °C
+inline constexpr uint16_t kAlertLowReset = 0xEC00;  // -40 °C
+// Identity (section 7.2).
+inline constexpr uint8_t kChipIdValue = 0xA1;
+inline constexpr uint8_t kRevisionA = 0x10;
+inline constexpr uint8_t kRevisionB = 0x20;
+// Timing (section 5, Table 5-2): t_RST, the longest a reset holds BUSY.
+inline constexpr uint32_t kResetTimeMaxUs = 1000;
+
+/// CRC-8 of TEMP_MSB, TEMP_LSB (section 7.6): polynomial 0x31, initial value 0xFF, no reflection,
+/// no final XOR. Written out here, not taken from the driver.
+constexpr uint8_t Crc8(const uint8_t* data, std::size_t len) noexcept {
+  uint32_t crc = 0xFFU;
+  for (std::size_t i = 0; i < len; ++i) {
+    crc ^= static_cast<uint32_t>(data[i]);
+    for (int bit = 0; bit < 8; ++bit) {
+      crc = (crc & 0x80U) != 0U ? ((crc << 1U) ^ 0x31U) & 0xFFU : (crc << 1U) & 0xFFU;
+    }
+  }
+  return static_cast<uint8_t>(crc);
+}
+} // namespace chip
 
 class Xmpl100Model {
 public:
   // --- What the chip is
   // ------------------------------------------------------------------------------------
-  uint8_t chip_id = xmpl100::kChipId;    ///< CHIP_ID; change it to model a wrong part.
-  uint8_t rev_id = xmpl100::kRevisionB;  ///< REV_ID.
+  uint8_t chip_id = chip::kChipIdValue;  ///< CHIP_ID; change it to model a wrong part.
+  uint8_t rev_id = chip::kRevisionB;     ///< REV_ID.
   int16_t temperature_counts = 25 * 128; ///< The die temperature the sensor sees, in counts.
 
   // --- Faults to inject
@@ -47,12 +108,12 @@ public:
     for (auto& r : regs_) {
       r = 0;
     }
-    regs_[reg::kCtrl] = reg::kCtrlReset;
-    regs_[reg::kConfig] = reg::kConfigReset;
-    regs_[reg::kAlertHighMsb] = static_cast<uint8_t>(reg::kAlertHighReset >> 8);
-    regs_[reg::kAlertHighMsb + 1] = static_cast<uint8_t>(reg::kAlertHighReset & 0xFF);
-    regs_[reg::kAlertLowMsb] = static_cast<uint8_t>(reg::kAlertLowReset >> 8);
-    regs_[reg::kAlertLowMsb + 1] = static_cast<uint8_t>(reg::kAlertLowReset & 0xFF);
+    regs_[chip::kCtrl] = chip::kCtrlReset;
+    regs_[chip::kConfig] = chip::kConfigReset;
+    regs_[chip::kAlertHighMsb] = static_cast<uint8_t>(uint32_t{chip::kAlertHighReset} >> 8U);
+    regs_[chip::kAlertHighMsb + 1] = static_cast<uint8_t>(uint32_t{chip::kAlertHighReset} & 0xFFU);
+    regs_[chip::kAlertLowMsb] = static_cast<uint8_t>(uint32_t{chip::kAlertLowReset} >> 8U);
+    regs_[chip::kAlertLowMsb + 1] = static_cast<uint8_t>(uint32_t{chip::kAlertLowReset} & 0xFFU);
     por_ = true;
     busy_reads_left_ = 0;
     conversion_reads_left_ = -1;
@@ -69,7 +130,7 @@ public:
   /// Time passes (the port's DelayUs): a reset finishes after t_RST, a conversion advances by one
   /// step per ms.
   void Elapse(uint32_t us) noexcept {
-    if (us >= xmpl100::kResetTimeMaxUs && !reset_stuck) {
+    if (us >= chip::kResetTimeMaxUs && !reset_stuck) {
       busy_reads_left_ = 0;
     }
     if (us >= 1000 && conversion_reads_left_ > 0 && !conversion_stuck) {
@@ -79,41 +140,43 @@ public:
 
   uint8_t Read(uint8_t address) noexcept {
     switch (address) {
-    case reg::kChipId:
+    case chip::kChipId:
       return chip_id;
-    case reg::kRevId:
+    case chip::kRevId:
       return rev_id;
-    case reg::kStatus:
+    case chip::kStatus:
       return readStatus();
-    case reg::kTempMsb:
+    case chip::kTempMsb:
       latchResultIfContinuous();
-      return static_cast<uint8_t>(static_cast<uint16_t>(latched_) >> 8);
-    case reg::kTempLsb:
+      return static_cast<uint8_t>(static_cast<uint32_t>(static_cast<uint16_t>(latched_)) >> 8U);
+    case chip::kTempLsb:
       data_ready_ = false;
-      return static_cast<uint8_t>(static_cast<uint16_t>(latched_) & 0xFF);
-    case reg::kTempCrc: {
-      if ((regs_[reg::kConfig] & reg::kConfigCrcEn) == 0) {
+      return static_cast<uint8_t>(static_cast<uint32_t>(static_cast<uint16_t>(latched_)) & 0xFFU);
+    case chip::kTempCrc: {
+      if ((regs_[chip::kConfig] & chip::kConfigCrcEn) == 0) {
         return 0;
       }
-      const uint8_t bytes[2] = {static_cast<uint8_t>(static_cast<uint16_t>(latched_) >> 8),
-                                static_cast<uint8_t>(static_cast<uint16_t>(latched_) & 0xFF)};
-      const uint8_t crc = reg::Crc8(bytes, 2);
-      return corrupt_crc ? static_cast<uint8_t>(crc ^ 0xFF) : crc;
+      const uint8_t bytes[2] = {
+          static_cast<uint8_t>(static_cast<uint32_t>(static_cast<uint16_t>(latched_)) >> 8U),
+          static_cast<uint8_t>(static_cast<uint32_t>(static_cast<uint16_t>(latched_)) & 0xFFU)};
+      const uint8_t crc = chip::Crc8(bytes, 2);
+      return corrupt_crc ? static_cast<uint8_t>(static_cast<uint32_t>(crc) ^ 0xFFU) : crc;
     }
     default:
-      return address <= reg::kLastRegister ? regs_[address] : 0;
+      return address <= chip::kLastRegister ? regs_[address] : 0;
     }
   }
 
   void Write(uint8_t address, uint8_t value) noexcept {
     writes++;
-    if (address == reg::kCtrl) {
-      if ((value & reg::kCtrlSoftReset) != 0) {
+    if (address == chip::kCtrl) {
+      if ((value & chip::kCtrlSoftReset) != 0) {
         Reset();
         return;
       }
-      regs_[reg::kCtrl] = static_cast<uint8_t>(value & ~reg::kCtrlStart);
-      if ((value & reg::kCtrlStart) != 0 && (value & reg::kCtrlModeMask) == 1) {
+      regs_[chip::kCtrl] =
+          static_cast<uint8_t>(static_cast<uint32_t>(value) & ~uint32_t{chip::kCtrlStart});
+      if ((value & chip::kCtrlStart) != 0 && (value & chip::kCtrlModeMask) == 1) {
         conversion_reads_left_ = conversion_busy_reads;
         data_ready_ = false; // START clears DRDY (datasheet 7.4)
         one_shots++;
@@ -121,8 +184,8 @@ public:
       return;
     }
     // Read-only registers ignore writes.
-    if (address == reg::kChipId || address == reg::kRevId || address == reg::kStatus ||
-        (address >= reg::kTempMsb && address <= reg::kTempCrc) || address > reg::kLastRegister) {
+    if (address == chip::kChipId || address == chip::kRevId || address == chip::kStatus ||
+        (address >= chip::kTempMsb && address <= chip::kTempCrc) || address > chip::kLastRegister) {
       return;
     }
     regs_[address] = value;
@@ -158,40 +221,41 @@ private:
       latched_ = measured();
       data_ready_ = true;
       conversion_reads_left_ = -1;
-      regs_[reg::kCtrl] = static_cast<uint8_t>(regs_[reg::kCtrl] & ~reg::kCtrlModeMask);
+      regs_[chip::kCtrl] = static_cast<uint8_t>(static_cast<uint32_t>(regs_[chip::kCtrl]) &
+                                                ~uint32_t{chip::kCtrlModeMask});
     }
-    if ((regs_[reg::kCtrl] & reg::kCtrlModeMask) == 2 && !busy) {
+    if ((regs_[chip::kCtrl] & chip::kCtrlModeMask) == 2 && !busy) {
       data_ready_ = true; // continuous: a result is always available
     }
     if (busy) {
-      s = static_cast<uint8_t>(s | reg::kStatusBusy);
+      s = static_cast<uint8_t>(s | chip::kStatusBusy);
     }
     if (data_ready_) {
-      s = static_cast<uint8_t>(s | reg::kStatusDrdy);
+      s = static_cast<uint8_t>(s | chip::kStatusDrdy);
     }
     if (por_) {
-      s = static_cast<uint8_t>(s | reg::kStatusPor);
+      s = static_cast<uint8_t>(s | chip::kStatusPor);
       por_ = false;
     }
     if (fault) {
-      s = static_cast<uint8_t>(s | reg::kStatusFault);
+      s = static_cast<uint8_t>(s | chip::kStatusFault);
     }
     return s;
   }
 
   void latchResultIfContinuous() noexcept {
-    if ((regs_[reg::kCtrl] & reg::kCtrlModeMask) == 2) {
+    if ((regs_[chip::kCtrl] & chip::kCtrlModeMask) == 2) {
       latched_ = measured();
     }
   }
 
   [[nodiscard]] int16_t measured() const noexcept {
-    const auto offset = static_cast<int8_t>(regs_[reg::kOffset]);
+    const auto offset = static_cast<int8_t>(regs_[chip::kOffset]);
     // OFFSET counts are 1/16 °C, result counts 1/128 °C: 8 result counts per offset count.
     return static_cast<int16_t>(temperature_counts + (offset * 8));
   }
 
-  uint8_t regs_[reg::kLastRegister + 1] = {};
+  uint8_t regs_[chip::kLastRegister + 1] = {};
   bool por_ = true;
   bool data_ready_ = false;
   int busy_reads_left_ = 0;
@@ -202,3 +266,5 @@ private:
 } // namespace xmpl100_test
 
 #include "mock_xmpl100_bus.hpp"
+
+#endif // XMPL100_MOCK_XMPL100_HPP

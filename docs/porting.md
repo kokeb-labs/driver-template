@@ -41,11 +41,41 @@ Rules the transfer must follow:
 
 - **One call, one frame.** Keep CS_N low for all `len` bytes; the chip decodes the frame when CS_N rises. Never
   split a burst into several transfers: the address auto-increment does not carry over.
-- **Mode 0 or 3, MSB first, up to 10 MHz.** Start at 1 MHz on jumper wires.
+- **The bus requirements below**: mode 0 or 3, MSB first, up to `kMaxClockHz`. Start at 1 MHz on jumper wires.
 - **Raw bytes only.** Do not interpret, retry or reorder bytes; the driver owns the framing and the retries.
 - **Return `false` for a bus error.** The driver turns it into `Error::Bus` and never ignores it.
 - **Bounded time-outs.** A stuck bus fails the call; it does not block forever.
+
+## Bus requirements
+
+The driver states what the XMPL100 needs from the bus as `constexpr` values in
+[`inc/xmpl100_spi_interface.hpp`](../inc/xmpl100_spi_interface.hpp) (handbook KB-CPP-123). Check your port's
+settings against them with `static_assert`, as both example ports do, so a port that clocks too fast or in the
+wrong mode does not compile:
+
+| Constant | Value | Meaning (datasheet 6.2) |
+| --- | --- | --- |
+| `kSpiMode` | `0` | CPOL 0, CPHA 0; mode 3 also works |
+| `kMsbFirst` | `true` | Most significant bit first |
+| `kMaxClockHz` | `10'000'000` | f_SCK max |
+| `kMinCsHighNs` | `50` | CS_N high between two transfers, t_CSH |
+| `kCsSetupNs`, `kCsHoldNs` | `20`, `20` | CS_N low to the first SCK edge, last SCK edge to CS_N high |
+| `kContinuousWord` | `false` | Idle SCK time between the bytes of one transfer is allowed |
+
 <!-- /scaffold:bus-port -->
+
+## Control pins
+
+Each control pin has a defined idle level, and the port drives it there before it enables the pin's output and
+before the driver's first transfer (handbook KB-HW-018). Configuring a pin as an output first and setting its level
+afterwards gives the chip a pulse it did not ask for, for example a reset.
+
+| `CtrlPin` | Package pin | Polarity | Idle (`INACTIVE`) level | Before the first transfer |
+| --- | --- | --- | --- | --- |
+| `Reset` | RESET_N | active low | high | Set high, then enable the output |
+
+`GpioSignal::ACTIVE` always means "function asserted"; the port maps it to the electrical level. A pin tied on the
+board (RESET_N tied high) needs no hook.
 
 ## Optional hooks
 

@@ -12,7 +12,8 @@
  * Kconfig writes a bool option set to "n" as an absent macro, so an absent
  * `CONFIG_XMPL100_CRC_ENABLE` means off in both cases.
  */
-#pragma once
+#ifndef XMPL100_KCONFIG_HPP
+#define XMPL100_KCONFIG_HPP
 
 #ifdef __has_include
 #if __has_include("sdkconfig.h")
@@ -71,3 +72,5 @@ constexpr Config KconfigDefaults() noexcept {
 }
 
 } // namespace xmpl100
+
+#endif // XMPL100_KCONFIG_HPP

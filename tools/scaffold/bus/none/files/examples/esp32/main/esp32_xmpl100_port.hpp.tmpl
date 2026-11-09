@@ -3,7 +3,8 @@
  * @brief ESP-IDF port for the XMPL100 driver: GPIO for OUT and SHDN_N, esp_rom delays and ESP_LOG
  * for the log hook.
  */
-#pragma once
+#ifndef XMPL100_ESP32_XMPL100_PORT_HPP
+#define XMPL100_ESP32_XMPL100_PORT_HPP
 
 #include <cstdint>
 
@@ -39,7 +40,10 @@ public:
       gpio_config_t io{};
       io.pin_bit_mask = 1ULL << static_cast<unsigned>(pins_.shdn_n);
       io.mode = GPIO_MODE_OUTPUT;
-      if (gpio_config(&io) != ESP_OK) {
+      // CtrlPin::Enable starts INACTIVE: SHDN_N low, the part shut down, set before the output is
+      // enabled (handbook KB-HW-018). EnsureInitialized() powers it with GpioSet(Enable, ACTIVE).
+      if (gpio_set_level(static_cast<gpio_num_t>(pins_.shdn_n), 0) != ESP_OK ||
+          gpio_config(&io) != ESP_OK) {
         return false;
       }
     }
@@ -79,3 +83,5 @@ private:
   Esp32Xmpl100Pins pins_;
   bool ready_ = false;
 };
+
+#endif // XMPL100_ESP32_XMPL100_PORT_HPP

@@ -5,7 +5,8 @@
  *
  * Do not edit the generated file: the version is set once, in cmake/xmpl100_build_settings.cmake.
  */
-#pragma once
+#ifndef XMPL100_VERSION_H
+#define XMPL100_VERSION_H
 
 /** Major version: incompatible API changes. */
 #define XMPL100_VERSION_MAJOR @XMPL100_VERSION_MAJOR@
@@ -15,3 +16,5 @@
 #define XMPL100_VERSION_PATCH @XMPL100_VERSION_PATCH@
 /** Full version string, for example "0.1.0". */
 #define XMPL100_VERSION_STRING "@XMPL100_VERSION@"
+
+#endif // XMPL100_VERSION_H

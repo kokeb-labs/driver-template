@@ -7,7 +7,8 @@
  * The XMPL100 is a temperature switch: OUT asserts while the die is above the factory trip point
  * (85 °C). The defaults sample OUT three times, 1 ms apart, and accept only a stable level.
  */
-#pragma once
+#ifndef XMPL100_TYPES_HPP
+#define XMPL100_TYPES_HPP
 
 #include <cstdint>
 
@@ -222,3 +223,5 @@ constexpr uint32_t GetDriverVersionPatch() noexcept {
 /** @} */
 
 } // namespace xmpl100
+
+#endif // XMPL100_TYPES_HPP

@@ -2,18 +2,18 @@
    * @brief Bind the driver to a port and a 7-bit I2C address, and store the configuration. No I/O,
    * cannot fail.
    * @param port The port; it must outlive the driver.
-   * @param address 7-bit I2C address, `kDefaultI2cAddress` with ADDR low.
+   * @param address 7-bit I2C address, `kI2cAddress` with ADDR low.
    * @param config What `EnsureInitialized()` will apply; checked there, before any I/O.
    */
-  explicit XMPL100(Port& port, uint8_t address = kDefaultI2cAddress,
+  explicit XMPL100(Port& port, uint8_t address = kI2cAddress,
                    const Config& config = {}) noexcept
       : bus_(port, address), config_(config) {}
 
   /**
-   * @brief Bind the driver to a port at `kDefaultI2cAddress` and store the configuration. No I/O,
+   * @brief Bind the driver to a port at `kI2cAddress` and store the configuration. No I/O,
    * cannot fail.
    * @param port The port; it must outlive the driver.
    * @param config What `EnsureInitialized()` will apply; checked there, before any I/O.
    */
   explicit XMPL100(Port& port, const Config& config) noexcept
-      : XMPL100(port, kDefaultI2cAddress, config) {}
+      : XMPL100(port, kI2cAddress, config) {}

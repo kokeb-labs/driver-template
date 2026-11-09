@@ -6,7 +6,8 @@
  * Start from this file for any ESP-IDF target. The pins are in Esp32Xmpl100Pins; the defaults match
  * the wiring table in examples/esp32/README.md (ESP32-C6 DevKitC-1).
  */
-#pragma once
+#ifndef XMPL100_ESP32_XMPL100_PORT_HPP
+#define XMPL100_ESP32_XMPL100_PORT_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -18,13 +19,18 @@
 
 #include "xmpl100.hpp"
 
+/// The port's default SCL clock, checked against the driver's bus requirements (KB-CPP-123).
+inline constexpr uint32_t kEsp32Xmpl100ClockHz = 100'000;
+static_assert(kEsp32Xmpl100ClockHz <= xmpl100::kMaxClockHz, "SCL above the XMPL100's maximum");
+static_assert(xmpl100::kRepeatedStart, "this port reads with i2c_master_transmit_receive");
+
 /// Pins and bus settings of the ESP-IDF port.
 struct Esp32Xmpl100Pins {
   i2c_port_num_t port = I2C_NUM_0;
   int sda = 6;
   int scl = 7;
   int reset_n = 11; ///< -1 when RESET_N is tied high.
-  uint32_t clock_hz = 100000;
+  uint32_t clock_hz = kEsp32Xmpl100ClockHz; ///< Up to `xmpl100::kMaxClockHz`.
   int timeout_ms = 10; ///< Per transaction.
 };
 
@@ -52,8 +58,10 @@ public:
       gpio_config_t io{};
       io.pin_bit_mask = 1ULL << static_cast<unsigned>(pins_.reset_n);
       io.mode = GPIO_MODE_OUTPUT;
-      if (gpio_config(&io) != ESP_OK ||
-          gpio_set_level(static_cast<gpio_num_t>(pins_.reset_n), 1) != ESP_OK) {
+      // RESET_N is driven to its inactive level (high) before its output is enabled, so configuring
+      // the pin never pulses a reset (handbook KB-HW-018).
+      if (gpio_set_level(static_cast<gpio_num_t>(pins_.reset_n), 1) != ESP_OK ||
+          gpio_config(&io) != ESP_OK) {
         return false;
       }
     }
@@ -121,3 +129,5 @@ private:
   i2c_master_dev_handle_t device_ = nullptr;
   uint8_t device_addr_ = 0;
 };
+
+#endif // XMPL100_ESP32_XMPL100_PORT_HPP

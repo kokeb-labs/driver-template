@@ -2,7 +2,7 @@
 # The small repository checks in one job (ci-tools ru-repo-checks): DCO on pull requests, the org standard
 # (licence, governance files), Markdown and YAML lint, the handbook rules against .kokeb/handbook.yml, template
 # drift (warns only; scaffold.py --check-drift --fix takes the template's version) and cppcheck over the driver
-# sources (a finding fails CI).
+# sources (a finding fails CI). A second small job runs the handbook's source checks.
 name: Repository checks
 
 on:
@@ -32,3 +32,27 @@ jobs:
       cppcheck_enable: "warning,style,performance,portability,information"
       cppcheck_force: true
       cppcheck_strict: true  # a cppcheck finding fails CI
+
+  # The handbook's source checks: include guards and no #pragma (KB-CPP-019), the bus requirements as constexpr
+  # (KB-CPP-123) and a single-shot raw access (KB-CPP-129). The script comes from a pinned commit of the public
+  # handbook and needs only the Python standard library; a finding fails CI.
+  source-checks:
+    name: Handbook source checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: kokeb-labs/handbook
+          ref: bb3b9a12262c7a6edc75e2522e9b8d5b7fa7135e  # main, 2026-11-08: checks/source_checks.py
+          path: .handbook
+          sparse-checkout: checks/source_checks.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Scan
+        run: python3 .handbook/checks/source_checks.py scan --repo .

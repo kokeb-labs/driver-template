@@ -50,7 +50,7 @@ public:
   }
   uint16_t Word() noexcept {
     const auto high = Byte();
-    return static_cast<uint16_t>((high << 8U) | Byte());
+    return static_cast<uint16_t>((static_cast<uint32_t>(high) << 8U) | Byte());
   }
 
 private:

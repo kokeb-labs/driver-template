@@ -16,10 +16,13 @@
  * | `bool WriteRead(uint8_t addr, const uint8_t* tx, std::size_t tx_len, uint8_t* rx, std::size_t rx_len) noexcept` | START, `addr` + W, `tx`, repeated START, `addr` + R, `rx_len` bytes, STOP |
  *
  * `addr` is the 7-bit address. The port moves raw bytes: the register address travels in the
- * payload, and the port never retries or configures the chip. Standard or fast mode, up to 400 kHz.
+ * payload, and the port never retries or configures the chip. What the chip needs from the bus is
+ * below as `constexpr` values (`kI2cAddress`, `kMaxClockHz`, `kRepeatedStart`); a port checks its
+ * settings against them with `static_assert`.
  */
 // clang-format on
-#pragma once
+#ifndef XMPL100_SPI_INTERFACE_HPP
+#define XMPL100_SPI_INTERFACE_HPP
 
 #include <array>
 #include <concepts>
@@ -32,7 +35,7 @@ namespace xmpl100 {
 
 /** @brief Control pins the port may drive through the optional `GpioSet()` hook. */
 enum class CtrlPin : uint8_t {
-  Reset = 0, ///< RESET_N, active low on the package pin. ACTIVE holds the chip in reset.
+  Reset = 0, ///< RESET_N, active low on the package pin; idles high (INACTIVE). ACTIVE holds the chip in reset.
 };
 
 /** @brief Logical level of a control pin; the port maps it to the physical polarity. */
@@ -41,8 +44,20 @@ enum class GpioSignal : uint8_t {
   ACTIVE = 1,   ///< The pin function is asserted.
 };
 
+/**
+ * @name Bus requirements
+ * What the XMPL100 needs from the I2C bus (datasheet section 6.2). A port and a board configuration
+ * check their settings against these with `static_assert` (handbook KB-CPP-123).
+ * @{
+ */
 /// 7-bit I2C address with the ADDR pin low (0x48 to 0x4B with ADDR on GND, VDD, SDA, SCL).
-inline constexpr uint8_t kDefaultI2cAddress = 0x48;
+inline constexpr uint8_t kI2cAddress = 0x48;
+/// Highest SCL frequency: standard or fast mode.
+inline constexpr uint32_t kMaxClockHz = 400'000;
+/// `true`: a register read is a combined write-read with a repeated START; a STOP between the
+/// address write and the read loses the register pointer.
+inline constexpr bool kRepeatedStart = true;
+/** @} */
 
 /**
  * @brief CRTP base of the platform I2C port.
@@ -128,3 +143,5 @@ private:
 } // namespace detail
 
 } // namespace xmpl100
+
+#endif // XMPL100_SPI_INTERFACE_HPP

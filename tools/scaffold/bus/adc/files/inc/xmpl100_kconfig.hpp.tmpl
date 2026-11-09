@@ -6,7 +6,8 @@
  * Include it only where menuconfig should choose the defaults; without Kconfig `KconfigDefaults()`
  * equals `Config{}`.
  */
-#pragma once
+#ifndef XMPL100_KCONFIG_HPP
+#define XMPL100_KCONFIG_HPP
 
 #if defined(__has_include)
 #if __has_include("sdkconfig.h")
@@ -41,3 +42,5 @@ constexpr Config KconfigDefaults() noexcept {
 }
 
 } // namespace xmpl100
+
+#endif // XMPL100_KCONFIG_HPP

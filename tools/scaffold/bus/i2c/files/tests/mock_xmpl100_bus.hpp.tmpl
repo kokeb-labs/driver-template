@@ -8,7 +8,8 @@
  * | `MinimalPort` | the required ones plus `DelayUs()` (needed by every wait) |
  * | `FullPort` | also `GpioSet()` (RESET_N) and `Log()` |
  */
-#pragma once
+#ifndef XMPL100_MOCK_XMPL100_BUS_HPP
+#define XMPL100_MOCK_XMPL100_BUS_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -21,7 +22,7 @@ namespace xmpl100_test {
 /// Shared state of the mock ports: the chip, fault injection and counters.
 struct MockBusState {
   Xmpl100Model chip;
-  uint8_t address = xmpl100::kDefaultI2cAddress; ///< The address the chip answers.
+  uint8_t address = xmpl100::kI2cAddress; ///< The address the chip answers.
   bool bus_up_ok = true;                         ///< EnsureInitialized() result.
   int fail_transfer = -1; ///< Fail the transaction with this index (0-based); -1 never.
   int transfers = 0;      ///< Transactions so far.
@@ -119,3 +120,5 @@ public:
 };
 
 } // namespace xmpl100_test
+
+#endif // XMPL100_MOCK_XMPL100_BUS_HPP

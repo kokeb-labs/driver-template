@@ -6,7 +6,8 @@
  * Start from this file for any ESP-IDF target. The pins are in Esp32Xmpl100Pins; the defaults match
  * the wiring table in examples/esp32/README.md (ESP32-C6 DevKitC-1).
  */
-#pragma once
+#ifndef XMPL100_ESP32_XMPL100_PORT_HPP
+#define XMPL100_ESP32_XMPL100_PORT_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -18,6 +19,17 @@
 
 #include "xmpl100.hpp"
 
+/// The port's default SPI clock: 1 MHz for bring-up on jumper wires.
+inline constexpr int kEsp32Xmpl100ClockHz = 1'000'000;
+/// The port's SPI mode.
+inline constexpr int kEsp32Xmpl100SpiMode = 0;
+// The bus requirements of the driver (handbook KB-CPP-123), checked at compile time.
+static_assert(kEsp32Xmpl100ClockHz <= static_cast<int>(xmpl100::kMaxClockHz),
+              "the default clock is above the XMPL100's f_SCK max");
+static_assert(kEsp32Xmpl100SpiMode == xmpl100::kSpiMode || kEsp32Xmpl100SpiMode == 3,
+              "the XMPL100 samples in SPI mode 0 or 3");
+static_assert(xmpl100::kMsbFirst, "this port sends MSB first (no SPI_DEVICE_BIT_LSBFIRST)");
+
 /// Pins and bus settings of the ESP-IDF port.
 struct Esp32Xmpl100Pins {
   spi_host_device_t host = SPI2_HOST;
@@ -25,9 +37,9 @@ struct Esp32Xmpl100Pins {
   int mosi = 7;
   int miso = 2;
   int cs = 10;
-  int reset_n = 11;       ///< -1 when RESET_N is tied high.
-  int clock_hz = 1000000; ///< Up to 10 MHz; 1 MHz for bring-up on jumper wires.
-  int spi_mode = 0;       ///< Mode 0 or 3.
+  int reset_n = 11;                    ///< -1 when RESET_N is tied high.
+  int clock_hz = kEsp32Xmpl100ClockHz; ///< Up to `xmpl100::kMaxClockHz`; checked at start.
+  int spi_mode = kEsp32Xmpl100SpiMode; ///< Mode 0 or 3.
 };
 
 /// The XMPL100 SPI port on ESP-IDF, with every optional hook.
@@ -38,6 +50,11 @@ public:
   bool EnsureInitialized() noexcept {
     if (device_ != nullptr) {
       return true;
+    }
+    if (pins_.clock_hz <= 0 || pins_.clock_hz > static_cast<int>(xmpl100::kMaxClockHz) ||
+        (pins_.spi_mode != 0 && pins_.spi_mode != 3)) {
+      ESP_LOGE(kTag, "clock or SPI mode outside the XMPL100's bus requirements");
+      return false;
     }
     spi_bus_config_t bus{};
     bus.mosi_io_num = pins_.mosi;
@@ -64,8 +81,10 @@ public:
       gpio_config_t io{};
       io.pin_bit_mask = 1ULL << static_cast<unsigned>(pins_.reset_n);
       io.mode = GPIO_MODE_OUTPUT;
-      if (gpio_config(&io) != ESP_OK ||
-          gpio_set_level(static_cast<gpio_num_t>(pins_.reset_n), 1) != ESP_OK) {
+      // RESET_N is driven to its inactive level (high) before its output is enabled, so configuring
+      // the pin never pulses a reset (handbook KB-HW-018).
+      if (gpio_set_level(static_cast<gpio_num_t>(pins_.reset_n), 1) != ESP_OK ||
+          gpio_config(&io) != ESP_OK) {
         return false;
       }
     }
@@ -109,3 +128,5 @@ private:
   Esp32Xmpl100Pins pins_;
   spi_device_handle_t device_ = nullptr;
 };
+
+#endif // XMPL100_ESP32_XMPL100_PORT_HPP

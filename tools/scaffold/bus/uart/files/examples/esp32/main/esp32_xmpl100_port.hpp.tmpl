@@ -6,7 +6,8 @@
  * Start from this file for any ESP-IDF target. The pins are in Esp32Xmpl100Pins; the defaults match
  * the wiring table in examples/esp32/README.md (ESP32-C6 DevKitC-1).
  */
-#pragma once
+#ifndef XMPL100_ESP32_XMPL100_PORT_HPP
+#define XMPL100_ESP32_XMPL100_PORT_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -19,13 +20,18 @@
 
 #include "xmpl100.hpp"
 
+/// The port's baud rate, checked against the driver's bus requirements (handbook KB-CPP-123).
+inline constexpr int kEsp32Xmpl100Baud = 115'200;
+static_assert(kEsp32Xmpl100Baud <= static_cast<int>(xmpl100::kMaxBaudRate),
+              "the baud rate is above what the XMPL100 runs at");
+
 /// Pins and bus settings of the ESP-IDF port.
 struct Esp32Xmpl100Pins {
   uart_port_t port = UART_NUM_1;
   int tx = 4;
   int rx = 5;
   int reset_n = 11; ///< -1 when RESET_N is tied high.
-  int baud = 115200;
+  int baud = kEsp32Xmpl100Baud;
 };
 
 /// The XMPL100 UART port on ESP-IDF, with every optional hook.
@@ -54,8 +60,10 @@ public:
       gpio_config_t io{};
       io.pin_bit_mask = 1ULL << static_cast<unsigned>(pins_.reset_n);
       io.mode = GPIO_MODE_OUTPUT;
-      if (gpio_config(&io) != ESP_OK ||
-          gpio_set_level(static_cast<gpio_num_t>(pins_.reset_n), 1) != ESP_OK) {
+      // RESET_N is driven to its inactive level (high) before its output is enabled, so configuring
+      // the pin never pulses a reset (handbook KB-HW-018).
+      if (gpio_set_level(static_cast<gpio_num_t>(pins_.reset_n), 1) != ESP_OK ||
+          gpio_config(&io) != ESP_OK) {
         return false;
       }
     }
@@ -102,3 +110,5 @@ private:
   Esp32Xmpl100Pins pins_;
   bool ready_ = false;
 };
+
+#endif // XMPL100_ESP32_XMPL100_PORT_HPP

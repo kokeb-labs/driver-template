@@ -9,7 +9,8 @@
  * throws nothing, takes no lock and is not thread-safe: give each object one owner, or guard it
  * with one mutex.
  */
-#pragma once
+#ifndef XMPL100_HPP
+#define XMPL100_HPP
 
 #include <array>
 #include <cstddef>
@@ -247,6 +248,50 @@ public:
   Result<float> MeasureOnceC() noexcept;
 
   /// @}
+  /// @name Diagnostics
+  /// @{
+
+  /**
+   * @brief The clear-on-read STATUS flags (POR) seen by any STATUS read since the last
+   * `ClearLatchedStatus()`, the driver's own reads included. No I/O.
+   *
+   * Every STATUS read the driver makes (`ReadStatus()`, the polls inside `WaitDataReady()`,
+   * `TriggerOneShot()` and the reset sequence, a raw `ReadRegister(reg::kStatus)`) ORs the bits it
+   * clears on the chip into this latch, so no internal read hides a flag from the caller (handbook
+   * KB-CPP-119). The start-up empties it: the POR of the driver's own reset is not news.
+   *
+   * @return The latched flags; only `power_on_reset` can be set.
+   */
+  [[nodiscard]] Status GetLatchedStatus() const noexcept {
+    return decodeStatus(latched_status_);
+  }
+
+  /** @brief Empty the latch of `GetLatchedStatus()`. No I/O. */
+  void ClearLatchedStatus() noexcept {
+    latched_status_ = 0;
+  }
+
+  /**
+   * @return The raw STATUS byte of the last STATUS read, by any call; 0 before the first. No I/O
+   * (handbook KB-CPP-129).
+   */
+  [[nodiscard]] uint8_t GetLastStatusByte() const noexcept {
+    return last_status_;
+  }
+
+  /**
+   * @brief Read one register once: one transfer, no retry, no decoding (handbook KB-CPP-129).
+   *
+   * For bring-up and diagnostics. Side effects are the chip's own: reading STATUS clears POR on the
+   * chip (the driver latches it, see `GetLatchedStatus()`), reading TEMP_LSB clears DRDY.
+   *
+   * @param address A register address, 0 to `reg::kLastRegister`.
+   * @return The register value, or `NotInitialized`, `InvalidArgument` (no such register; nothing
+   *         sent) or `Bus`.
+   */
+  Result<uint8_t> ReadRegister(uint8_t address) noexcept;
+
+  /// @}
   /// @name Identification
   /// @{
 
@@ -264,12 +309,14 @@ private:
   Result<void> waitResetDone() noexcept;
   Result<void> writeConfigRegisters(const Config& config) noexcept;
   Result<uint8_t> readRegister(uint8_t reg) noexcept;
+  Result<uint8_t> readStatusByte() noexcept;
   Result<void> writeRegister(uint8_t reg, uint8_t value) noexcept;
   Result<void> fail(Error error, const char* message) noexcept;
 
   static uint8_t ctrlValue(const Config& config, bool start) noexcept;
   static uint8_t configValue(const Config& config) noexcept;
   static int16_t toCounts(float celsius, int32_t counts_per_degree) noexcept;
+  static Status decodeStatus(uint8_t raw) noexcept;
 
   /// STATUS reads after the t_RST wait before a reset counts as stuck.
   static constexpr uint32_t kResetPolls = 3;
@@ -277,6 +324,8 @@ private:
   detail::RegisterBus<Port> bus_;
   Config config_{};
   uint8_t revision_{0};
+  uint8_t last_status_{0};    ///< The last STATUS byte read (GetLastStatusByte()).
+  uint8_t latched_status_{0}; ///< Clear-on-read STATUS bits seen since ClearLatchedStatus().
   bool initialized_{false};
 };
 
@@ -285,3 +334,5 @@ private:
 } // namespace xmpl100
 
 #include "../src/xmpl100.ipp" // IWYU pragma: export
+
+#endif // XMPL100_HPP

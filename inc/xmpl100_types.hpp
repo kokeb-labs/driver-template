@@ -8,7 +8,8 @@
  * include it without the driver template. The configuration defaults are the chip's reset values
  * (XMPL100 datasheet, section 7, register map), so `Config{}` describes a chip that was just reset.
  */
-#pragma once
+#ifndef XMPL100_TYPES_HPP
+#define XMPL100_TYPES_HPP
 
 #include <cstdint>
 
@@ -348,3 +349,5 @@ constexpr uint32_t GetDriverVersionPatch() noexcept {
 /** @} */
 
 } // namespace xmpl100
+
+#endif // XMPL100_TYPES_HPP

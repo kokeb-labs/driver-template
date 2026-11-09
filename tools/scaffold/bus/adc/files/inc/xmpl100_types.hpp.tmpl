@@ -6,7 +6,8 @@
  * @details
  * The defaults are the datasheet's typical transfer function: 500 mV at 0 °C and 10 mV/°C.
  */
-#pragma once
+#ifndef XMPL100_TYPES_HPP
+#define XMPL100_TYPES_HPP
 
 #include <cstdint>
 
@@ -217,3 +218,5 @@ constexpr uint32_t GetDriverVersionPatch() noexcept {
 /** @} */
 
 } // namespace xmpl100
+
+#endif // XMPL100_TYPES_HPP

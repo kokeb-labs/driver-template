@@ -1,0 +1,4 @@
+  /// The line settings a real port would use; checked against the driver's bus requirements
+  /// (handbook KB-CPP-123) like any port's.
+  static constexpr uint32_t kBaudRate = 115'200;
+  static_assert(kBaudRate <= xmpl100::kMaxBaudRate, "baud rate above what the XMPL100 runs at");

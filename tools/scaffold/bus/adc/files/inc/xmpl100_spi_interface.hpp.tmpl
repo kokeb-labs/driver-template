@@ -18,7 +18,8 @@
  * configures the ADC (attenuation, width, sampling time).
  */
 // clang-format on
-#pragma once
+#ifndef XMPL100_SPI_INTERFACE_HPP
+#define XMPL100_SPI_INTERFACE_HPP
 
 #include <concepts>
 #include <cstdint>
@@ -72,3 +73,5 @@ concept SpiPort = std::derived_from<Port, SpiInterface<Port>> &&
                   };
 
 } // namespace xmpl100
+
+#endif // XMPL100_SPI_INTERFACE_HPP
