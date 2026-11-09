@@ -3,6 +3,7 @@
  * @brief Driver behaviour over the register model: lifecycle, configuration, measurement, port
  * hooks.
  */
+#include <bit>
 #include <limits>
 
 #include "mock_xmpl100.hpp"
@@ -454,9 +455,10 @@ TEST_CASE(
 // ------------------------------------------------------------------------------
 
 TEST_CASE("The rate helpers keep their shifts in range for any value an enumeration can hold") {
-  // A value made by static_cast from a raw byte: the masks make the shift defined (KB-CPP20-020).
-  const auto avg = static_cast<xmpl100::Averaging>(0xFFU);
-  const auto odr = static_cast<xmpl100::OutputDataRate>(0xFFU);
+  // A raw byte that is not an enumerator, as a corrupt register or a bad cast would give: the masks
+  // make the shift defined (KB-CPP20-020).
+  const auto avg = std::bit_cast<xmpl100::Averaging>(uint8_t{0xFFU});
+  const auto odr = std::bit_cast<xmpl100::OutputDataRate>(uint8_t{0xFFU});
   CHECK_EQ(xmpl100::SamplesPerResult(avg), 8U);
   CHECK_EQ(xmpl100::PeriodUs(odr), 1000000U >> 7U);
   CHECK_EQ(xmpl100::SamplesPerResult(xmpl100::Averaging::X4), 4U);
