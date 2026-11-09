@@ -13,10 +13,10 @@
 
 ## Bench status
 
-<!-- One of the two. Agents cannot verify on hardware: say so and give the steps. -->
+<!-- One of the two. Without a bench run, give the steps a person with the hardware follows. -->
 
 - [ ] **Verified on hardware**:
-  <!-- board (Vortex V1 / Flux V1 / dev kit), chip revision, what was run, what was observed -->
+  <!-- board / MCU / port, chip revision, what was run, what was observed -->
 - [ ] **Not verified on hardware**. Bench steps for a human:
   1. <!-- flash examples/esp32 app ..., expect ... -->
 

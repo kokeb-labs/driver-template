@@ -1,7 +1,7 @@
 /**
  * @file xmpl100.ipp
  * @brief XMPL100 driver implementation, included by `xmpl100.hpp`.
- * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ * @copyright Copyright (c) 2026 The driver-template authors. SPDX-License-Identifier: MIT
  *
  * Section numbers refer to the XMPL100 datasheet.
  */

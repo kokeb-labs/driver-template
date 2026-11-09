@@ -1,7 +1,7 @@
 /**
  * @file xmpl100.hpp
  * @brief XMPL100 driver: the one header to include.
- * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ * @copyright Copyright (c) 2026 The driver-template authors. SPDX-License-Identifier: MIT
  *
  * @details
  * `xmpl100::XMPL100<Port>` drives one XMPL100 digital temperature sensor through a platform port

@@ -37,7 +37,28 @@ XMPL100, a fictional example sensor on SPI. It follows the
   `.github/workflows/template-init.yml`: template only; see docs/template.md.
 <!-- /scaffold:remove -->
 
-## Layer rules
+## Reading and citing the datasheet
+
+- The chip's datasheet is the only source of the driver's behaviour. `docs/datasheets.yml` names the exact
+  document (vendor, number, revision, date, `url`, `pdf`, the `sha256` of the PDF) and lists every topic the
+  driver takes from it: the datasheet's section name, the printed page, the driver API that implements it and the
+  docs pages that explain it. Link the PDF; keep the file itself out of the repository.
+- Cite the section next to the code that depends on it (`// t_RST, section 8.2`), in the Doxygen comment of the
+  API, and in the topic row, so code, docs and the Datasheet map agree. Run `kokeb-docs gen` after editing
+  `docs/datasheets.yml`.
+- Waits use the datasheet maximum, pulses its minimum; `Config{}` holds the reset values; `Validate()` the
+  documented ranges.
+- Behaviour learned on a bench is written as the driver's design, justified by the datasheet section that
+  explains it. Where the datasheet is silent, write the design decision and its reasoning, and give the bench
+  step that confirms it (**not verified on hardware** until someone runs it). The repository describes this
+  chip only: no other boards, products, projects or drivers, and no dated history (`tools/check_standalone.py`
+  checks this).
+
+## Architecture and layer rules
+
+The driver is three layers: the public API (`inc/xmpl100.hpp`, implemented in `src/xmpl100.ipp`), the chip's
+definitions and compile-time helpers (`inc/xmpl100_types.hpp`, `inc/xmpl100_detail.hpp`), and the port the
+application supplies (`inc/xmpl100_spi_interface.hpp`). `docs/architecture.md` draws them.
 
 - A driver is MCU-agnostic and platform-free: no SDK, no RTOS, no lock, no heap, exceptions, RTTI, `std::function`,
   `std::string`, `printf` or static mutable state. It reaches the bus only through the port hooks.
@@ -58,7 +79,20 @@ XMPL100, a fictional example sensor on SPI. It follows the
   `kPascalCase`, units as suffixes. 100 columns (`_config/.clang-format`).
 - Kconfig values are read only in `inc/xmpl100_kconfig.hpp`.
 
-## Build and test on the host
+## Standards
+
+- **Handbook rules** (`kokeb-labs/handbook`, rule IDs such as `KB-CPP-003`): CI checks them against
+  `.kokeb/handbook.yml` and reports each finding by rule ID. Fix the code; a waiver (rule, reason, approver,
+  expiry) needs the maintainer's approval.
+- **C++20 profile** (KB-CPP20-001 to 058): the `cpp20-profile` skill lists which features to use, use with
+  rules, or leave out, and runs the automated checks first.
+- **MISRA C++:2023 matrix**: the `misra-review` skill reviews against the handbook's compliance matrix and cites
+  guideline numbers only.
+- **Hardware lessons** (reply validity, stuck and floating lines, resynchronisation, retries, ready waits, bus
+  requirements, pin idle levels): the `hardware-lessons-review` skill checks each rule has a code path and a
+  model test.
+
+## Build, test and verify
 
 ```bash
 cmake -S . -B build -DXMPL100_BUILD_TESTS=ON
@@ -67,8 +101,8 @@ cmake --build build --parallel && ctest --test-dir build --output-on-failure
 
 The tests build as ISO C++20 (`CMAKE_CXX_EXTENSIONS OFF`, `-pedantic-errors`) with `-fno-exceptions -fno-rtti
 -Werror`, and the target `xmpl100_header_checks` compiles each public header alone. CI runs GCC and Clang; run
-the compilers you have. The host example runs as the CTest `xmpl100_host_example`. ESP32 builds run in CI only
-(`esp32-examples-build-ci.yml`); do not install ESP-IDF to check a change.
+the compilers you have. The host example runs as the CTest `xmpl100_host_example`. ESP32 builds run in CI
+(`esp32-examples-build-ci.yml`); the host build covers a change locally.
 
 ## Docs checks
 
@@ -82,19 +116,34 @@ python3 -m venv .venv && .venv/bin/pip install \
 Code shown on the site lives in `tests/docs/` between `// --8<-- [start:x]` / `[end:x]` markers. Doxygen runs as
 the CTest `xmpl100_doxygen` when `doxygen` is installed; every public symbol in `inc/` is documented.
 
+The `verify` skill (`.claude/skills/verify/SKILL.md`) runs every check CI runs, in order: GCC and Clang host
+tests, the strict-dialect header checks, the handbook source checks, `tools/check_standalone.py`, clang-format
+20, clang-tidy 20, cppcheck, lizard, markdownlint and the docs build. Run it before every push.
+
+## Branches, commits and pull requests
+
+- Branch from `main` as `feat/`, `fix/`, `docs/`, `ci/` or `chore/<topic>`; one logical change per branch.
+- Commit with a sign-off (`git commit -s`) and an imperative subject.
+- Open a pull request with the template filled in, including **Bench status**. When every check is green,
+  including `CI gate / gate`, the change is merged with a squash merge; the PR title becomes the commit subject
+  on `main`. `main` changes only through merged pull requests and keeps its history (no force-push).
+
 ## Definition of done
 
-The list in `standards/agents.md#definition-of-done`, in short: one change; standard followed or deviation
-named; every check above passes locally (the `verify` skill); host tests for new behaviour including failure
-paths; docs and Doxygen updated; `CHANGELOG.md` under `## [Unreleased]`; CI green including `CI gate / gate`
-(which needs the handbook check, the Cortex-M build and the coverage, complexity and sanitizer gates);
-anything hardware-dependent marked **not verified on hardware** with bench steps.
+A change is done when it is merged: one change; the standards followed or each deviation named; every check
+passes locally (the `verify` skill); host tests for new behaviour including failure paths; docs, Doxygen and
+`docs/datasheets.yml` updated with the datasheet sections; `CHANGELOG.md` under `## [Unreleased]`; CI green
+including `CI gate / gate` (the handbook check, the Cortex-M build and the coverage, complexity and sanitizer
+gates); anything hardware-dependent marked **not verified on hardware** with bench steps; squash-merged.
 
-## Rules specific to this repo
+## Safety rules
 
-- No attribution lines anywhere: no `Co-Authored-By:` trailers, no "Generated with" footers, no tool banners.
-- Work on a `feat/`, `fix/`, `docs/`, `ci/` or `chore/` branch and open a PR; never push to `main`, force-push,
-  merge, or change repository settings.
+- Every commit is signed off (DCO).
+- No attribution lines in commits, pull requests or files: no `Co-Authored-By:` trailers, no "Generated with"
+  footers, no tool banners.
+- No secrets, credentials or vendor PDFs in the repository.
+- No force-push to `main` and no history rewrites on it.
+- Repository settings (rulesets, merge options, Pages) are the maintainers'; `docs/repo-setup.md` lists them.
 <!-- scaffold:remove -->
 - In the template repository itself, a change to the XMPL100 shell must keep `tools/scaffold.py` working: the CI
   job `template-selftest` scaffolds a driver for every bus and a library and runs their checks.
@@ -102,7 +151,14 @@ anything hardware-dependent marked **not verified on hardware** with bench steps
 
 ## Skills
 
-`.claude/skills/`: `verify`, `release`, `bump-pin`, `add-driver-feature`, `new-driver-from-template`,
-`datasheet-conformance`, `add-port`, and the review skills `cpp20-profile`, `misra-review` and
-`hardware-lessons-review`. `.claude/agents/safety-reviewer.md` runs the review skills with `datasheet-conformance`
-and reports findings by severity without editing.
+In `.claude/skills/`:
+
+- `verify`: every check CI runs, before each push.
+- `datasheet-conformance`: register maps, timing, reset values and errors from the datasheet, test first.
+- `add-driver-feature`, `add-port`: a new driver capability; a new platform under `examples/`.
+- `cpp20-profile`, `misra-review`, `hardware-lessons-review`: the reviews of the standards above.
+- `release`, `bump-pin`: a version release; a submodule or workflow pin update.
+- `new-driver-from-template`: turning a repository made from the template into a real driver.
+
+`.claude/agents/safety-reviewer.md` runs the review skills with `datasheet-conformance` and reports findings by
+severity for the author to act on.

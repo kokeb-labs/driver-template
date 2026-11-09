@@ -6,7 +6,7 @@ the short version for this repository.
 
 ## Branches
 
-`main` is the only long-lived branch and nobody pushes to it. Branch from `main`:
+`main` is the only long-lived branch; changes reach it through squash-merged pull requests. Branch from `main`:
 
 | Prefix | For |
 | --- | --- |
@@ -25,6 +25,7 @@ the short version for this repository.
 - Fill in the PR template, including **Bench status**: the board you ran it on, or "not verified on hardware"
   with the bench steps.
 - Docs, Doxygen and `CHANGELOG.md` (`## [Unreleased]`, `### Breaking` when callers must change) in the same PR.
+- Sign off every commit (`git commit -s`).
 - No attribution lines in commits, PR descriptions or code: no `Co-Authored-By:` trailers for tools, no
   "Generated with" footers.
 

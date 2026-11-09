@@ -2,7 +2,7 @@
  * @file xmpl100_detail.hpp
  * @brief Compile-time helpers of the XMPL100 driver: exact hook probes, typed register fields and
  * enumeration checks.
- * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ * @copyright Copyright (c) 2026 The driver-template authors. SPDX-License-Identifier: MIT
  *
  * @details
  * Everything here is `constexpr` or used only in unevaluated operands, so it adds no code to the

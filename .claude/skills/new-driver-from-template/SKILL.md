@@ -18,7 +18,8 @@ If `tools/setup.py` is gone, the setup already ran: start at step 2.
    and runs the host tests. Without a terminal pass the answers as flags:
    `python3 tools/setup.py --non-interactive --bus i2c --description "<one sentence>"`. Add
    `--datasheet <url>` to link the datasheet (only the link: never download or commit the PDF). `--org`,
-   `--repo`, `--author` and `--license MIT|Apache-2.0` override what it reads from the git remote;
+   `--repo`, `--author` (default `The <repo> authors`) and `--license MIT|Apache-2.0` override what it reads
+   from the git remote;
    `--platforms` picks the example platforms (`host,esp32` for a driver, `host` for a library).
 3. Read the checklist it prints; it is also the PR description's to-do list.
 4. Run the `verify` skill: the renamed example must still build (including the strict-dialect header checks),

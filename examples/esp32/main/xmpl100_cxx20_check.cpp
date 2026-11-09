@@ -1,7 +1,7 @@
 /**
  * @file xmpl100_cxx20_check.cpp
  * @brief The ESP-IDF header self-check: the public headers compiled as ISO C++20.
- * @copyright Copyright (c) 2026 The Kokeb Labs Authors. SPDX-License-Identifier: MIT
+ * @copyright Copyright (c) 2026 The driver-template authors. SPDX-License-Identifier: MIT
  *
  * ESP-IDF builds C++ in a newer GNU dialect by default (gnu++23 or gnu++26), which would accept a
  * C++23 feature or a GNU extension in a header. main/CMakeLists.txt compiles this file alone with

@@ -73,7 +73,7 @@ def parse(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--platforms", help="example platforms (default host,esp32 for a driver, host for a library)")
     p.add_argument("--org", help=f"GitHub organisation (default: from the remote, else {scaffold.DEFAULT_ORG})")
     p.add_argument("--repo", help="repository name (default: from the remote, else the folder name)")
-    p.add_argument("--author", help="copyright holder (default: 'The <Org> Authors')")
+    p.add_argument("--author", help="copyright holder (default: 'The <repo> authors')")
     p.add_argument("--license", choices=tuple(scaffold.LICENSES), help=f"default {scaffold.DEFAULT_LICENSE}")
     p.add_argument("--datasheet", help="driver only: datasheet URL, linked on the Hardware page (never downloaded)")
     p.add_argument("--non-interactive", action="store_true", help="ask nothing, even in a terminal")

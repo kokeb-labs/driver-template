@@ -15,6 +15,7 @@ site_name: XMPL100 Driver
 site_description: >-
   C++20 driver for the XMPL100, a fictional example SPI temperature sensor: chip ID, one-shot and continuous reads, CRC.
 repo_url: https://github.com/kokeb-labs/driver-template
+copyright: Copyright (c) 2026 The driver-template authors
 docs_dir: ../docs
 site_dir: ../site
 

@@ -34,3 +34,8 @@ register block).
    code comment and the PR, and list it under "not verified on hardware" with a bench step.
 
 Never invent a register, bit or timing. If the datasheet is silent, ask, or leave the feature out.
+
+Write what the bench taught as the driver's design: the behaviour, the datasheet section that explains it, and
+the test that pins it. Where no section explains it, write it as a design decision with its reasoning and a bench
+step. The repository describes this chip only: name no other board, product, project or driver, and keep dated
+history out of the code, docs and CHANGELOG entries (`tools/check_standalone.py`).
