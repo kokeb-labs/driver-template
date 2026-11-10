@@ -107,6 +107,10 @@ version bump (a minor bump before 1.0).
 
 ### Changed
 
+- `hardware-lessons-review` rule 12c: a channel in doubt counts as on, for a "nothing changed" shortcut too; a
+  refused switch-on in a group of unknown mode leaves the group off; a failed read-back keeps the channels in
+  doubt. Rule 22: a fuzz invariant is skipped only for the call whose own fault the driver cannot see, and is
+  checked again after a successful `EnsureInitialized()`.
 - The code follows the first MISRA C++:2023 scan, in the driver and in every scaffold overlay: every switch over
   an enumeration ends with `default: break;` (Rule 9.4.2) and the tests build with `-Wswitch-enum`, so a new
   enumerator still warns; every `else if` chain ends with `else` (Rule 9.4.1); operands of a different precedence
