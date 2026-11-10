@@ -79,6 +79,11 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     send nothing" shortcut compares the request against every bit that may be on, not only the copy, and a refused
     switch-on in a group whose mode is unknown leaves that group off (the one state that means the same in every
     mode). A failed read-back of a write keeps the written channels in doubt; it never confirms the copy.
+    A switch-off is sent first as the smallest write that is stored whole or not at all (one data byte, one
+    frame), never as the tail of a multi-byte burst: when the chip applies the bytes it accepted before a NACK, a
+    half-written "off" can leave a channel more active than before. A switch-off, a release and `Deinitialize()`
+    are never refused because the driver is uninitialised after a reset report: once the driver has started, they
+    always send their writes, and `Deinitialize()` never returns Ok without having done its work.
 12d. **A frame with no integrity check never decides a state change alone.** A critical-fault frame, a reset
     indication or a mode change without a CRC is confirmed by a second frame before the driver acts on it; acting
     means making the outputs safe (EN low, driver uninitialised).
