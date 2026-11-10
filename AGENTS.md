@@ -120,7 +120,8 @@ the CTest `xmpl100_doxygen` when `doxygen` is installed; every public symbol in 
 
 The `verify` skill (`.claude/skills/verify/SKILL.md`) runs every check CI runs, in order: GCC and Clang host
 tests, the strict-dialect header checks, the handbook source checks, `tools/check_standalone.py`, clang-format
-20, clang-tidy 20, cppcheck, lizard, markdownlint and the docs build. Run it before every push.
+20, clang-tidy 20, cppcheck, lizard, markdownlint and the docs build. `tools/preflight.sh` runs all of them in one
+command; push only when it ends with `0 failure(s)`, and push the fixes together.
 
 ## Branches, commits and pull requests
 

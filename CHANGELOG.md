@@ -28,6 +28,9 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- `tools/preflight.sh`: every check CI runs that a workstation can run, in one command, with a list of what it
+  skipped; the `verify` skill and AGENTS.md ask for it before every push. Scaffolded repositories keep it as a
+  template-managed file.
 - CI job `MISRA` (`.github/workflows/ci-misra.yml`): the shared `ru-misra` workflow at level `high`, MISRA
   C++:2023 and the C++20 profile on traced host and Cortex-M builds, with `open_source_prerelease` until the
   repository is public. The clang-tidy `cppcoreguidelines-macro-usage` check allows `CONFIG_` macros, so the

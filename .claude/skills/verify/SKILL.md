@@ -8,6 +8,13 @@ description: Run locally every check CI runs (strict-dialect host build and test
 Run from the repository root. Tool configuration is in `_config/`: pass its path, never copy it to the root.
 Stop at the first failure, fix the cause, start again. Never weaken a check to pass.
 
+**`tools/preflight.sh` runs steps 1 to 10 in one command** and ends with `0 failure(s)` or the list of failing
+steps and their logs; it says what it skipped because a tool is missing (set `VENV`, `CXX_GCC`, `CXX_CLANG`,
+`CLANG_FORMAT`, `CLANG_TIDY`, `ARM_CXX` or `HANDBOOK_DIR` to point at yours). Push only when it passes: CI minutes
+are for what a workstation cannot run (the ESP32 builds, the MISRA scan, the coverage, sanitizer and fuzz gates),
+not for finding a format or lint error. Fix everything it reports and push once, not once per finding. The steps
+below say what each check does and how to run it alone.
+
 1. Configure and build the host tests, doc snippets, compile-fail tests and the strict-dialect header checks:
    `cmake -S . -B build -DXMPL100_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug && cmake --build build --parallel`.
    Every target builds as ISO C++20 (`CMAKE_CXX_EXTENSIONS OFF`, `-pedantic-errors`), and the target

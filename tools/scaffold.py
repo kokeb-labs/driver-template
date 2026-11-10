@@ -118,7 +118,7 @@ TEMPLATE_ONLY = [
 TEMPLATE_RECORD = ".kokeb/template.yml"
 MANAGED_PREFIXES = (".github/", "_config/", ".claude/skills/", ".claude/agents/", "cmake/")
 MANAGED_FILES = {"CLAUDE.md", "tests/check_doxygen.cmake", "tests/check_install.cmake",
-                 "tests/check_version_copy.cmake", "tools/check_standalone.py"}
+                 "tests/check_version_copy.cmake", "tools/check_standalone.py", "tools/preflight.sh"}
 # Inside those folders but the repository's own from the first commit.
 UNMANAGED_RE = re.compile(r"_config/Kconfig|cmake/[a-z0-9_]+_build_settings\.cmake")
 # The arguments the record keeps, in order; each is a scaffold option of the same name.
