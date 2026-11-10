@@ -52,10 +52,12 @@ OVERLAYS = ROOT / "tools" / "scaffold"
 
 # ---------------------------------------------------------------------------------------------------------------
 # Organisation settings. --org, --repo, --author and --license override them; --org defaults to the owner in
-# `git remote get-url origin`, then to DEFAULT_ORG. The copyright holder defaults to "The <repo> authors": the
-# repository owns its code whoever hosts it, so it can move and have many owners.
+# `git remote get-url origin`, then to the kind's organisation in DEFAULT_ORGS: chip drivers live in their own
+# organisation, libraries with the shared repositories (template, CI, handbook). The copyright holder defaults to
+# "The <repo> authors": the repository owns its code whoever hosts it, so it can move and have many owners.
 # ---------------------------------------------------------------------------------------------------------------
-DEFAULT_ORG = "kokeb-labs"
+DEFAULT_ORGS = {"driver": "kokeb-labs-drivers", "library": "kokeb-labs"}
+DEFAULT_ORG_HELP = "kokeb-labs-drivers for a driver, kokeb-labs for a library"
 DEFAULT_LICENSE = "MIT"
 LICENSES = {
     # id: (licence text in tools/scaffold/license/, README badge, README sentence)
@@ -1017,7 +1019,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--namespace", help="C++ namespace (default: the name)")
     p.add_argument("--description", help="one sentence: what it is and does (README, docs, CMake)")
     p.add_argument("--include-root", help="library only: headers in inc/<root>/ (default: the name), e.g. ring")
-    p.add_argument("--org", help=f"GitHub organisation (default: from git remote origin, else {DEFAULT_ORG})")
+    p.add_argument("--org", help=f"GitHub organisation (default: from git remote origin, else {DEFAULT_ORG_HELP})")
     p.add_argument("--repo", help="repository name (default: from git remote origin, else driver-<name> or <name>)")
     p.add_argument("--author", help="copyright holder (default: 'The <repo> authors')")
     p.add_argument("--license", choices=tuple(LICENSES), help=f"licence (default {DEFAULT_LICENSE})")
@@ -1062,7 +1064,7 @@ def resolve(a: argparse.Namespace, p: argparse.ArgumentParser, remote: tuple[str
         p.error("--namespace: lower-case C++ namespace, e.g. tmp117 or acme::utils")
     if remote and remote[1] == TEMPLATE_REPO:
         remote = (remote[0], None)  # the template's own checkout: its name is not the new repository's
-    a.org = a.org or (remote[0] if remote else None) or DEFAULT_ORG
+    a.org = a.org or (remote[0] if remote else None) or DEFAULT_ORGS[a.kind]
     a.repo = a.repo or (remote[1] if remote else None) or default_repo(a.kind, a.name)
     for value, what in ((a.org, "--org"), (a.repo, "--repo")):
         if not re.fullmatch(r"[A-Za-z0-9][\w.-]*", value):
@@ -1087,7 +1089,8 @@ def resolve(a: argparse.Namespace, p: argparse.ArgumentParser, remote: tuple[str
 
 # Drivers with the default platforms (host, esp32) on every bus, a host-only driver, a driver for another
 # organisation under Apache-2.0 with a datasheet link, the default (host-only) library and a library for ESP-IDF.
-# Each case runs with --org kokeb-labs unless it names another, so the template checkout's remote never leaks in.
+# Each case runs with its kind's default organisation (DEFAULT_ORGS) unless it names another, so the template
+# checkout's remote never leaks in.
 # The TMP117 description and the BME280 datasheet URL are long on purpose: the Markdown they go into must still
 # pass markdownlint's line length.
 SELFTEST_CASES = [
@@ -1178,7 +1181,7 @@ def check_output(out: Path, a: argparse.Namespace) -> list[str]:
         if rel.parts[0] in CODE_DIRS or r == "CMakeLists.txt":
             if "github.com/kokeb-labs" in text:
                 bad.append(f"{r}: a link to the organisation's standard or CI in code")
-            if a.org != TEMPLATE_ORG and re.search(r"kokeb", text, re.I):
+            if a.org not in DEFAULT_ORGS.values() and re.search(r"kokeb", text, re.I):
                 bad.append(f"{r}: the template organisation's name in code")
     name = a.name
     for rel in (f"cmake/{name}_build_settings.cmake", f"cmake/{name}Config.cmake.in"):
@@ -1358,6 +1361,11 @@ def selftest(only: str | None) -> int:
         if parse_remote(url) != want:
             print(f"parse_remote({url!r}) = {parse_remote(url)!r}, expected {want!r}")
             return 1
+    p = build_parser()
+    for kind, name in (("driver", "tmp117"), ("library", "ring_buffer")):
+        if resolve(p.parse_args(["--kind", kind, "--name", name]), p, None).org != DEFAULT_ORGS[kind]:
+            print(f"resolve: a {kind} without --org or a remote is not in {DEFAULT_ORGS[kind]}")
+            return 1
     if default_author("driver-tmp117") != "The driver-tmp117 authors":
         print("default_author: wrong")
         return 1
@@ -1387,7 +1395,7 @@ def selftest(only: str | None) -> int:
             if only and only not in label:
                 continue
             if "--org" not in case:
-                case = [*case, "--org", TEMPLATE_ORG]
+                case = [*case, "--org", DEFAULT_ORGS[case[1]]]
             out = Path(tmp) / case[3]
             print(f"\n=== {label}", flush=True)
             run([sys.executable, str(Path(__file__).resolve()), *case, "--out", str(out)], ROOT)

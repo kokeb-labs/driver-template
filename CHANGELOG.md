@@ -107,6 +107,10 @@ version bump (a minor bump before 1.0).
 
 ### Changed
 
+- The scaffold's default `--org` follows the kind: `kokeb-labs-drivers` for a driver, `kokeb-labs` for a library
+  (the remote's owner still comes first). Every repository, docs-site and discussion link a driver gets is built
+  from it; links to the standard, ci-tools, the handbook and the template stay in `kokeb-labs`.
+
 - `hardware-lessons-review` rule 22: the model gives every open timing its own knob (each status flag its own
   delay), models a low-power mode the datasheet does not say accepts writes as dropping them, and a check is polled
   to its deadline before it counts as a refusal.
