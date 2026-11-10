@@ -45,7 +45,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -466,10 +465,13 @@ def scaffold(a: argparse.Namespace, dest: Path) -> list[str]:
         if new_rel != rel.name:
             path.rename(path.with_name(new_rel))
 
-    # 5. The README hero line is the description: wrap it at 120 columns for markdownlint.
-    readme = dest / "README.md"
-    lines = readme.read_text().split("\n")
-    readme.write_text("\n".join(textwrap.fill(l, 120) if l == n.description else l for l in lines))
+    # 5. The description, the datasheet link and the names went into running text: wrap every line they made
+    #    longer than markdownlint's limit (MD013), whatever their length.
+    for path, rel, text in list(text_files(dest)):
+        if path.suffix == ".md":
+            new = wrap_markdown(text)
+            if new != text:
+                path.write_text(new, encoding="utf-8")
 
     # 6. A fresh changelog.
     changelog = dest / "CHANGELOG.md"
@@ -483,7 +485,7 @@ def scaffold(a: argparse.Namespace, dest: Path) -> list[str]:
     regenerated = regenerate(dest)
 
     # 9. What the drift check needs to scaffold this repository again.
-    write_record(a, dest)
+    note = write_record(a, dest)
 
     bus = "" if a.kind == "library" else ", " + ("GPIO only" if a.bus == "none" else a.bus.upper())
     todo = [
@@ -529,11 +531,172 @@ def scaffold(a: argparse.Namespace, dest: Path) -> list[str]:
     ]
     if "esp32" not in n.platforms and dest == ROOT:
         todo.insert(2, "git rm --cached examples/esp32/scripts (the ESP32 example and its submodule are gone)")
+    if note:
+        todo.insert(2, f"{TEMPLATE_RECORD}: the template commit is {note}")
     if not regenerated:
         todo.insert(2, "Install kokeb-mkdocs-theme and run: kokeb-docs figures && kokeb-docs gen")
     if not formatted:
         todo.insert(2, "Install clang-format 20 and format inc/ src/ tests/ examples/ (--style=file:_config/.clang-format)")
     return todo
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Markdown line length: what the scaffold puts into running text (the description, a datasheet URL, a long name)
+# can push a line past markdownlint's MD013 limit (_config/.markdownlint.json). wrap_markdown() breaks exactly
+# those lines at a space, carrying the rest into the next line of the paragraph; md_long_lines() is the same test
+# markdownlint makes, for the self-test.
+# ---------------------------------------------------------------------------------------------------------------
+
+MD_LIMIT = 120  # _config/.markdownlint.json MD013 line_length
+# A word that would start a new block (list item, heading, quote, table, fence, HTML, setext underline) at the start
+# of a line: never break a line just before it.
+MD_BLOCK_WORD_RE = re.compile(r"(?:[-+*>|]|#{1,6}|\d{1,9}[.)]|=+|-+|`{3,}.*|~{3,}.*|<.*)")
+MD_LIST_RE = re.compile(r"^([ \t]*)(?:[-+*]|\d{1,9}[.)])[ \t]+")
+MD_FENCE_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})")
+
+
+def md_too_long(line: str) -> bool:
+    """markdownlint MD013 without `strict`: longer than the limit, with whitespace after it (a long URL alone is
+    allowed)."""
+    return len(line) > MD_LIMIT and re.search(r"\s", line[MD_LIMIT:]) is not None
+
+
+def md_prose(lines: list[str], checked: bool = False) -> list[bool]:
+    """Which lines are wrappable prose: not front matter, code, an HTML comment or block (an HTML paragraph `<p>`
+    is prose), a table or a heading. With `checked`: every line MD013 checks (all but front matter, code and
+    tables)."""
+    prose = [False] * len(lines)
+    fence = None
+    comment = False
+    front = bool(lines) and lines[0] == "---"
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if front:
+            front = not (i > 0 and stripped == "---")
+            continue
+        if fence:
+            m = MD_FENCE_RE.match(line)
+            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence):
+                fence = None
+            continue
+        m = MD_FENCE_RE.match(line)
+        if m:
+            fence = m.group(1)
+            continue
+        if comment:
+            comment = "-->" not in line
+            prose[i] = checked
+            continue
+        if stripped.startswith("<!--"):
+            comment = "-->" not in stripped[4:]
+            prose[i] = checked
+            continue
+        if not stripped or (line.startswith("    ") and i > 0 and not lines[i - 1].strip()):
+            continue  # blank, or (possibly) an indented code block: left alone
+        if stripped[0] == "|":
+            continue
+        if stripped[0] in "#<" and not re.match(r"<p[ >]", stripped):
+            prose[i] = checked
+            continue
+        prose[i] = True
+    return prose
+
+
+def md_continuation(line: str) -> str:
+    """The indent a wrapped part of `line` takes: under the text of a list item or quote, else the line's own."""
+    m = MD_LIST_RE.match(line)
+    if m:
+        return " " * len(m.group(0))
+    m = re.match(r"^([ \t]*(?:>[ \t]?)+)", line)
+    if m:
+        return m.group(1)
+    return re.match(r"^[ \t]*", line).group(0)
+
+
+def md_spans(line: str) -> set[int]:
+    """Positions inside inline code, link text or a link target, where a break is legal but reads badly."""
+    inside: set[int] = set()
+    code = False
+    depth = 0
+    target = 0
+    for i, ch in enumerate(line):
+        if ch == "`":
+            code = not code
+        elif not code and target:
+            target += {"(": 1, ")": -1}.get(ch, 0)
+        elif not code and ch == "[":
+            depth += 1
+        elif not code and ch == "]" and depth:
+            depth -= 1
+            if line[i + 1:i + 2] == "(":
+                target = 1
+                inside.add(i + 1)
+                continue
+        if code or depth or target:
+            inside.add(i)
+    return inside
+
+
+def md_break(line: str, indent: int) -> int | None:
+    """Where to break an over-long line: the last space that leaves at most MD_LIMIT characters, else the first one
+    after the limit; outside code and links when it can, never before a word that would start a new block, never
+    inside the indent."""
+    spaces = [m.start() for m in re.finditer(r" (?=\S)", line) if m.start() > indent]
+    ok = [i for i in spaces if not MD_BLOCK_WORD_RE.fullmatch(line[i + 1:].split(" ", 1)[0])]
+    inside = md_spans(line)
+    for pool in ([i for i in ok if i not in inside], ok):
+        before = [i for i in pool if i <= MD_LIMIT]
+        if before:
+            return before[-1]
+        after = [i for i in pool if i > MD_LIMIT]
+        if after:
+            return after[0]
+    return None
+
+
+def wrap_markdown(text: str) -> str:
+    """Break every prose line markdownlint would call too long; the rest of the line goes to the front of the next
+    line of the same paragraph (which is checked in turn), or onto a new line."""
+    lines = text.split("\n")
+    prose = md_prose(lines)
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if not prose[i] or not md_too_long(line):
+            i += 1
+            continue
+        marker = MD_LIST_RE.match(line)
+        at = md_break(line, len(marker.group(0)) if marker else len(re.match(r"^[ \t]*(?:>[ \t]?)*", line).group(0)))
+        if at is None:
+            i += 1
+            continue
+        indent = md_continuation(line)
+        head, rest = line[:at].rstrip(), line[at + 1:].strip()
+        lines[i] = head
+        nxt = lines[i + 1] if i + 1 < len(lines) else None
+        joins = (nxt is not None and prose[i + 1] and nxt.strip() and not MD_LIST_RE.match(nxt)
+                 and not nxt.lstrip().startswith(">") and re.match(r"^[ \t]*", nxt).group(0) == indent
+                 and not head.endswith("  ") and not line.endswith("  "))
+        if joins:
+            lines[i + 1] = indent + rest + " " + nxt.strip()
+        else:
+            lines.insert(i + 1, indent + rest)
+            prose.insert(i + 1, True)
+        i += 1
+    return "\n".join(lines)
+
+
+def md_long_lines(root: Path) -> list[str]:
+    """Every Markdown prose line markdownlint's MD013 would reject (what wrap_markdown() leaves must pass)."""
+    bad = []
+    for path, rel, text in text_files(root):
+        if path.suffix != ".md":
+            continue
+        lines = text.split("\n")
+        for n, (line, prose) in enumerate(zip(lines, md_prose(lines, checked=True)), 1):
+            if prose and md_too_long(line):
+                bad.append(f"{rel.as_posix()}:{n}: {len(line)} characters (MD013 limit {MD_LIMIT})")
+    return bad
 
 
 def format_sources(dest: Path) -> bool:
@@ -591,21 +754,95 @@ def regenerate(dest: Path) -> bool:
 # Template drift.
 # ---------------------------------------------------------------------------------------------------------------
 
-def template_commit() -> str:
+def git_out(cwd: Path, *args: str) -> str | None:
+    """`git <args>` in cwd, stripped, or None without git or on failure."""
     try:
-        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True,
-                              check=True).stdout.strip()
+        return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
-        return "unknown"
+        return None
 
 
-def record_text(values: dict, local: list[dict], commit: str) -> str:
+def template_commit() -> str:
+    """The commit of the template checkout this script runs in (--out, --check-drift --fix)."""
+    return git_out(ROOT, "rev-parse", "HEAD") or "unknown"
+
+
+def local_template_commits(checkout: Path, limit: int = 1000) -> list[tuple[str, str, int]]:
+    """(commit, tree, committer time) of the newest commits of a template checkout, newest first."""
+    out = git_out(checkout, "log", f"-n{limit}", "--format=%H %T %ct", "HEAD") or ""
+    return [(c, tr, int(ts)) for c, tr, ts in (line.split() for line in out.splitlines() if line.count(" ") == 2)]
+
+
+def remote_template_commits(limit: int = 300) -> list[tuple[str, str, int]] | None:
+    """The same from the GitHub API for the template's default branch, or None offline (GITHUB_TOKEN or GH_TOKEN
+    is used when set, for the rate limit)."""
+    import urllib.request
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    headers = {"Accept": "application/vnd.github+json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    commits: list[tuple[str, str, int]] = []
+    for page in range(1, limit // 100 + 1):
+        req = urllib.request.Request(
+            f"https://api.github.com/repos/{TEMPLATE_ORG}/{TEMPLATE_REPO}/commits?per_page=100&page={page}",
+            headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                items = json.load(r)
+        except (OSError, ValueError):
+            return commits or None
+        for item in items:
+            when = datetime.datetime.fromisoformat(item["commit"]["committer"]["date"].replace("Z", "+00:00"))
+            commits.append((item["sha"], item["commit"]["tree"]["sha"], int(when.timestamp())))
+        if len(items) < 100:
+            break
+    return commits
+
+
+def find_template_commit(repo: Path, checkout: Path | None, online: bool = True) -> tuple[str, str | None]:
+    """The template commit a repository created from the template (`gh repo create --template`, "Use this
+    template") was made from, and a note when it is not exact.
+
+    GitHub gives such a repository a fresh first commit with the template's tree, so `git rev-parse HEAD` there is
+    never a template commit. The template commit is the one with the same tree as the repository's first commit,
+    found in a template checkout (`checkout`, or $SCAFFOLD_TEMPLATE) or else in the template's history on GitHub.
+    Fallbacks, each marked in the record: the template's newest commit before the repository's first commit (the
+    tree was changed before the scaffold ran), and `unknown` offline (`--check-drift --fix` from a template
+    checkout fills it in)."""
+    roots = (git_out(repo, "rev-list", "--max-parents=0", "HEAD") or "").split()
+    if not roots:
+        return "unknown", "not a git repository: no first commit to match against the template"
+    first_tree = git_out(repo, "rev-parse", f"{roots[-1]}^{{tree}}")
+    first_time = int(git_out(repo, "log", "-1", "--format=%ct", roots[-1]) or 0)
+    sources: list[tuple[str, list[tuple[str, str, int]] | None]] = []
+    env_checkout = os.environ.get("SCAFFOLD_TEMPLATE")
+    for path in (checkout, Path(env_checkout) if env_checkout else None):
+        if path and path.resolve() != repo.resolve():
+            sources.append((f"the template checkout {path}", local_template_commits(path)))
+    if online:
+        sources.append((f"{TEMPLATE_ORG}/{TEMPLATE_REPO} on GitHub", remote_template_commits()))
+    found = [(where, commits) for where, commits in sources if commits]
+    for _, commits in found:
+        for commit, tree, _ in commits:
+            if tree == first_tree:
+                return commit, None
+    for where, commits in found:
+        older = [c for c, _, ts in commits if ts <= first_time]
+        if older:
+            return older[0], (f"approximate: no template commit has this repository's first tree; this is the newest"
+                              f" commit of {where} before the repository was created")
+    return "unknown", ("not found: no template history to match (offline?); run --check-drift --fix from a"
+                       " template checkout to record it")
+
+
+def record_text(values: dict, local: list[dict], commit: str, note: str | None = None) -> str:
     lines = [
         "---",
         "# How this repository was made from kokeb-labs/driver-template. The template's drift check",
         "# (tools/scaffold.py --check-drift, CI: kokeb-labs/ci-tools ru-template-drift) scaffolds the template again",
         "# with these arguments and compares the files it manages. List a file under `local` only when it differs on",
         "# purpose, with the reason.",
+        *([f"# template commit {note}"] if note else []),
         f"template: {commit}",
     ]
     for key in RECORD_ARGS:
@@ -626,11 +863,25 @@ def record_text(values: dict, local: list[dict], commit: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_record(a: argparse.Namespace, dest: Path) -> None:
+def record_commit(dest: Path, in_place: bool, checkout: Path | None = None,
+                  online: bool = True) -> tuple[str, str | None]:
+    """The template commit for the record of a scaffold into dest. A copy (--out) and a scaffold in the template's
+    own checkout come from the checkout's HEAD; a repository created from the template has its own first commit, so
+    its template commit is looked up (find_template_commit)."""
+    remote = git_remote(dest)
+    if not in_place or (remote and remote[1] == TEMPLATE_REPO):
+        return template_commit(), None
+    return find_template_commit(dest, checkout, online)
+
+
+def write_record(a: argparse.Namespace, dest: Path) -> str | None:
+    """Write .kokeb/template.yml; return the note when the template commit is not exact."""
     values = {k: getattr(a, k, None) for k in RECORD_ARGS}
     if a.kind != "library":
         values["include_root"] = None
-    (dest / TEMPLATE_RECORD).write_text(record_text(values, [], template_commit()), encoding="utf-8")
+    commit, note = record_commit(dest, in_place=dest.resolve() == ROOT.resolve())
+    (dest / TEMPLATE_RECORD).write_text(record_text(values, [], commit, note), encoding="utf-8")
+    return note
 
 
 def read_record(path: Path) -> tuple[dict, list[dict], str]:
@@ -837,15 +1088,19 @@ def resolve(a: argparse.Namespace, p: argparse.ArgumentParser, remote: tuple[str
 # Drivers with the default platforms (host, esp32) on every bus, a host-only driver, a driver for another
 # organisation under Apache-2.0 with a datasheet link, the default (host-only) library and a library for ESP-IDF.
 # Each case runs with --org kokeb-labs unless it names another, so the template checkout's remote never leaks in.
+# The TMP117 description and the BME280 datasheet URL are long on purpose: the Markdown they go into must still
+# pass markdownlint's line length.
 SELFTEST_CASES = [
     ["--kind", "driver", "--name", "tmp117", "--bus", "i2c", "--description",
-     "C++20 driver for the TMP117 I2C temperature sensor, on any MCU."],
+     "C++20 driver for the Texas Instruments TMP117 high-accuracy, low-power digital temperature sensor on I2C, with"
+     " the alert pin, the EEPROM and the offset register, on any MCU."],
     ["--kind", "driver", "--name", "ab1234", "--bus", "uart", "--namespace", "acme::ab1234"],
     ["--kind", "driver", "--name", "lm35", "--bus", "adc"],
     ["--kind", "driver", "--name", "hcsr501", "--bus", "none"],
     ["--kind", "driver", "--name", "max31865", "--bus", "spi", "--platforms", "host"],
     ["--kind", "driver", "--name", "bme280", "--bus", "i2c", "--org", "acme-robotics", "--license", "Apache-2.0",
-     "--datasheet", "https://example.com/bme280-datasheet.pdf", "--platforms", "host"],
+     "--datasheet", "https://www.example.com/media/sensors/downloads/datasheets/environmental/bst-bme280-ds002.pdf",
+     "--platforms", "host"],
     ["--kind", "library", "--name", "ring_buffer", "--include-root", "ring"],
     ["--kind", "library", "--name", "idf_utils", "--include-root", "idfu", "--platforms", "host,esp32"],
 ]
@@ -964,6 +1219,12 @@ def check_output(out: Path, a: argparse.Namespace) -> list[str]:
     if f"github.com/{a.org}/{a.repo}" not in (out / "README.md").read_text():
         bad.append(f"README.md: no link to {a.org}/{a.repo}")
     bad += standalone_problems(out, a.repo)
+    # Markdown the description, the datasheet link or the names made too long (markdownlint MD013).
+    bad += md_long_lines(out)
+    # The record names the template commit the copy was made from: this checkout's HEAD.
+    _, _, commit = read_record(out / TEMPLATE_RECORD)
+    if commit != template_commit():
+        bad.append(f"{TEMPLATE_RECORD}: template {commit}, not this checkout's commit {template_commit()}")
     return bad
 
 
@@ -977,6 +1238,118 @@ def standalone_problems(root: Path, repo: str) -> list[str]:
                           capture_output=True, text=True, check=False)
     return [] if done.returncode == 0 else [f"stand-alone check: {line}" for line in done.stdout.splitlines()
                                             if line.strip() and not line.startswith("stand-alone check:")]
+
+
+def record_problems() -> list[str]:
+    """A repository created from the template (`gh repo create --template`) gets a fresh first commit with the
+    template's tree: its record must name the template commit, never that first commit. Simulated offline here: a
+    new repository whose first commit has this checkout's tree (and one whose tree was changed), matched against
+    this checkout's history."""
+    head = template_commit()
+    objects = git_out(ROOT, "rev-parse", "--git-path", "objects")
+    if head == "unknown" or not objects:
+        print("not a git checkout: template commit lookup not tested")
+        return []
+    objects_dir = (ROOT / objects).resolve()
+    bad = []
+    stamp = str(int(datetime.datetime.now().timestamp()))
+    env = dict(os.environ, GIT_AUTHOR_NAME="Sim", GIT_AUTHOR_EMAIL="sim@example.com", GIT_COMMITTER_NAME="Sim",
+               GIT_COMMITTER_EMAIL="sim@example.com", GIT_AUTHOR_DATE=f"{stamp} +0000",
+               GIT_COMMITTER_DATE=f"{stamp} +0000")
+
+    def git(repo: Path, *args: str, stdin: str | None = None, **extra: str) -> str:
+        return subprocess.run(["git", *args], cwd=repo, input=stdin, capture_output=True, text=True, check=True,
+                              env={**env, **extra}).stdout.strip()
+
+    with tempfile.TemporaryDirectory(prefix="record-") as tmp:
+        for changed in (False, True):
+            repo = Path(tmp) / f"driver-sim{int(changed)}"
+            repo.mkdir()
+            git(repo, "init", "-q")
+            # This checkout's objects, read through alternates: nothing is written to the checkout.
+            (repo / ".git/objects/info/alternates").write_text(f"{objects_dir}\n", encoding="utf-8")
+            tree = git(repo, "rev-parse", f"{head}^{{tree}}")
+            if changed:  # the template's tree plus one file: no template commit has it
+                index = str(Path(tmp) / f"index{int(changed)}")
+                blob = git(repo, "hash-object", "-w", "--stdin", stdin="changed before the scaffold ran\n")
+                git(repo, "read-tree", tree, GIT_INDEX_FILE=index)
+                git(repo, "update-index", "--add", "--cacheinfo", f"100644,{blob},EXTRA.txt", GIT_INDEX_FILE=index)
+                tree = git(repo, "write-tree", GIT_INDEX_FILE=index)
+            first = git(repo, "commit-tree", tree, "-m", "Initial commit")
+            git(repo, "update-ref", "HEAD", first)
+            git(repo, "remote", "add", "origin", "https://github.com/acme/driver-sim.git")
+            if first == head:
+                bad.append("record: the simulated first commit is the template commit; the test proves nothing")
+            commit, note = record_commit(repo, in_place=True, checkout=ROOT, online=False)
+            if commit != head or (note is None) == changed:
+                bad.append(f"record ({'changed' if changed else 'same'} tree): template {commit} ({note}), expected"
+                           f" {head}{' with a note' if changed else ''}; the repository's own HEAD is {first}")
+            commit, note = record_commit(repo, in_place=True, checkout=None, online=False)
+            if commit != "unknown" or not note:
+                bad.append(f"record offline: {commit} ({note}), expected unknown with a note")
+            path = repo / "record.yml"
+            path.write_text(record_text({"kind": "driver"}, [], head, "approximate: a note"), encoding="utf-8")
+            if read_record(path)[2] != head:
+                bad.append("record: a record with a note does not read back")
+    return bad
+
+
+def tidy_exe() -> str | None:
+    """clang-tidy 20 or newer, as tools/preflight.sh finds it (CLANG_TIDY, clang-tidy-20, Homebrew llvm@20)."""
+    for exe in (os.environ.get("CLANG_TIDY"), "clang-tidy-20", "/opt/homebrew/opt/llvm@20/bin/clang-tidy",
+                "clang-tidy"):
+        path = exe and shutil.which(exe)
+        if path:
+            version = subprocess.run([path, "--version"], capture_output=True, text=True, check=False).stdout
+            major = re.search(r"version (\d+)", version)
+            if major and int(major.group(1)) >= 20:
+                return path
+    return None
+
+
+TIDY_SKIP_RE = re.compile(r"(build[^/]*|docs|_site|examples/esp32|tools/scaffold|tests/compile_fail)(/|$)")
+
+
+def tidy_problems(out: Path, build: Path, exe: str) -> list[str]:
+    """clang-tidy on every header alone, as tools/preflight.sh and CI lint them: each must include what it uses
+    and be clean under the configuration of its folder (_config/.clang-tidy at the root, as CI links it)."""
+    headers = sorted(str(p) for p in out.rglob("*") if p.suffix in (".hpp", ".h") and p.is_file()
+                     and not TIDY_SKIP_RE.match(p.relative_to(out).as_posix()))
+    if not headers:
+        return []
+    extra = []
+    if shutil.which("xcrun"):
+        sdk = subprocess.run(["xcrun", "--show-sdk-path"], capture_output=True, text=True, check=False).stdout.strip()
+        extra = ["--extra-arg=-isysroot", f"--extra-arg={sdk}"] if sdk else []
+    link = out / ".clang-tidy"
+    link.symlink_to("_config/.clang-tidy")
+    try:
+        done = subprocess.run([exe, "-p", str(build), "--quiet", *extra, *headers], cwd=out, capture_output=True,
+                              text=True, check=False)
+    finally:
+        link.unlink()
+    text = done.stdout + done.stderr
+    bad = []
+    for line in text.splitlines():
+        m = re.match(rf"^{re.escape(str(out))}/(\S+?):\d+:\d+: (?:warning|error):", line)
+        if m and not TIDY_SKIP_RE.match(m.group(1)):
+            bad.append(f"clang-tidy: {line[len(str(out)) + 1:]}")
+    bad = sorted(set(bad))
+    if re.search(r"^Error while processing|error: no such file|LLVM ERROR", text, re.M):
+        bad.append("clang-tidy: could not process every header" + ("" if bad else ":\n" + text[-2000:]))
+    return bad
+
+
+def markdownlint_problems(out: Path) -> list[str]:
+    """markdownlint-cli2 at the version tools/preflight.sh pins, over the scaffolded Markdown (needs npx)."""
+    pin = re.search(r"markdownlint-cli2@[\d.]+", (ROOT / "tools/preflight.sh").read_text(encoding="utf-8"))
+    done = subprocess.run(["npx", "-y", pin.group(0) if pin else "markdownlint-cli2", "--config",
+                           "_config/.markdownlint.json", "**/*.md", "#build*", "#examples/esp32/scripts",
+                           "#node_modules"], cwd=out, capture_output=True, text=True, check=False)
+    if done.returncode == 0:
+        return []
+    return [f"markdownlint: {line}" for line in (done.stdout + done.stderr).splitlines() if " MD0" in line] or [
+        "markdownlint failed:\n" + (done.stdout + done.stderr)[-2000:]]
 
 
 def selftest(only: str | None) -> int:
@@ -1002,6 +1375,12 @@ def selftest(only: str | None) -> int:
     if bad:
         print("the template is not stand-alone:", *bad, sep="\n  ")
         return 1
+    bad = record_problems()
+    if bad:
+        print("the template commit in .kokeb/template.yml is wrong:", *bad, sep="\n  ")
+        return 1
+    tidy = tidy_exe()
+    npx = shutil.which("npx")
     with tempfile.TemporaryDirectory(prefix="scaffold-") as tmp:
         for case in SELFTEST_CASES:
             label = f"{case[1]}-{case[3]}"
@@ -1025,10 +1404,34 @@ def selftest(only: str | None) -> int:
                 print("platforms: examples/esp32 missing or left over, or examples/host missing")
                 return 1
             print("root:", " ".join(sorted(p.name + ("/" if p.is_dir() else "") for p in out.iterdir())))
+            if npx:
+                bad = markdownlint_problems(out)
+                if bad:
+                    print("the scaffolded Markdown fails markdownlint:", *bad, sep="\n  ")
+                    return 1
+                print("markdownlint: clean")
+            else:
+                print("npx not installed: markdownlint skipped (the line-length check above ran)")
             build = out / "build"
-            run(["cmake", "-S", ".", "-B", str(build), f"-D{a.name.upper()}_BUILD_TESTS=ON"], out)
+            run(["cmake", "-S", ".", "-B", str(build), f"-D{a.name.upper()}_BUILD_TESTS=ON",
+                 "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"], out)
             run(["cmake", "--build", str(build), "--parallel"], out)
             run(["ctest", "--test-dir", str(build), "--output-on-failure"], out)
+            if tidy:
+                # As tools/preflight.sh: lint with a Clang compilation database when clang++ is installed.
+                db = build
+                clang = shutil.which("clang++-20") or shutil.which("clang++")
+                if clang:
+                    db = out / "build-tidy"
+                    run(["cmake", "-S", ".", "-B", str(db), f"-D{a.name.upper()}_BUILD_TESTS=ON",
+                         f"-DCMAKE_CXX_COMPILER={clang}", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"], out)
+                bad = tidy_problems(out, db, tidy)
+                if bad:
+                    print("a scaffolded header fails clang-tidy on its own:", *bad, sep="\n  ")
+                    return 1
+                print("clang-tidy, every header alone: clean")
+            else:
+                print("clang-tidy 20 not installed: header-alone clang-tidy skipped")
             if docs:
                 env = dict(os.environ, KOKEB_DOCS_ROOT=str(out), NO_MKDOCS_2_WARNING="1")
                 run(["kokeb-docs", "check"], out, env)

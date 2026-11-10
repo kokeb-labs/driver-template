@@ -103,7 +103,15 @@ settings an owner applies.
 8. **Formatting and docs.** With `clang-format` installed it formats the C++ sources (the new names change the
    include order); with `kokeb-docs` installed it redraws the figure and refreshes the generated regions (the README
    quickstart, the Examples table). Otherwise the checklist says to.
-9. **Record.** `.kokeb/template.yml` keeps the template commit and the arguments, for the drift check.
+9. **Record.** `.kokeb/template.yml` keeps the template commit and the arguments, for the drift check. A repository
+   created from the template starts with a fresh first commit of its own, so the scaffold looks the template commit
+   up: the template commit with the same tree as that first commit, from a template checkout named by
+   `SCAFFOLD_TEMPLATE` or from the template's history on GitHub. When the tree was changed first, it records the
+   template's newest commit before the repository was created; offline, `unknown`. Either way a comment above
+   `template:` says so, and `--check-drift --fix` from a template checkout records the exact commit.
+
+Every Markdown line the description, the datasheet link or the names make longer than markdownlint's limit (MD013,
+120 columns) is wrapped at a space, whatever their length.
 
 ## The repository root
 
@@ -253,8 +261,11 @@ change to a shared file (CMake, tests, docs, workflows) must also work for every
 `python3 tools/scaffold.py --selftest` (CI runs it as the `template-selftest` job). The self-test covers a driver on
 every bus (`none` included), a host-only driver, a driver for another organisation under Apache-2.0 with a datasheet
 link, and two libraries; it fails on a template name, a foreign organisation name or an organisation link left in
-code. Overlay files mirror the template paths under `tools/scaffold/<kind>/files/` with a `.tmpl` suffix, so linters
-and the build skip them.
+code, on a Markdown line markdownlint rejects (markdownlint itself when `npx` is installed), on a header that fails
+clang-tidy on its own (with clang-tidy 20), and on a template commit in `.kokeb/template.yml` other than the one
+the repository was made from (also for a simulated repository with a fresh first commit, as GitHub creates one).
+Overlay files mirror the template paths under `tools/scaffold/<kind>/files/` with a `.tmpl` suffix, so linters and
+the build skip them.
 
 ## Template drift
 

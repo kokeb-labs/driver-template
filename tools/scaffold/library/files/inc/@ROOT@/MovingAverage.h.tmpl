@@ -7,6 +7,7 @@
 #ifndef XMPL100_MOVING_AVERAGE_H
 #define XMPL100_MOVING_AVERAGE_H
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 
@@ -152,7 +153,7 @@ private:
     return Result<void>::Success();
   }
 
-  float samples_[Capacity] = {};
+  std::array<float, Capacity> samples_{};
   double sum_ = 0.0;
   Config config_{};
   uint16_t count_ = 0;

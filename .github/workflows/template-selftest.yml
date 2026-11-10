@@ -1,8 +1,8 @@
 ---
 # Template only (removed by tools/scaffold.py): scaffold a driver for every bus and a library into
 # temporary directories, check that each root holds only the allowed files, then configure, build and run their
-# host tests (the host example included), kokeb-docs check and
-# mkdocs build -f _config/mkdocs.yml --strict. Proves that the template's shell works for every kind it can produce.
+# host tests (the host example included), markdownlint, clang-tidy on every header alone, kokeb-docs check and
+# mkdocs build -f _config/mkdocs.yml --strict, and check the template commit each records. Proves that the template's shell works for every kind it can produce.
 name: Template self-test
 
 on:
@@ -34,11 +34,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install the docs toolchain and clang-format 20
+      - name: Install the docs toolchain, clang-format 20 and clang-tidy 20
         run: >
           python -m pip install
           "git+https://github.com/kokeb-labs/ci-tools@v1#subdirectory=packages/kokeb-mkdocs-theme"
-          "clang-format==20.1.8"
+          "clang-format==20.1.8" "clang-tidy==20.1.0"
 
       - name: Scaffold and check
         env:
