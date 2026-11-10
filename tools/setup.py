@@ -71,7 +71,7 @@ def parse(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--namespace", help="C++ namespace; asked for a library in a terminal (default: the name)")
     p.add_argument("--include-root", help="library only: headers in inc/<root>/ (default: the name)")
     p.add_argument("--platforms", help="example platforms (default host,esp32 for a driver, host for a library)")
-    p.add_argument("--org", help=f"GitHub organisation (default: from the remote, else {scaffold.DEFAULT_ORG})")
+    p.add_argument("--org", help=f"GitHub organisation (default: from the remote, else {scaffold.DEFAULT_ORG_HELP})")
     p.add_argument("--repo", help="repository name (default: from the remote, else the folder name)")
     p.add_argument("--author", help="copyright holder (default: 'The <repo> authors')")
     p.add_argument("--license", choices=tuple(scaffold.LICENSES), help=f"default {scaffold.DEFAULT_LICENSE}")
@@ -101,7 +101,8 @@ def main(argv: list[str] | None = None) -> int:
         a.kind = a.kind or kind
         a.name = a.name or name
     if interactive:
-        print(f"Setting up {a.org or scaffold.DEFAULT_ORG}/{a.repo or '<repository>'}.")
+        owner = a.org or scaffold.DEFAULT_ORGS.get(a.kind or "", "<organisation>")
+        print(f"Setting up {owner}/{a.repo or '<repository>'}.")
         if not a.kind:
             a.kind = ask("Kind", "driver", ("driver", "library"))
         if not a.name:

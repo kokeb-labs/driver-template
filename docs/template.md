@@ -9,10 +9,13 @@ this page says how the template maps onto it. The setup deletes this page (`docs
 ## Create a repository from it
 
 ```bash
-gh repo create kokeb-labs/driver-<chip> --public --template kokeb-labs/driver-template --clone
+gh repo create kokeb-labs-drivers/driver-<chip> --public --template kokeb-labs/driver-template --clone
 cd driver-<chip> && git switch -c feat/initial-driver
 python3 tools/setup.py
 ```
+
+A chip driver lives in `kokeb-labs-drivers`; a library lives in `kokeb-labs` with the template, CI and
+handbook (`gh repo create kokeb-labs/<name> ...`).
 
 `tools/setup.py` reads the repository name from `git remote get-url origin`: `driver-<chip>` is a driver for
 `<chip>`, any other name a library (`ring-buffer` is the library `ring_buffer`). In a terminal it asks only for what
@@ -55,7 +58,7 @@ settings an owner applies.
 | `--description` | a generic sentence | One sentence for the README, the docs and CMake |
 | `--platforms` | `host,esp32` (driver), `host` (library) | The example platforms: `host` (always included) and `esp32`. `esp32` adds `examples/esp32/`, its CI job, the ESP-IDF branch of the root `CMakeLists.txt` and `_config/Kconfig`. An unknown platform is an error that points at the `add-port` skill |
 | `--include-root` | the name | Library only: headers live in `inc/<root>/` and are included as `"<root>/X.h"` |
-| `--org` | the owner in `git remote get-url origin`, else `kokeb-labs` | The GitHub organisation in repository, docs-site and discussion links |
+| `--org` | the owner in `git remote get-url origin`, else `kokeb-labs-drivers` (driver) or `kokeb-labs` (library) | The GitHub organisation in repository, docs-site and discussion links |
 | `--repo` | the remote's repository name, else `driver-<name>` / `<name>` | The repository name in links |
 | `--author` | `The <repo> authors` (`The driver-tmp117 authors` for `driver-tmp117`) | The copyright holder in `LICENSE`, the source headers, `driver.yml` `authors` and the docs footer (`_config/mkdocs.yml` `copyright`). The default names the repository's authors rather than a company or a person, so the repository can move and have many owners |
 | `--license MIT\|Apache-2.0` | `MIT` | `LICENSE` gets the full text (`tools/scaffold/license/`); the SPDX identifiers, the README badge and the licence line follow |

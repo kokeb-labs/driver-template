@@ -9,7 +9,7 @@ unless given `--apply`, and `--repo` limits it to one repository. The rules behi
 ## 1. Create and scaffold
 
 ```bash
-gh repo create kokeb-labs/driver-<chip> --public --template kokeb-labs/driver-template --clone
+gh repo create kokeb-labs-drivers/driver-<chip> --public --template kokeb-labs/driver-template --clone
 cd driver-<chip>
 git switch -c feat/initial-driver
 python3 tools/setup.py
