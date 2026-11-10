@@ -28,6 +28,15 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- `tools/preflight.sh`: every check CI runs that a workstation can run, in one command, with a list of what it
+  skipped; the `verify` skill and AGENTS.md ask for it before every push. Scaffolded repositories keep it as a
+  template-managed file.
+- `hardware-lessons-review` rules 12a to 12d, 22 and 23: a device reset is detected and cached state is never
+  written over it (a pending reset check holds back every value), a fault the chip clears itself still reaches
+  the latch, a write the chip may have dropped is not Ok, no uncertainty refuses a switch-off, a frame with no
+  integrity check never decides a state change alone, the model changes state on its own and offers both
+  readings of an ambiguous datasheet, fuzz invariants are weakened rather than deleted, and an independent review
+  comes before the first release. The `verify` skill notes the macOS libFuzzer link and coverage differences.
 - CI job `MISRA` (`.github/workflows/ci-misra.yml`): the shared `ru-misra` workflow at level `high`, MISRA
   C++:2023 and the C++20 profile on traced host and Cortex-M builds, with `open_source_prerelease` until the
   repository is public. The clang-tidy `cppcoreguidelines-macro-usage` check allows `CONFIG_` macros, so the

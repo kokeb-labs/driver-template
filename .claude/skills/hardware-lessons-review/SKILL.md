@@ -43,7 +43,42 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
 11. **A setter updates the driver's copy only after the chip accepted the change** (KB-CPP-120), and **changes
     only what it names** (KB-CPP-121); a state-gated change outside its state returns an error and sends nothing.
 12. **Control and output registers are written whole from the validated copy** (KB-CPP-122); a read-modify-write
-    uses only a read validated per step 1.
+    uses only a read validated per step 1. **Except a bit the chip changes on its own** (a channel it switches off
+    for a fault, a mode it drops on a supply or watchdog fault, a status bit): the copy never sets such a bit the
+    call did not ask for. Reconcile it from the chip first (the reply to the write, or a validated read), and
+    believe "on" only when both the written value and the chip say so. A clear-only change (switching off) is
+    written even when that read fails.
+
+12a. **A device reset is detected, and old state is never written over it.** List every way the chip can reset or
+    reload itself (power-on reset, brown-out, UVLO, a watchdog, an OTP reload) and the evidence it leaves: a
+    status bit such as ACTIVE=0 or a POR/RES event, an error flag, a register back at its reset value (a sentinel),
+    an invalid first conversion. On that evidence the driver marks itself uninitialised and returns its reset
+    error, so the application runs `EnsureInitialized()` again; a setter must not first write cached state into
+    the reset chip (check the reply of the command phase before the data phase). Setters that can turn a pin or a
+    channel into an output write in the datasheet's programming order, so even an undetected reset never leaves
+    an output at its reset level. A reset check that is due but cannot be read (a lost status read, a failed
+    sentinel compare) stays pending, and no call returns a value as Ok until it has passed: a call that would
+    succeed fails with the check's own error instead, a call that failed keeps its own error.
+12b. **A fault the chip clears by itself still reaches the latch.** Status or summary bits the chip returns for
+    free with every frame (status bytes, error fields) are ORed into the latch; a fault that auto-clears on
+    turn-on or on a new cycle is otherwise never seen. A clear writes exactly the bits just read, never a fixed
+    mask; a clear-on-read register is read once, never retried; a failed read of one records "faults may be lost".
+12c. **A write the chip may have dropped is not Ok.** A frame-count or command error the chip reports later makes
+    the bits of the last unverified write uncertain, and the next call returns an error until they are read back.
+    The converse holds too: **a write whose reply failed may have taken effect.** Every cached value a guard trusts
+    without I/O (a setpoint, an enable, a mode) then takes the more dangerous of the old and new values, or is
+    marked unknown until a validated read or a successful write; a guard that depends on it refuses and sends
+    nothing. **No uncertainty ever refuses a switch-off or a release to input**: an off request on a channel, a
+    pair or a bridge in doubt switches off everything it could be (both channels of a pair; never one bit of a
+    bridge, which can turn Brake into Reverse), and releasing a pin to input is the cheapest, most robust write the
+    driver has. Each uncertainty flag gets a test that switch-off still works with it set. A call that changes several
+    channels at once (a mask, a bank write) still applies every switch-off when it refuses a switch-on, and an off
+    request in any mode the driver knows (a bridge, a pair) is never an invalid argument. Prefer the simplest
+    conservative rule that can be proven (for example "an unknown register back at its power-up value is a reset")
+    over logic that tries to explain an uncertain state away.
+12d. **A frame with no integrity check never decides a state change alone.** A critical-fault frame, a reset
+    indication or a mode change without a CRC is confirmed by a second frame before the driver acts on it; acting
+    means making the outputs safe (EN low, driver uninitialised).
 
 ## Values and diagnostics
 
@@ -80,6 +115,18 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     before the fix, citing the datasheet. The model carries its own register map with datasheet references (it
     does not include the driver's register header), a test cross-checks the two maps with `static_assert`, and
     a chip with timing has a virtual clock. Evidence from a bench or a customer stays out of the repository.
+22. **The model changes state on its own, as the datasheet says the chip does.** A model that changes a register
+    only when the driver writes it cannot catch rules 12, 12a or 12b. It offers a power-on reset or brown-out mid
+    session (registers back to reset values, the datasheet's reset flags set), fault shutdowns and the bits they
+    clear, faults the chip clears by itself, a dropped or miscounted write, and a clock that advances with every
+    frame (so watchdogs and timeouts are real). Where the datasheet is ambiguous (for example whether a write's
+    reply shows the register before or after the write), the model offers both readings and the safety tests run
+    under each. A fuzz target asserts the safety rules too (no switch-on while a pair is in doubt, no write
+    after a reset is seen); when a fix changes what a call may send, replace its invariant with the weaker true
+    one, never delete it.
+23. **An independent review before the first release.** Someone who did not write the driver or its model checks
+    both against the datasheet (the `safety-reviewer` agent): a model written by the same author shares the
+    author's assumptions, and green tests cannot show what both got wrong.
 
 ## Report
 

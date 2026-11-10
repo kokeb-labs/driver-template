@@ -67,4 +67,7 @@ Use the `datasheet-conformance` skill for every step, one subsystem at a time:
 5. The repository's About comes from its entry in `kokeb-labs/.github` `org/repos.json` (`docs/repo-setup.md`,
    step 2): the README's first sentence as the description, and the shared topics plus the bus, the device
    category, the vendor and the part.
-6. Run `verify`, open the PR, and give the owner `docs/repo-setup.md` for the org settings.
+6. Run `tools/preflight.sh` until it reports `0 failure(s)`, then push once and open the PR; give the owner
+   `docs/repo-setup.md` for the org settings. Before merging a driver that switches loads, have an independent
+   reviewer (the `safety-reviewer` agent, run by someone who did not write the code) check it against the
+   datasheet: a model written by the same author shares the author's assumptions, so green tests are not enough.
