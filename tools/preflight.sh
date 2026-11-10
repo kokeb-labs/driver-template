@@ -74,14 +74,27 @@ if [ -n "$FMT" ]; then
   step clang-format fmt
 else skip clang-format "no clang-format"; fi
 if [ "$quick" = 0 ] && [ -n "$TIDY" ] && [ -n "$first" ]; then
-  tidy() {  # every unit of the host build; fail on any finding in a file CI lints (ci-cpp-lint.yml `ignore:`)
-    local units; units=$(python3 -c 'import json,sys; print("\n".join(sorted({e["file"] for e in json.load(open(sys.argv[1]))})))' \
-      "$first/compile_commands.json" | grep -E '/(tests|examples/host)/')
-    # shellcheck disable=SC2086
-    "$TIDY" -p "$first" --quiet --config-file=_config/.clang-tidy "${SYSROOT[@]}" $units 2>&1 |
-      sed -E 's#/inc/\.\./src/#/src/#g; s#/tests/\.\./(inc|src)/#/\1/#g' | tee "$work/tidy.out" |
-      grep -E "^$root/.*(warning|error):" |
-      grep -vE "^$root/(build|docs|_site|examples/esp32|tools/scaffold|tests/compile_fail)/" && return 1 || return 0
+  tidy() {  # every unit of the host build and every header alone (CI lints each file); fail on a file CI lints
+    local units=() f
+    while IFS= read -r f; do units+=("$f"); done < <(
+      python3 -c 'import json,sys; print("\n".join(sorted({e["file"] for e in json.load(open(sys.argv[1]))})))' \
+        "$first/compile_commands.json" | grep -E '/(tests|examples/host)/' | grep -v '/tests/compile_fail/'
+      # Headers alone; an .ipp is only ever compiled through the header that includes it.
+      git ls-files '*.hpp' '*.h' | grep -vE '^(build|docs|_site|examples/esp32|tools/scaffold|tests/compile_fail)/' |
+        sed "s#^#$root/#")
+    [ "${#units[@]}" -gt 0 ] || { echo "no files to lint"; return 1; }
+    # As CI does: _config/.clang-tidy linked at the root, so each folder's own .clang-tidy (tests/, examples/host/)
+    # still applies on top of it (InheritParentConfig); --config-file would replace them. The link goes again after.
+    local linked=0
+    [ -e .clang-tidy ] || { ln -s _config/.clang-tidy .clang-tidy && linked=1; }
+    "$TIDY" -p "$first" --quiet "${SYSROOT[@]}" "${units[@]}" >"$work/tidy.raw" 2>&1
+    [ "$linked" = 0 ] || rm -f .clang-tidy
+    sed -E 's#/inc/\.\./src/#/src/#g; s#/tests/\.\./(inc|src)/#/\1/#g' "$work/tidy.raw" >"$work/tidy.out"
+    grep -E "^$root/.*(warning|error):" "$work/tidy.out" |
+      grep -vE "^$root/(build|docs|_site|examples/esp32|tools/scaffold|tests/compile_fail)/" >"$work/tidy.findings"
+    if [ -s "$work/tidy.findings" ]; then cat "$work/tidy.findings"; return 1; fi
+    # clang-tidy itself failing (a file it could not open or parse) is a failure too, not a clean run.
+    ! grep -qE "^Error while processing|error: no such file|LLVM ERROR" "$work/tidy.out"
   }
   step clang-tidy tidy
 else skip clang-tidy "quick, or no clang-tidy"; fi

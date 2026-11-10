@@ -107,6 +107,11 @@ version bump (a minor bump before 1.0).
 
 ### Changed
 
+- `tools/preflight.sh`: clang-tidy lints every header on its own too, as CI does, and reads its file list into an
+  array, so a repository path with a space no longer leaves the step linting nothing while reporting a pass; a
+  clang-tidy run that cannot open or parse a file fails the step.
+- `hardware-lessons-review` rule 12c: a switch-off goes first as a write that is stored whole or not at all, and
+  switch-offs, releases and `Deinitialize()` are never refused because a reset report left the driver uninitialised.
 - `hardware-lessons-review` rule 12c: a channel in doubt counts as on, for a "nothing changed" shortcut too; a
   refused switch-on in a group of unknown mode leaves the group off; a failed read-back keeps the channels in
   doubt. Rule 22: a fuzz invariant is skipped only for the call whose own fault the driver cannot see, and is
