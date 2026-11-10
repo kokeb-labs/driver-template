@@ -69,7 +69,11 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     nothing. **No uncertainty ever refuses a switch-off or a release to input**: an off request on a channel, a
     pair or a bridge in doubt switches off everything it could be (both channels of a pair; never one bit of a
     bridge, which can turn Brake into Reverse), and releasing a pin to input is the cheapest, most robust write the
-    driver has. Each uncertainty flag gets a test that switch-off still works with it set.
+    driver has. Each uncertainty flag gets a test that switch-off still works with it set. A call that changes several
+    channels at once (a mask, a bank write) still applies every switch-off when it refuses a switch-on, and an off
+    request in any mode the driver knows (a bridge, a pair) is never an invalid argument. Prefer the simplest
+    conservative rule that can be proven (for example "an unknown register back at its power-up value is a reset")
+    over logic that tries to explain an uncertain state away.
 12d. **A frame with no integrity check never decides a state change alone.** A critical-fault frame, a reset
     indication or a mode change without a CRC is confirmed by a second frame before the driver acts on it; acting
     means making the outputs safe (EN low, driver uninitialised).
