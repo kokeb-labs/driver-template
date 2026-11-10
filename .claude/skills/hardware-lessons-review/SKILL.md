@@ -134,7 +134,10 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     clear, faults the chip clears by itself, a dropped or miscounted write, and a clock that advances with every
     frame (so watchdogs and timeouts are real). Where the datasheet is ambiguous (for example whether a write's
     reply shows the register before or after the write), the model offers both readings and the safety tests run
-    under each. A fuzz target asserts the safety rules too (no switch-on while a pair is in doubt, no write
+    under each. Every timing the datasheet leaves open gets its own knob: each status flag updates on its own
+    delay, not tied to another one (a mode shown at once, its "valid" flag later), and a low-power mode the
+    datasheet does not say accepts writes is modelled dropping them; a check read once is polled to its deadline
+    before it counts as a refusal. A fuzz target asserts the safety rules too (no switch-on while a pair is in doubt, no write
     after a reset is seen); when a fix changes what a call may send, replace its invariant with the weaker true
     one, never delete it. Skip an invariant only for the call whose own fault the driver cannot see (a miscount armed
     for that call, a dropped write, a deaf line), and check it again after a successful `EnsureInitialized()`: a

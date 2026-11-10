@@ -107,6 +107,9 @@ version bump (a minor bump before 1.0).
 
 ### Changed
 
+- `hardware-lessons-review` rule 22: the model gives every open timing its own knob (each status flag its own
+  delay), models a low-power mode the datasheet does not say accepts writes as dropping them, and a check is polled
+  to its deadline before it counts as a refusal.
 - `hardware-lessons-review` rule 12c: doubt a settling write clears stays "unverified" until the chip vouches
   for that write; with a sticky error flag already set, configuration changes are read back or stay in doubt, and
   a configuration write stops when its own reply first shows the error (a switch-off never does).
