@@ -158,6 +158,15 @@ version bump (a minor bump before 1.0).
 
 ### Fixed
 
+- Scaffold, first run of a new driver: Markdown lines that a long description or datasheet URL pushed past
+  markdownlint's 120 columns (`AGENTS.md`, `docs/hardware.md`, the `datasheet-conformance` skill, a library's
+  `docs/index.md`) are wrapped at a space, whatever their length. `.kokeb/template.yml` records the template commit
+  the repository was made from (the template commit whose tree equals the repository's first commit, from a template
+  checkout or GitHub; marked as approximate or `unknown` when it cannot be matched), no longer the new repository's
+  own first commit. Every scaffolded header passes clang-tidy alone: the I2C and UART mock bus headers include
+  `mock_<name>.hpp`, the ADC model rounds with `std::lround`, the Kconfig headers use `#ifdef __has_include`, and
+  the library's `MovingAverage` keeps its samples in a `std::array`. `--selftest` checks all three (markdownlint
+  and clang-tidy when installed; CI installs clang-tidy 20).
 - The scaffold ends the description with a full stop in `AGENTS.md`, where the next sentence follows it
   (driver-at25040b read "EEPROMs It follows").
 

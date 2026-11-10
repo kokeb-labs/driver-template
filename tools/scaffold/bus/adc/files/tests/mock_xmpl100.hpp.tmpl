@@ -13,6 +13,7 @@
 #ifndef XMPL100_MOCK_XMPL100_HPP
 #define XMPL100_MOCK_XMPL100_HPP
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 
@@ -44,8 +45,8 @@ struct MockBusState {
     } else {
       // The output cannot go below 0 V: below -50 °C it sits at the rail (a negative float cast to
       // an unsigned integer would be undefined behaviour, which the fuzzer found).
-      const float out_mv = 500.0F + 10.0F * temperature_c;
-      mv = out_mv <= 0.0F ? 0U : static_cast<uint32_t>(out_mv + 0.5F);
+      const float out_mv = 500.0F + (10.0F * temperature_c);
+      mv = out_mv <= 0.0F ? 0U : static_cast<uint32_t>(std::lround(out_mv));
     }
     return true;
   }
