@@ -56,7 +56,9 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     error, so the application runs `EnsureInitialized()` again; a setter must not first write cached state into
     the reset chip (check the reply of the command phase before the data phase). Setters that can turn a pin or a
     channel into an output write in the datasheet's programming order, so even an undetected reset never leaves
-    an output at its reset level.
+    an output at its reset level. A reset check that is due but cannot be read (a lost status read, a failed
+    sentinel compare) stays pending, and no call returns a value as Ok until it has passed: a call that would
+    succeed fails with the check's own error instead, a call that failed keeps its own error.
 12b. **A fault the chip clears by itself still reaches the latch.** Status or summary bits the chip returns for
     free with every frame (status bytes, error fields) are ORed into the latch; a fault that auto-clears on
     turn-on or on a new cycle is otherwise never seen. A clear writes exactly the bits just read, never a fixed
@@ -119,7 +121,9 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     clear, faults the chip clears by itself, a dropped or miscounted write, and a clock that advances with every
     frame (so watchdogs and timeouts are real). Where the datasheet is ambiguous (for example whether a write's
     reply shows the register before or after the write), the model offers both readings and the safety tests run
-    under each.
+    under each. A fuzz target asserts the safety rules too (no switch-on while a pair is in doubt, no write
+    after a reset is seen); when a fix changes what a call may send, replace its invariant with the weaker true
+    one, never delete it.
 23. **An independent review before the first release.** Someone who did not write the driver or its model checks
     both against the datasheet (the `safety-reviewer` agent): a model written by the same author shares the
     author's assumptions, and green tests cannot show what both got wrong.

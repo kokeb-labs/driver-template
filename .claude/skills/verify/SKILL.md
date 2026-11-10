@@ -60,3 +60,7 @@ below say what each check does and how to run it alone.
 12. Delete the build directories (`build*/`, `/tmp/site`) when done.
 
 Report what ran and what could not run locally (ESP32 builds always run in CI only).
+
+On macOS: Apple's linker cannot link libFuzzer targets from Homebrew LLVM (add `-Wl,-ld_classic`, or run the fuzz
+entry point over random inputs under ASan and UBSan instead), and local branch coverage differs from CI's GCC
+on Linux; take the coverage gate's number from CI.
