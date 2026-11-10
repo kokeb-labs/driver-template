@@ -107,6 +107,9 @@ version bump (a minor bump before 1.0).
 
 ### Changed
 
+- `hardware-lessons-review` rule 12c: doubt a settling write clears stays "unverified" until the chip vouches
+  for that write; with a sticky error flag already set, configuration changes are read back or stay in doubt, and
+  a configuration write stops when its own reply first shows the error (a switch-off never does).
 - `tools/preflight.sh`: clang-tidy lints every header on its own too, as CI does, and reads its file list into an
   array, so a repository path with a space no longer leaves the step linting nothing while reporting a pass; a
   clang-tidy run that cannot open or parse a file fails the step.

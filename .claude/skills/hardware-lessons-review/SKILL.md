@@ -84,6 +84,11 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     half-written "off" can leave a channel more active than before. A switch-off, a release and `Deinitialize()`
     are never refused because the driver is uninitialised after a reset report: once the driver has started, they
     always send their writes, and `Deinitialize()` never returns Ok without having done its work.
+    Doubt is moved, never dropped: a write that settles a doubt (a channel that may be on, a mode that may be
+    either) keeps it as "unverified" until the chip vouches for that write, because the settling write itself
+    can be the one the chip ignored. Once nothing can vouch for a write any more (a sticky error flag already
+    set), configuration changes are read back or stay in doubt; a configuration write stops when its own reply
+    first shows the error, but a switch-off is never stopped.
 12d. **A frame with no integrity check never decides a state change alone.** A critical-fault frame, a reset
     indication or a mode change without a CRC is confirmed by a second frame before the driver acts on it; acting
     means making the outputs safe (EN low, driver uninitialised).
