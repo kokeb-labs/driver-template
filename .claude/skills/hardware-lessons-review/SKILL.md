@@ -128,20 +128,20 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     before the fix, citing the datasheet. The model carries its own register map with datasheet references (it
     does not include the driver's register header), a test cross-checks the two maps with `static_assert`, and
     a chip with timing has a virtual clock. Evidence from a bench or a customer stays out of the repository.
-22. **The model changes state on its own, as the datasheet says the chip does.** A model that changes a register
-    only when the driver writes it cannot catch rules 12, 12a or 12b. It offers a power-on reset or brown-out mid
-    session (registers back to reset values, the datasheet's reset flags set), fault shutdowns and the bits they
-    clear, faults the chip clears by itself, a dropped or miscounted write, and a clock that advances with every
-    frame (so watchdogs and timeouts are real). Where the datasheet is ambiguous (for example whether a write's
-    reply shows the register before or after the write), the model offers both readings and the safety tests run
-    under each. Every timing the datasheet leaves open gets its own knob: each status flag updates on its own
-    delay, not tied to another one (a mode shown at once, its "valid" flag later), and a low-power mode the
-    datasheet does not say accepts writes is modelled dropping them; a check read once is polled to its deadline
-    before it counts as a refusal. A fuzz target asserts the safety rules too (no switch-on while a pair is in doubt, no write
-    after a reset is seen); when a fix changes what a call may send, replace its invariant with the weaker true
-    one, never delete it. Skip an invariant only for the call whose own fault the driver cannot see (a miscount armed
-    for that call, a dropped write, a deaf line), and check it again after a successful `EnsureInitialized()`: a
-    skip that, once set, lasts for the rest of the input leaves exactly the fault paths unfuzzed.
+22. **The model changes state on its own, as the datasheet says the chip does.** A model that changes a register only
+    when the driver writes it cannot catch rules 12, 12a or 12b. It offers a power-on reset or brown-out mid session
+    (registers back to reset values, the datasheet's reset flags set), fault shutdowns and the bits they clear, faults
+    the chip clears by itself, a dropped or miscounted write, and a clock that advances with every frame (so watchdogs
+    and timeouts are real). Where the datasheet is ambiguous (for example whether a write's reply shows the register
+    before or after the write), the model offers both readings and the safety tests run under each. Every timing the
+    datasheet leaves open gets its own knob: each status flag updates on its own delay, not tied to another one (a mode
+    shown at once, its "valid" flag later), and a low-power mode the datasheet does not say accepts writes is modelled
+    dropping them; a check read once is polled to its deadline before it counts as a refusal. A fuzz target asserts the
+    safety rules too (no switch-on while a pair is in doubt, no write after a reset is seen); when a fix changes what a
+    call may send, replace its invariant with the weaker true one, never delete it. Skip an invariant only for the call
+    whose own fault the driver cannot see (a miscount armed for that call, a dropped write, a deaf line), and check it
+    again after a successful `EnsureInitialized()`: a skip that, once set, lasts for the rest of the input leaves
+    exactly the fault paths unfuzzed.
 23. **An independent review before the first release.** Someone who did not write the driver or its model checks
     both against the datasheet (the `safety-reviewer` agent): a model written by the same author shares the
     author's assumptions, and green tests cannot show what both got wrong.
