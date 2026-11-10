@@ -75,7 +75,10 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     channels at once (a mask, a bank write) still applies every switch-off when it refuses a switch-on, and an off
     request in any mode the driver knows (a bridge, a pair) is never an invalid argument. Prefer the simplest
     conservative rule that can be proven (for example "an unknown register back at its power-up value is a reset")
-    over logic that tries to explain an uncertain state away.
+    over logic that tries to explain an uncertain state away. A channel in doubt counts as on: a "nothing changed,
+    send nothing" shortcut compares the request against every bit that may be on, not only the copy, and a refused
+    switch-on in a group whose mode is unknown leaves that group off (the one state that means the same in every
+    mode). A failed read-back of a write keeps the written channels in doubt; it never confirms the copy.
 12d. **A frame with no integrity check never decides a state change alone.** A critical-fault frame, a reset
     indication or a mode change without a CRC is confirmed by a second frame before the driver acts on it; acting
     means making the outputs safe (EN low, driver uninitialised).
@@ -123,7 +126,9 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     reply shows the register before or after the write), the model offers both readings and the safety tests run
     under each. A fuzz target asserts the safety rules too (no switch-on while a pair is in doubt, no write
     after a reset is seen); when a fix changes what a call may send, replace its invariant with the weaker true
-    one, never delete it.
+    one, never delete it. Skip an invariant only for the call whose own fault the driver cannot see (a miscount armed
+    for that call, a dropped write, a deaf line), and check it again after a successful `EnsureInitialized()`: a
+    skip that, once set, lasts for the rest of the input leaves exactly the fault paths unfuzzed.
 23. **An independent review before the first release.** Someone who did not write the driver or its model checks
     both against the datasheet (the `safety-reviewer` agent): a model written by the same author shares the
     author's assumptions, and green tests cannot show what both got wrong.
