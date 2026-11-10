@@ -91,7 +91,13 @@ if command -v cppcheck >/dev/null; then
   step cppcheck cpp
 else skip cppcheck "no cppcheck"; fi
 LIZARD="$(pytool lizard)"
-if [ -n "$LIZARD" ]; then step lizard "$LIZARD" -l cpp -m -w -C 15 -L 60 -a 6 inc src  # the high level (ADR-0020)
+if [ -n "$LIZARD" ]; then
+  # The same files ru-host-quality measures, .ipp included (given a directory, lizard skips extensions it does not
+  # know), at the high level's limits (handbook ADR-0020).
+  liz() { find inc src -type f \( -name '*.[ch]' -o -name '*.[ch]pp' -o -name '*.cc' -o -name '*.hh' -o -name '*.cxx' \
+    -o -name '*.hxx' -o -name '*.ipp' -o -name '*.tpp' -o -name '*.inl' \) -print0 | sort -z |
+    xargs -0 "$LIZARD" -l cpp -m -w -C 15 -L 60 -a 6; }
+  step lizard liz
 else skip lizard "no lizard"; fi
 
 # 5. Markdown, YAML, workflows.
