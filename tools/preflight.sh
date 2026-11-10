@@ -74,12 +74,14 @@ if [ -n "$FMT" ]; then
   step clang-format fmt
 else skip clang-format "no clang-format"; fi
 if [ "$quick" = 0 ] && [ -n "$TIDY" ] && [ -n "$first" ]; then
-  tidy() {  # every unit of the host build; fail on any finding in inc/ or src/
+  tidy() {  # every unit of the host build; fail on any finding in a file CI lints (ci-cpp-lint.yml `ignore:`)
     local units; units=$(python3 -c 'import json,sys; print("\n".join(sorted({e["file"] for e in json.load(open(sys.argv[1]))})))' \
-      "$first/compile_commands.json" | grep -E '/tests/')
+      "$first/compile_commands.json" | grep -E '/(tests|examples/host)/')
     # shellcheck disable=SC2086
     "$TIDY" -p "$first" --quiet --config-file=_config/.clang-tidy "${SYSROOT[@]}" $units 2>&1 |
-      tee "$work/tidy.out" | grep -E "^$root/(inc|src)/.*(warning|error):" && return 1 || return 0
+      sed -E 's#/inc/\.\./src/#/src/#g; s#/tests/\.\./(inc|src)/#/\1/#g' | tee "$work/tidy.out" |
+      grep -E "^$root/.*(warning|error):" |
+      grep -vE "^$root/(build|docs|_site|examples/esp32|tools/scaffold|tests/compile_fail)/" && return 1 || return 0
   }
   step clang-tidy tidy
 else skip clang-tidy "quick, or no clang-tidy"; fi
