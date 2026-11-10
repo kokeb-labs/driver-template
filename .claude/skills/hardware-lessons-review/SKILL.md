@@ -66,7 +66,10 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     The converse holds too: **a write whose reply failed may have taken effect.** Every cached value a guard trusts
     without I/O (a setpoint, an enable, a mode) then takes the more dangerous of the old and new values, or is
     marked unknown until a validated read or a successful write; a guard that depends on it refuses and sends
-    nothing.
+    nothing. **No uncertainty ever refuses a switch-off or a release to input**: an off request on a channel, a
+    pair or a bridge in doubt switches off everything it could be (both channels of a pair; never one bit of a
+    bridge, which can turn Brake into Reverse), and releasing a pin to input is the cheapest, most robust write the
+    driver has. Each uncertainty flag gets a test that switch-off still works with it set.
 12d. **A frame with no integrity check never decides a state change alone.** A critical-fault frame, a reset
     indication or a mode change without a CRC is confirmed by a second frame before the driver acts on it; acting
     means making the outputs safe (EN low, driver uninitialised).
