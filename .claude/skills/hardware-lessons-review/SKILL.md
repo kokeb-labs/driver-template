@@ -63,6 +63,10 @@ a finding. Work from the chip's datasheet (the `datasheet-conformance` skill), n
     mask; a clear-on-read register is read once, never retried; a failed read of one records "faults may be lost".
 12c. **A write the chip may have dropped is not Ok.** A frame-count or command error the chip reports later makes
     the bits of the last unverified write uncertain, and the next call returns an error until they are read back.
+    The converse holds too: **a write whose reply failed may have taken effect.** Every cached value a guard trusts
+    without I/O (a setpoint, an enable, a mode) then takes the more dangerous of the old and new values, or is
+    marked unknown until a validated read or a successful write; a guard that depends on it refuses and sends
+    nothing.
 12d. **A frame with no integrity check never decides a state change alone.** A critical-fault frame, a reset
     indication or a mode change without a CRC is confirmed by a second frame before the driver acts on it; acting
     means making the outputs safe (EN low, driver uninitialised).
