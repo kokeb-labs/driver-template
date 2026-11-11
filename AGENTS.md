@@ -130,6 +130,10 @@ command; push only when it ends with `0 failure(s)`, and push the fixes together
 - Open a pull request with the template filled in, including **Bench status**. When every check is green,
   including `CI gate / gate`, the change is merged with a squash merge; the PR title becomes the commit subject
   on `main`. `main` changes only through merged pull requests and keeps its history (no force-push).
+- A red check is read before it is re-run. Re-run only an infrastructure failure (a failed install, upload or
+  job set-up, a job that never got a runner, a full artifact quota, an API 502), at most twice; a re-run replays the
+  `kokeb-labs/ci-tools` version the run started with, so a fix released since needs a new push. The `release`
+  skill, section 5, has the list.
 
 ## Definition of done
 

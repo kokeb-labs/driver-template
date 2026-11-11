@@ -28,6 +28,11 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- `release` skill, section 5, and `docs/repo-setup.md`, sections 5 and 6 (with the `--org` flag the org tool
+  needs): the order from a green `main` to the first release candidate and a public repository, how to tell an
+  infrastructure failure (failed install or upload, a job that never got a runner, a full artifact quota, an API
+  502) from a real one, that a re-run replays the reusable workflows' version it started with, and that tags are not
+  moved to retry.
 - `tools/preflight.sh`: every check CI runs that a workstation can run, in one command, with a list of what it
   skipped; the `verify` skill and AGENTS.md ask for it before every push. Scaffolded repositories keep it as a
   template-managed file.
