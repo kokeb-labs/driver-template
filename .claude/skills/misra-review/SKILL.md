@@ -57,8 +57,8 @@ the final word, and it scans `tests/`, models, fuzz and consumers as well (RD-23
    mandatory guideline is never deviated. Propose a deviation in the report; never add one.
 7. **CI report** (`misra-report`: `misra-summary.md`, `misra-findings.csv`): violations fail the job; *to review*
    findings carry anomaly ids from the tool validation (known misfires in class-template code: 7.11.3, 7.0.2, 0.1.1,
-   7.0.5, 8.2.2, 18.4.1). Fix real ones, do not contort code for false ones; report a new misfire shape to ci-tools with a
-   minimal reproducer.
+   7.0.5, 8.2.2, 18.4.1). Fix real ones, do not contort code for false ones; report a new misfire shape to
+   ci-tools with a minimal reproducer.
 
 ## Report
 

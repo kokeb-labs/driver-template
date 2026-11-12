@@ -20,6 +20,9 @@ nav:
       - API reference: api-reference.md
       - Datasheet map: datasheet.md
       - Testing and CI: testing.md
+      - Knowledge index: knowledge-index.md
+      - Recurring defects: recurring-defects.md
+      - Mechanization policy: mechanization-policy.md
       - Figures: diagrams/index.md
       - Changelog: changelog.md
       - Repository setup: repo-setup.md
