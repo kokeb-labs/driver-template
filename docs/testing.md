@@ -130,6 +130,47 @@ its deviation on the line before it (`// codeql::misra_deviation_next_line(MD-CP
 of `inc/xmpl100.hpp`). Until the repository is public the job runs with `open_source_prerelease: true`, the
 declaration that the code is released under the licence in `LICENSE` and is to be published.
 
+### The MISRA scan, rehearsed locally
+
+The scan runs only in CI, and a first push has paid for the same few findings again and again. `tools/misra_lint.py`
+(standard-library Python, no build) catches those classes before the push; `tools/preflight.sh` runs it as the
+`misra-lint` step, which cannot be skipped, and its `--selftest` as `misra-lint-selftest`. It reads the C++ files
+(`*.hpp`, `*.cpp`, `*.ipp`) of `inc/`, `src/`, `tests/` and `examples/` and prints `file:line Rule N.N.N message`:
+
+| Rule | Reported | Severity |
+| --- | --- | --- |
+| 9.4.1 | an `if ... else if` chain that does not end in a plain `else` (at the last `else if`) | error |
+| 7.0.3 | arithmetic, comparison or conversion on a `char`: `c - '0'`, `c >= '0'`, `token[0] == '-'`, `static_cast<char>(byte)` | error |
+| 0.1.2 | a call statement that drops the result of a function the tree declares with a class return type | error (scalar result: warning) |
+| 13.3.3 | a function whose declaration and definition use different parameter names | error |
+| KB-CPP-012 | an include in `inc/` or `src/` outside the driver's library subset | error |
+| 8.0.1 | an operand of a logical and / or that is a comparison or bitwise expression and is not parenthesised | warning |
+
+**Severity.** An error fails the preflight; a warning is printed and counted in the summary line
+(`misra_lint: N file(s), E error(s), W warning(s)`) and does not. A finding is an error only when its rule is one the
+CI scan blocks on and it is in `inc/` or `src/`; every finding in `tests/` or `examples/` is a warning, as are 8.0.1
+everywhere and `--void-casts` (`(void)expr;`, which the scan accepts). `--strict` turns every warning into an error,
+for a reviewer who wants the whole list. This split is derived from CI evidence, not from the rule text: the scan
+reported 7.0.3, 9.4.1, 0.1.2 and 13.3.3 as `failure` and 8.0.1 as `warning`, only `failure` annotations fail the job,
+all findings listed were in `inc/` and `src/`, and drivers whose CI is green still carry `else if` chains in `tests/`.
+Revisit it if CodeQL is ever seen blocking on a finding in `tests/` or `examples/`, or on 8.0.1: move that rule or
+folder into the error set (`TRACED` and the severities in `tools/misra_lint.py`).
+
+The check is a token scan without types: it reports what it can decide and stays silent otherwise, so a clean run
+does not replace the scan, but an error is an error. Fix the code: compare characters through a table or
+`std::array<char, 1>` equality, convert a byte with `std::bit_cast<char>`, end the chain in `else`, give the
+declaration and the definition the same parameter names, use the returned value or discard it with
+`static_cast<void>`. A deliberate exception carries the deviation the scan reads
+(`// codeql::misra_deviation_next_line(MD-CPP-...)` on the line before) or `// misra-lint: ignore 8.0.1` on the
+line. `--strict-precedence` (`a < b + 1`) reports more 8.0.1.
+
+The include subset is read from `handbook_check.py` of a ci-tools checkout (`CI_TOOLS_DIR`, default `../ci-tools`),
+so the two never differ; without the checkout the built-in list of ADR-0017 applies. The preflight also runs that
+`handbook_check.py` itself (the `handbook-check` step; skipped, with the reason named, only when the checkout or
+PyYAML is missing), lints `tests/install_consumer/main.cpp` with clang-tidy like every other C++ file (it is built
+by its own CMake project, so it is not in the host build's compilation database), and checks the first-push gitlink:
+after `git add -A`, `examples/esp32/scripts` must be a gitlink (mode 160000).
+
 ## Documentation snippets
 
 Every C++ block on this site is included from [`tests/docs/`](../tests/docs/my_port.hpp), which the host build

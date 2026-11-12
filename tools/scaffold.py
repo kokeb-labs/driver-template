@@ -119,7 +119,8 @@ TEMPLATE_ONLY = [
 TEMPLATE_RECORD = ".kokeb/template.yml"
 MANAGED_PREFIXES = (".github/", "_config/", ".claude/skills/", ".claude/agents/", "cmake/")
 MANAGED_FILES = {"CLAUDE.md", "tests/check_doxygen.cmake", "tests/check_install.cmake",
-                 "tests/check_version_copy.cmake", "tools/check_standalone.py", "tools/preflight.sh"}
+                 "tests/check_version_copy.cmake", "tools/check_standalone.py", "tools/misra_lint.py",
+                 "tools/preflight.sh"}
 # Inside those folders but the repository's own from the first commit.
 UNMANAGED_RE = re.compile(r"_config/Kconfig|cmake/[a-z0-9_]+_build_settings\.cmake")
 # The arguments the record keeps, in order; each is a scaffold option of the same name.
@@ -1223,6 +1224,7 @@ def check_output(out: Path, a: argparse.Namespace) -> list[str]:
     if f"github.com/{a.org}/{a.repo}" not in (out / "README.md").read_text():
         bad.append(f"README.md: no link to {a.org}/{a.repo}")
     bad += standalone_problems(out, a.repo)
+    bad += misra_lint_problems(out)
     # Markdown the description, the datasheet link or the names made too long (markdownlint MD013).
     bad += md_long_lines(out)
     # The record names the template commit the copy was made from: this checkout's HEAD.
@@ -1242,6 +1244,16 @@ def standalone_problems(root: Path, repo: str) -> list[str]:
                           capture_output=True, text=True, check=False)
     return [] if done.returncode == 0 else [f"stand-alone check: {line}" for line in done.stdout.splitlines()
                                             if line.strip() and not line.startswith("stand-alone check:")]
+
+
+def misra_lint_problems(root: Path) -> list[str]:
+    """tools/misra_lint.py over the scaffolded tree: the defect classes of the MISRA scan must not be in the generated code."""
+    script = root / "tools/misra_lint.py"
+    if not script.is_file():
+        return ["tools/misra_lint.py: missing"]
+    done = subprocess.run([sys.executable, str(script), "--root", str(root), "--quiet"],
+                          capture_output=True, text=True, check=False)
+    return [] if done.returncode == 0 else [f"misra_lint: {line}" for line in done.stdout.splitlines() if line.strip()]
 
 
 def record_problems() -> list[str]:
@@ -1379,6 +1391,12 @@ def selftest(only: str | None) -> int:
         print("the template's include guards are wrong:", *bad, sep="\n  ")
         return 1
     if subprocess.run([sys.executable, str(ROOT / "tools/check_standalone.py"), "--selftest"], check=False).returncode:
+        return 1
+    if subprocess.run([sys.executable, str(ROOT / "tools/misra_lint.py"), "--selftest"], check=False).returncode:
+        return 1
+    bad = misra_lint_problems(ROOT)
+    if bad:
+        print("the template breaks its own MISRA lint:", *bad, sep="\n  ")
         return 1
     bad = standalone_problems(ROOT, TEMPLATE_REPO)
     if bad:
