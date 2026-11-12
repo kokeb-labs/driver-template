@@ -17,8 +17,8 @@ found no blocker. Order matters: each step is cheaper than the one after it.
    push around it. Set `FUZZ_SECONDS` higher for a final run (CI fuzzes 60 s to 10 min per target).
 2. The checks CI has and the container does not: the MISRA scan (CodeQL) and the ESP32 builds. Cover them by hand:
    the preflight's `misra-lint` step has already failed on the patterns that reached CI on earlier drivers (9.4.1,
-   8.0.1, 7.0.3, 0.1.2, KB-CPP-012); run the `misra-review` skill for the rest (step 7 lists them) and read
-   `examples/esp32` against the pinned ESP-IDF version in `.github/workflows`.
+   7.0.3, 0.1.2, 13.3.3, KB-CPP-012; 8.0.1 is a warning, read the list); run the `misra-review` skill for the
+   rest (step 7 lists them) and read `examples/esp32` against the pinned ESP-IDF version in `.github/workflows`.
 3. The preflight's `handbook-check` (ci-tools checkout, `CI_TOOLS_DIR`) and `gitlink` steps passed, not skipped
    for a reason you can fix: `git add -A` leaves `examples/esp32/scripts` a gitlink (mode 160000).
    `python3 tools/scaffold.py --check-drift .` reports nothing, and `python3 tools/check_standalone.py` passes: no

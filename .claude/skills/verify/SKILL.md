@@ -35,10 +35,13 @@ below say what each check does and how to run it alone.
    a test project, another driver repository), a dated history line, and a copyright holder other than
    `The <repo> authors`. Rewrite the sentence as this chip's behaviour with its datasheet section; a step still
    to check on hardware stays a bench procedure without a date.
-   The MISRA lint, `python3 tools/misra_lint.py` (step `misra-lint`, never skipped), prints `file:line Rule N.N.N
-   message` for the defect classes the CI scan reported on earlier drivers: an `if ... else if` chain without a final
-   `else` (9.4.1), unparenthesised comparison operands of `&&` and `||` (8.0.1), arithmetic or comparison on a `char`
-   (7.0.3), a dropped return value (0.1.2) and an include outside the driver's library subset (KB-CPP-012).
+   The MISRA lint, `python3 tools/misra_lint.py` (step `misra-lint`, never skipped), prints `file:line error|warning
+   Rule N.N.N message` for the defect classes the CI scan reported on earlier drivers: an `if ... else if` chain
+   without a final `else` (9.4.1), unparenthesised comparison operands of `&&` and `||` (8.0.1), arithmetic or
+   comparison on a `char` (7.0.3), a dropped class-typed return value (0.1.2), differing parameter names of a
+   declaration and its definition (13.3.3) and an include outside the driver's library subset
+   (KB-CPP-012). Errors (in `inc/` and `src/`) fail the step; warnings (8.0.1, anything in `tests/` and
+   `examples/`) are printed: fix them in what you touch; `--strict` fails on them too.
    `handbook_check.py` of ci-tools runs as step `handbook-check` (`CI_TOOLS_DIR`; the only skip is a missing checkout
    or PyYAML, named in the last line), and step `gitlink` checks that `git add -A` leaves `examples/esp32/scripts` a
    gitlink (mode 160000). See `docs/testing.md`, "The MISRA scan, rehearsed locally".

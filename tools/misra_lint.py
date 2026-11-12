@@ -9,7 +9,9 @@ is written to avoid false positives: when a construct cannot be decided without 
     python3 tools/misra_lint.py FILE...            # just these files
     python3 tools/misra_lint.py --selftest         # check the checker on small examples
 
-Output, one line per finding: `file:line Rule N.N.N message`. Exit status 1 when there is a finding.
+Output, one line per finding: `file:line error|warning Rule N.N.N message`, then a summary line. Exit status 1 when
+there is an error. ERROR: 7.0.3, 9.4.1, 0.1.2 (class result), 13.3.3 and KB-CPP-012 in inc/ and src/. WARNING: 8.0.1
+anywhere, every finding in tests/ and examples/, 0.1.2 on a scalar result, --void-casts. --strict: warnings fail too.
 
 Rules (the number is the MISRA C++:2023 guideline, as the scan reports it):
   9.4.1   an `if ... else if` chain does not end in a plain `else` (reported at the last `else if`)
@@ -17,8 +19,9 @@ Rules (the number is the MISRA C++:2023 guideline, as the scan reports it):
           a comparison with an unparenthesised arithmetic, shift or bitwise operand
   7.0.3   arithmetic, comparison or conversion on a `char` value: `c - '0'`, `c >= '0'`, `token[0] == '-'`,
           `static_cast<char>(byte)`, `static_cast<uint8_t>(c)`
-  0.1.2   `(void)expr;` (use `static_cast<void>`), and a call statement that discards the result of a function
-          the scanned tree declares with a non-void return type
+  0.1.2   a call statement that discards the result of a function the scanned tree declares with a class return
+          type (a scalar result is a warning); `(void)expr;` with --void-casts (warning: use `static_cast<void>`)
+  13.3.3  the parameter names of a function's declarations and definition differ
   KB-CPP-012  an include in inc/ or src/ outside the driver's library subset (handbook ADR-0017)
 
 A deliberate exception: `// codeql::misra_deviation_next_line(MD-...)` on the line before (as the scan reads it), or
@@ -37,9 +40,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SCAN_DIRS = ("inc", "src", "tests", "examples")
 SUFFIXES = {".hpp", ".cpp", ".ipp"}
-# The MISRA scan reports findings in inc/ and src/ only (the first CI runs of earlier drivers listed none in tests/ or
-# examples/, which hold many of the same patterns), so 8.0.1, 7.0.3 and 0.1.2 are applied there by default
-# (--all-rules: everywhere); 9.4.1 and the include subset are applied to every scanned file.
+# Severity follows what CI blocks on. The scan's `failure` annotations block (7.0.3, 9.4.1, 0.1.2, 13.3.3 in the
+# reports of earlier drivers) and `warning` ones (8.0.1) do not; the green mains of earlier drivers also carry such
+# findings in tests/ and examples/. So a finding is an ERROR only for a blocking rule in inc/ or src/; every other
+# finding is a WARNING (printed, not failing). --strict makes all of them errors.
 TRACED = ("inc/", "src/")
 SKIP_PARTS = {"scripts", "build", "_site", "site", "node_modules", ".git", "third_party"}  # examples/esp32/scripts is a submodule
 
@@ -315,9 +319,9 @@ class Unit:
 # ----------------------------------------------------------------------------------------------------------------
 class Findings:
     def __init__(self) -> None:
-        self.items: list[tuple[str, int, str, str]] = []
+        self.items: list[tuple[str, int, str, str, str]] = []
 
-    def add(self, u: Unit, line: int, rule: str, msg: str) -> None:
+    def add(self, u: Unit, line: int, rule: str, msg: str, sev: str = "error") -> None:
         for ln in (line, line - 1):
             c = u.comments.get(ln, "")
             if ln == line - 1 and "codeql::misra_deviation_next_line(" in c:
@@ -325,7 +329,7 @@ class Findings:
             m = re.search(r"misra-lint:\s*ignore\s+([\w.\-]+)", c)
             if m and m.group(1) in (rule, rule.replace("Rule ", "")):
                 return
-        self.items.append((u.path, line, rule, msg))
+        self.items.append((u.path, line, rule, sev, msg))
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -453,7 +457,7 @@ def flag_pairs(u: Unit, seq: list[tuple[int, str]], out: Findings) -> None:
         child, parent = (ia, b) if la > lb else (ib, a)
         # `a == b == c` style chains of the same level and `a < b == c` are reported too: different operators
         out.add(u, u.t[child].line, "Rule 8.0.1",
-                f"operator '{u.t[child].text}' is an unparenthesised operand of '{parent}'; add parentheses")
+                f"operator '{u.t[child].text}' is an unparenthesised operand of '{parent}'; add parentheses", "warning")
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -635,7 +639,22 @@ def check_7_0_3(u: Unit, out: Findings) -> None:
 BOUNDARY = {";", "{", "}"}
 
 
-def declared_functions(u: Unit) -> dict[str, set[str]]:
+SCALAR_RET = re.compile(r"u?int(?:8|16|32|64)_t|size_t|ptrdiff_t|bool|char|int|unsigned|signed|long|short|float|double|std|::|const")
+
+
+def enclosing_class(u: Unit, idx: int) -> str | None:
+    g = u.parent[idx]
+    if g < 0 or u.t[g].text != "{":
+        return None
+    for j in range(g - 1, max(g - 60, -1), -1):
+        if u.t[j].text in (";", "}", "{"):
+            return None
+        if u.t[j].text in ("class", "struct") and j + 1 < len(u.t):
+            return u.t[j + 1].text
+    return None
+
+
+def declared_functions(u: Unit, sink: list | None = None) -> dict[str, set[str]]:
     """name -> {'void', 'value'} for every function declaration or definition token-pattern found."""
     t, n = u.t, len(u.t)
     found: dict[str, set[str]] = {}
@@ -658,6 +677,7 @@ def declared_functions(u: Unit) -> dict[str, set[str]]:
             continue
         # walk back over `Class<..>::` qualifiers, then to the statement boundary
         p = k - 2
+        qual = None
         while p >= 1 and t[p].text == "::":
             p -= 1
             if t[p].text in (">", ">>") and p in u.tmpl_close:
@@ -665,6 +685,7 @@ def declared_functions(u: Unit) -> dict[str, set[str]]:
                 if o is None:
                     break
                 p = o - 1
+            qual = qual or t[p].text
             p -= 1
         q = p
         while q >= 0 and t[q].text not in BOUNDARY and not (t[q].text == ":" and q > 0 and t[q - 1].kind == "id"
@@ -699,7 +720,11 @@ def declared_functions(u: Unit) -> dict[str, set[str]]:
         if cleaned[0] in STMT_KW or t[k - 1].text == "operator":
             continue
         ret = trailing if (cleaned == ["auto"] and trailing is not None) else cleaned
-        found.setdefault(t[k - 1].text, set()).add("void" if ret == ["void"] else "ref" if ret[-1] == "&" else "value")
+        kind = "void" if ret == ["void"] else "ref" if ret[-1] == "&" else \
+            "scalar" if all(SCALAR_RET.fullmatch(w) for w in ret) else "class"
+        found.setdefault(t[k - 1].text, set()).add(kind)
+        if sink is not None:
+            sink.append((t[k - 1].text, qual or enclosing_class(u, k - 1), k))
     return found
 
 
@@ -709,7 +734,8 @@ def check_0_1_2(units: list[Unit], out: Findings, void_casts: bool = False) -> N
     for u in units:
         for nm, kinds in declared_functions(u).items():
             names.setdefault(nm, set()).update(kinds)
-    value_only = {nm for nm, kinds in names.items() if kinds == {"value"}}
+    value_only = {nm for nm, kinds in names.items() if kinds and kinds <= {"class", "scalar"}}
+    class_only = {nm for nm, kinds in names.items() if kinds == {"class"}}
     for u in units:
         t, n = u.t, len(u.t)
         for i, x in enumerate(t):
@@ -724,7 +750,8 @@ def check_0_1_2(units: list[Unit], out: Findings, void_casts: bool = False) -> N
                     continue
                 if before is not None and before.text in (">", "operator") and before.text == "operator":
                     continue
-                out.add(u, x.line, "Rule 0.1.2", "C-style cast to void; discard with static_cast<void>(...)")
+                out.add(u, x.line, "Rule 0.1.2", "C-style cast to void; discard with static_cast<void>(...)",
+                        "warning")
             # a call statement whose result is dropped
             if i == 0 or t[i - 1].text in BOUNDARY or t[i - 1].text == "else" or t[i - 1].text == "do" \
                     or (t[i - 1].text == ")" and (t[i - 1] and t[i - 1].text == ")")
@@ -734,7 +761,73 @@ def check_0_1_2(units: list[Unit], out: Findings, void_casts: bool = False) -> N
                     name = _discarded_call(u, i)
                     if name and name in value_only and not in_requires_body(u, i):
                         out.add(u, x.line, "Rule 0.1.2",
-                                f"the value returned by '{name}' is discarded; use it, or static_cast<void>(...)")
+                                f"the value returned by '{name}' is discarded; use it, or static_cast<void>(...)",
+                                "error" if name in class_only else "warning")
+
+
+_NOT_PARAM_NAME = {"const", "volatile", "unsigned", "signed", "long", "short", "struct", "class", "enum", "typename",
+                   "int", "char", "bool", "float", "double", "void", "auto"}
+
+
+def parse_params(u: Unit, k: int) -> list[tuple[str | None, str]]:
+    """(name or None, type text) of each parameter of the function whose `(` is at k."""
+    t, c = u.t, u.match[k]
+    items: list[list[Tok]] = []
+    cur: list[Tok] = []
+    j = k + 1
+    while j < c:
+        if t[j].text in ("(", "[", "{") and j in u.match:
+            cur.extend(t[j:u.match[j] + 1])
+            j = u.match[j] + 1
+            continue
+        if j in u.tmpl:
+            cur.extend(t[j:u.tmpl[j] + 1])
+            j = u.tmpl[j] + 1
+            continue
+        if t[j].text == ",":
+            items.append(cur)
+            cur = []
+        else:
+            cur.append(t[j])
+        j += 1
+    if cur:
+        items.append(cur)
+    out: list[tuple[str | None, str]] = []
+    for toks in items:
+        for e, x in enumerate(toks):
+            if x.text == "=":
+                toks = toks[:e]
+                break
+        name = None
+        if len(toks) >= 2 and toks[-1].kind == "id" and toks[-1].text not in _NOT_PARAM_NAME \
+                and toks[-2].text not in ("::", "const", "volatile", "unsigned", "signed", "long", "short", "struct",
+                                          "class", "enum", "typename", "<", ","):
+            name = toks[-1].text
+            toks = toks[:-1]
+        out.append((name, " ".join(x.text for x in toks)))
+    return out
+
+
+def check_13_3_3(units: list[Unit], out: Findings) -> None:
+    groups: dict[tuple, list[tuple[Unit, int, list[str | None]]]] = {}
+    for u in units:
+        sink: list = []
+        declared_functions(u, sink)
+        for name, cls, k in sink:
+            params = parse_params(u, k)
+            # classes of tests and examples are local to their file; the driver's header and implementation pair up
+            key = (cls, name, tuple(ty for _, ty in params), "" if u.path.startswith(TRACED) else u.path)
+            groups.setdefault(key, []).append((u, k, [nm for nm, _ in params]))
+    for (cls, name, _, _), decls in groups.items():
+        if len(decls) < 2:
+            continue
+        mismatch = any(len({names[i] for _, _, names in decls if names[i] is not None}) > 1
+                       for i in range(len(decls[0][2])))
+        if mismatch:
+            for u, k, names in decls:
+                out.add(u, u.t[k - 1].line, "Rule 13.3.3",
+                        f"the parameter names of '{name}' ({', '.join(n or '_' for n in names)}) differ from its "
+                        "other declaration")
 
 
 def in_requires_body(u: Unit, i: int) -> bool:
@@ -852,35 +945,47 @@ def collect(root: Path, files: list[str]) -> list[str]:
     return found
 
 
-def lint_texts(sources: dict[str, str], allowed: set[str], void_casts: bool = False, all_rules: bool = False) -> list[tuple[str, int, str, str]]:
+def lint_texts(sources: dict[str, str], allowed: set[str], void_casts: bool = False,
+               strict: bool = False) -> list[tuple[str, int, str, str, str]]:
+    """Findings as (path, line, rule, severity, message). A finding blocks (error) when the CI scan blocks on its
+    rule and it is in inc/ or src/; everything else is a warning. `strict` makes every finding an error."""
     units = [Unit(p, s) for p, s in sources.items()]
     out = Findings()
     for u in units:
         check_9_4_1(u, out)
         check_includes(u, out, allowed)
-        if all_rules or u.path.startswith(TRACED):
-            check_8_0_1(u, out)
-            check_7_0_3(u, out)
-    check_0_1_2([u for u in units if all_rules or u.path.startswith(TRACED)], out, void_casts)
-    best: dict[tuple[str, int, str], tuple[str, int, str, str]] = {}
-    for f in out.items:  # one finding per file, line and rule, as the scan reports them
-        best.setdefault((f[0], f[1], f[2]), f)
+        check_8_0_1(u, out)
+        check_7_0_3(u, out)
+    check_0_1_2(units, out, void_casts)
+    check_13_3_3(units, out)
+    best: dict[tuple[str, int, str], tuple[str, int, str, str, str]] = {}
+    for path, line, rule, sev, msg in out.items:  # one finding per file, line and rule, as the scan reports them
+        if strict:
+            sev = "error"
+        elif not path.startswith(TRACED):
+            sev = "warning"
+        key = (path, line, rule)
+        if key not in best or (sev == "error" and best[key][3] != "error"):
+            best[key] = (path, line, rule, sev, msg)
     return sorted(best.values(), key=lambda f: (f[0], f[1], f[2]))
 
 
-def run(root: Path, files: list[str], ci_tools: Path | None, quiet: bool, void_casts: bool = False, all_rules: bool = False) -> int:
+def run(root: Path, files: list[str], ci_tools: Path | None, quiet: bool, void_casts: bool = False,
+        strict: bool = False) -> int:
     rels = collect(root, files)
     sources = {}
     for r in rels:
         p = root / r
         sources[r] = p.read_text(encoding="utf-8", errors="replace")
     allowed, where = load_driver_headers(ci_tools)
-    found = lint_texts(sources, allowed, void_casts, all_rules)
-    for path, line, rule, msg in found:
-        print(f"{path}:{line} {rule} {msg}")
-    if not quiet:
-        print(f"misra_lint: {len(rels)} file(s), {len(found)} finding(s); include subset from {where}")
-    return 1 if found else 0
+    found = lint_texts(sources, allowed, void_casts, strict)
+    for path, line, rule, sev, msg in found:
+        print(f"{path}:{line} {sev} {rule} {msg}")
+    errors = sum(1 for f in found if f[3] == "error")
+    if not quiet or found:
+        print(f"misra_lint: {len(rels)} file(s), {errors} error(s), {len(found) - errors} warning(s); "
+              f"include subset from {where}")
+    return 1 if errors else 0
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -896,7 +1001,7 @@ int f(int x) {
   }
   return 0;
 }
-""", [(4, "Rule 9.4.1")]),
+""", [(4, "Rule 9.4.1", "error")]),
     ("else-if with else", "inc/a.hpp", """\
 int f(int x) {
   if (x == 1) {
@@ -926,14 +1031,14 @@ void h(int x) {
   if (x) l(1);
   else l(2);
 }
-""", [(5, "Rule 9.4.1")]),
+""", [(5, "Rule 9.4.1", "error")]),
     ("else-if chain with a braceless last", "tests/a.cpp", """\
 void h(int x, int& y) {
   if (x == 1) y = 1;
   else if (x == 2) y = 2;
   else if (x == 3) y = 3;
 }
-""", [(4, "Rule 9.4.1")]),
+""", [(4, "Rule 9.4.1", "warning")]),
     ("and/or with comparisons", "inc/b.hpp", """\
 constexpr bool f(int a, int b) {
   return a == 1 && b == 2;
@@ -942,7 +1047,7 @@ static_assert(f(1, 2) == true && f(2, 2) == false);
 constexpr bool g(unsigned a, unsigned b) {
   return (a >= 4U) && (a < b + 8U) || (a & 3U) == 0U;
 }
-""", [(2, "Rule 8.0.1"), (4, "Rule 8.0.1"), (6, "Rule 8.0.1")]),
+""", [(2, "Rule 8.0.1", "warning"), (4, "Rule 8.0.1", "warning"), (6, "Rule 8.0.1", "warning")]),
     ("parenthesised and templates", "inc/b.hpp", """\
 template <typename T>
   requires(std::is_same_v<T, int> || std::is_same_v<T, long>)
@@ -971,7 +1076,8 @@ constexpr char Next(std::span<const char> token) {
   }
   return static_cast<char>(b);
 }
-""", [(2, "Rule 7.0.3"), (3, "Rule 7.0.3"), (8, "Rule 7.0.3"), (9, "Rule 7.0.3"), (10, "Rule 7.0.3")]),
+""", [(2, "Rule 7.0.3", "error"), (3, "Rule 7.0.3", "error"), (8, "Rule 7.0.3", "error"),
+                            (9, "Rule 7.0.3", "error"), (10, "Rule 7.0.3", "error")]),
     ("char done without numbers", "inc/c.hpp", """\
 constexpr char kA = 'a';
 constexpr std::array<char, 2> kTable{'0', '1'};
@@ -1006,13 +1112,13 @@ void Use(Foo& f, int tx) {
   const auto s = f.Fail(3);
   if (s.ended) f.Read();
 }
-""", [(14, "Rule 0.1.2"), (15, "Rule 0.1.2"), (19, "Rule 0.1.2")]),
-    ("esp32 example is not traced", "examples/esp32/main/x.cpp", """\
+""", [(14, "Rule 0.1.2", "warning"), (15, "Rule 0.1.2", "error"), (19, "Rule 0.1.2", "warning")]),
+    ("examples are warnings only", "examples/esp32/main/x.cpp", """\
 bool f(int a, int b) {
   (void)a;
   return a == 1 || b != 2;
 }
-""", []),
+""", [(2, "Rule 0.1.2", "warning"), (3, "Rule 8.0.1", "warning")]),
     ("void parameter list is no cast", "inc/e.hpp", """\
 int f(void) noexcept;
 int g(void);
@@ -1021,7 +1127,7 @@ int g(void);
 #include <cstdint>
 #include <string>
 #include <cstring>
-""", [(2, "KB-CPP-012"), (3, "KB-CPP-012")]),
+""", [(2, "KB-CPP-012", "error"), (3, "KB-CPP-012", "error")]),
     ("deviation and ignore comments", "inc/g.hpp", """\
 constexpr bool f(int a, int b) {
   // codeql::misra_deviation_next_line(MD-CPP-001)
@@ -1031,6 +1137,11 @@ constexpr bool g(int a, int b) {
   return a == 1 && b == 2; // misra-lint: ignore 8.0.1
 }
 """, []),
+    ("char arithmetic in tests is a warning", "tests/i.cpp", """\
+int Digit(char c) {
+  return c - '0';
+}
+""", [(2, "Rule 7.0.3", "warning")]),
     ("tests may include anything", "tests/h.cpp", """\
 #include <string>
 #include <vector>
@@ -1041,10 +1152,24 @@ constexpr bool g(int a, int b) {
 def selftest() -> int:
     bad = 0
     for name, path, src, want in CASES:
-        got = [(ln, rule) for _, ln, rule, _ in lint_texts({path: src}, set(FALLBACK_HEADERS), True)]
+        got = [(ln, rule, sev) for _, ln, rule, sev, _ in lint_texts({path: src}, set(FALLBACK_HEADERS), True)]
         if got != sorted(want):
             bad += 1
             print(f"selftest {name!r}: got {got}, expected {sorted(want)}")
+    # strict: every finding is an error
+    got = [sev for *_, sev, _ in lint_texts({"tests/i.cpp": CASES[-2][2]}, set(FALLBACK_HEADERS), False, True)]
+    if got != ["error"]:
+        bad += 1
+        print(f"selftest 'strict': got {got}, expected ['error']")
+    # 13.3.3 across a header and its implementation
+    header = "class Foo {\npublic:\n  int Check(int channel, bool fast) noexcept;\n  int Same(int a) noexcept;\n};\n"
+    impl = "int Foo::Check(int ch, bool fast) noexcept {\n  return ch;\n}\nint Foo::Same(int a) noexcept {\n  return a;\n}\n"
+    got = [(p, ln, rule, sev) for p, ln, rule, sev, _ in
+           lint_texts({"inc/foo.hpp": header, "src/foo.ipp": impl}, set(FALLBACK_HEADERS))]
+    want = [("inc/foo.hpp", 3, "Rule 13.3.3", "error"), ("src/foo.ipp", 1, "Rule 13.3.3", "error")]
+    if got != want:
+        bad += 1
+        print(f"selftest '13.3.3': got {got}, expected {want}")
     if bad:
         return 1
     print("misra_lint selftest passed")
@@ -1057,7 +1182,7 @@ def main() -> int:
     ap.add_argument("--root", default=str(ROOT))
     ap.add_argument("--ci-tools", default="", help="a ci-tools checkout: the include subset comes from its handbook_check.py")
     ap.add_argument("--quiet", action="store_true")
-    ap.add_argument("--all-rules", action="store_true", help="apply 8.0.1, 7.0.3 and 0.1.2 to tests/ and examples/ too")
+    ap.add_argument("--strict", action="store_true", help="warnings fail too (for reviewers)")
     ap.add_argument("--strict-precedence", action="store_true",
                     help="8.0.1: also arithmetic and shifts under comparison and bitwise operators (`a < b + 1`)")
     ap.add_argument("--void-casts", action="store_true",
@@ -1068,7 +1193,7 @@ def main() -> int:
     STRICT_PRECEDENCE = a.strict_precedence
     if a.selftest:
         return selftest()
-    return run(Path(a.root).resolve(), a.files, Path(a.ci_tools) if a.ci_tools else None, a.quiet, a.void_casts, a.all_rules)
+    return run(Path(a.root).resolve(), a.files, Path(a.ci_tools) if a.ci_tools else None, a.quiet, a.void_casts, a.strict)
 
 
 if __name__ == "__main__":
