@@ -6,6 +6,12 @@ version bump (a minor bump before 1.0).
 
 ## [Unreleased]
 
+### Added
+
+- `tools/preflight.sh --container` runs the whole preflight and the Linux-only gates (coverage with MC/DC, ASan and
+  UBSan tests, libFuzzer) in `tools/ci-container`, an Ubuntu 24.04 image with the CI toolchain (GCC 14, clang 18,
+  cppcheck 2.13, lizard, gcovr, Arm GCC, the docs theme). Only the MISRA scan and the ESP32 builds stay with CI.
+
 ### Breaking
 
 - The exact port concepts match each hook's address with `detail::ExactHook<Port, Sig>` instead of probing it
