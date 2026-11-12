@@ -130,6 +130,37 @@ its deviation on the line before it (`// codeql::misra_deviation_next_line(MD-CP
 of `inc/xmpl100.hpp`). Until the repository is public the job runs with `open_source_prerelease: true`, the
 declaration that the code is released under the licence in `LICENSE` and is to be published.
 
+### The MISRA scan, rehearsed locally
+
+The scan runs only in CI, and a first push has paid for the same few findings again and again. `tools/misra_lint.py`
+(standard-library Python, no build) catches those classes before the push; `tools/preflight.sh` runs it as the
+`misra-lint` step, which cannot be skipped, and its `--selftest` as `misra-lint-selftest`. It reads the C++ files
+(`*.hpp`, `*.cpp`, `*.ipp`) of `inc/`, `src/`, `tests/` and `examples/` and prints `file:line Rule N.N.N message`:
+
+| Rule | Reported | Where |
+| --- | --- | --- |
+| 9.4.1 | an `if ... else if` chain that does not end in a plain `else` (at the last `else if`) | every file |
+| 8.0.1 | an operand of a logical and / or that is a comparison or bitwise expression and is not parenthesised | `inc/`, `src/` |
+| 7.0.3 | arithmetic, comparison or conversion on a `char`: `c - '0'`, `c >= '0'`, `token[0] == '-'`, `static_cast<char>(byte)` | `inc/`, `src/` |
+| 0.1.2 | a call statement that drops the value of a function the tree declares with a non-void return type | `inc/`, `src/` |
+| KB-CPP-012 | an include in `inc/` or `src/` outside the driver's library subset | `inc/`, `src/` |
+
+The scan lists nothing for `tests/` and `examples/` on the rules above, so they are applied to `inc/` and `src/`
+only (`--all-rules` applies them everywhere). It is a token scan without types: it reports what it can decide and
+stays silent otherwise, so a clean run does not replace the scan, but a finding is a finding. Fix the code: compare
+characters through a table or `std::array<char, 1>` equality, convert a byte with `std::bit_cast<char>`, end the
+chain in `else`, add the parentheses, use the returned value or discard it with `static_cast<void>`. A deliberate
+exception carries the deviation the scan reads (`// codeql::misra_deviation_next_line(MD-CPP-...)` on the line
+before) or `// misra-lint: ignore 8.0.1` on the line. Options: `--strict-precedence` (`a < b + 1`) and
+`--void-casts` (`(void)expr;`, which the scan accepts) report more.
+
+The include subset is read from `handbook_check.py` of a ci-tools checkout (`CI_TOOLS_DIR`, default `../ci-tools`),
+so the two never differ; without the checkout the built-in list of ADR-0017 applies. The preflight also runs that
+`handbook_check.py` itself (the `handbook-check` step; skipped, with the reason named, only when the checkout or
+PyYAML is missing), lints `tests/install_consumer/main.cpp` with clang-tidy like every other C++ file (it is built
+by its own CMake project, so it is not in the host build's compilation database), and checks the first-push gitlink:
+after `git add -A`, `examples/esp32/scripts` must be a gitlink (mode 160000).
+
 ## Documentation snippets
 
 Every C++ block on this site is included from [`tests/docs/`](../tests/docs/my_port.hpp), which the host build

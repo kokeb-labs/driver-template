@@ -7,7 +7,9 @@
 #
 # Tools are found on PATH, or named by these variables:
 #   CXX_GCC (g++), CXX_CLANG (clang++), CLANG_FORMAT, CLANG_TIDY (version 20, as CI), ARM_CXX (arm-none-eabi-g++),
-#   VENV (a Python venv with lizard, yamllint, kokeb-docs and mkdocs; see AGENTS.md "Docs checks").
+#   VENV (a Python venv with lizard, yamllint, kokeb-docs and mkdocs; see AGENTS.md "Docs checks"),
+#   CI_TOOLS_DIR (a kokeb-labs/ci-tools checkout, default ../ci-tools: handbook_check.py runs from it, and its include
+#   subset is the one tools/misra_lint.py enforces; handbook_check needs PyYAML, which the VENV has).
 # Left to CI: the ESP32 builds, the MISRA scan, and the coverage, sanitizer and fuzz gates.
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -75,6 +77,35 @@ handbook() {
 }
 step handbook-source-checks handbook
 step standalone python3 tools/check_standalone.py
+# The handbook's repository checks (handbook_check.py of ci-tools, as the repository-checks job runs them): the only
+# skip is a missing checkout or PyYAML, and it is named.
+CI_TOOLS="${CI_TOOLS_DIR:-$root/../ci-tools}"
+HB_PY=python3; [ -n "${VENV:-}" ] && [ -x "$VENV/bin/python3" ] && HB_PY="$VENV/bin/python3"
+if [ ! -f "$CI_TOOLS/tools/handbook_check/handbook_check.py" ]; then
+  skip handbook-check "no ci-tools checkout at $CI_TOOLS; set CI_TOOLS_DIR"
+elif ! "$HB_PY" -c 'import yaml' >/dev/null 2>&1; then
+  skip handbook-check "no PyYAML for $HB_PY; set VENV"
+else
+  hbcheck() { "$HB_PY" "$CI_TOOLS/tools/handbook_check/handbook_check.py" --repo . | tee "$work/hb.out" &&
+    grep -q '^0 error(s)' "$work/hb.out"; }
+  step handbook-check hbcheck
+fi
+# MISRA C++:2023 defect classes the CI scan reported on earlier drivers (tools/misra_lint.py): not skippable.
+step misra-lint-selftest python3 tools/misra_lint.py --selftest
+step misra-lint python3 tools/misra_lint.py --quiet --root . --ci-tools "$CI_TOOLS"
+# The first-push gitlink: after `git add -A`, examples/esp32/scripts is a gitlink (mode 160000), not a missing or
+# empty folder (checked on a scratch copy of the index, the working tree's index is left alone).
+gitlink() {
+  [ -d examples/esp32 ] || { echo "no examples/esp32: nothing to check"; return 0; }
+  local idx="$work/gitlink.index"
+  cp "$(git rev-parse --git-path index)" "$idx" 2>/dev/null || : >"$idx"
+  GIT_INDEX_FILE="$idx" git add -A >/dev/null 2>&1
+  if GIT_INDEX_FILE="$idx" git ls-files -s -- examples/esp32/scripts | grep -q '^160000 '; then return 0; fi
+  echo "examples/esp32/scripts is not a gitlink (mode 160000) after git add -A: the first commit would lack the ESP-IDF"
+  echo "scripts submodule. Run: git submodule add https://github.com/kokeb-labs/espidf-tools.git examples/esp32/scripts"
+  return 1
+}
+step gitlink gitlink
 
 # 4. Format, tidy, cppcheck, complexity.
 if [ -n "$FMT" ]; then
@@ -97,6 +128,13 @@ if [ "$quick" = 0 ] && [ -n "$TIDY" ] && [ -n "$first" ]; then
     local linked=0
     [ -e .clang-tidy ] || { ln -s _config/.clang-tidy .clang-tidy && linked=1; }
     "$TIDY" -p "$first" --quiet "${SYSROOT[@]}" "${units[@]}" >"$work/tidy.raw" 2>&1
+    # tests/install_consumer is built by its own CMake project (not in the compilation database) and CI lints it like
+    # every other C++ file: lint it here against the source tree's headers and the generated version header.
+    if [ -f tests/install_consumer/main.cpp ]; then
+      local gen; gen="$(find "$first" -maxdepth 2 -type d -name '*_generated' | head -1)"
+      "$TIDY" --quiet "${SYSROOT[@]}" "$root/tests/install_consumer/main.cpp" -- -std=c++20 -fno-exceptions -fno-rtti \
+        "-I$root/inc" ${gen:+"-I$gen"} >>"$work/tidy.raw" 2>&1
+    fi
     [ "$linked" = 0 ] || rm -f .clang-tidy
     sed -E 's#/inc/\.\./src/#/src/#g; s#/tests/\.\./(inc|src)/#/\1/#g' "$work/tidy.raw" >"$work/tidy.out"
     grep -E "^$root/.*(warning|error):" "$work/tidy.out" |

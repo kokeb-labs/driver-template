@@ -16,9 +16,12 @@ found no blocker. Order matters: each step is cheaper than the one after it.
    result: `0 failure(s)` and `0 gate failure(s)`. A skipped check is named in its last line: install the tool, do not
    push around it. Set `FUZZ_SECONDS` higher for a final run (CI fuzzes 60 s to 10 min per target).
 2. The checks CI has and the container does not: the MISRA scan (CodeQL) and the ESP32 builds. Cover them by hand:
-   run the `misra-review` skill (step 7 lists the patterns that failed on earlier drivers) and read
+   the preflight's `misra-lint` step has already failed on the patterns that reached CI on earlier drivers (9.4.1,
+   8.0.1, 7.0.3, 0.1.2, KB-CPP-012); run the `misra-review` skill for the rest (step 7 lists them) and read
    `examples/esp32` against the pinned ESP-IDF version in `.github/workflows`.
-3. `python3 tools/scaffold.py --check-drift .` reports nothing, and `python3 tools/check_standalone.py` passes: no
+3. The preflight's `handbook-check` (ci-tools checkout, `CI_TOOLS_DIR`) and `gitlink` steps passed, not skipped
+   for a reason you can fix: `git add -A` leaves `examples/esp32/scripts` a gitlink (mode 160000).
+   `python3 tools/scaffold.py --check-drift .` reports nothing, and `python3 tools/check_standalone.py` passes: no
    product, board, project or personal name anywhere, copyright "The driver-<chip> authors".
 4. `kokeb-docs hardware --check`, `figures`, `gen` and `check` leave no diff, and the strict docs build passes.
    The README shows the chip card, pinout, outline and block diagram (`docs/hardware.yml`).
