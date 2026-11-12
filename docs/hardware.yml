@@ -1,0 +1,122 @@
+---
+# The chip's hardware in one file: package, pins, the driver hook of each pin, the blocks inside and the reference
+# circuits. `kokeb-docs figures` draws the pinout, the package outline, the block diagram and the circuits from it,
+# `kokeb-docs gen` writes the chip card of the README and the tables of docs/hardware.md,
+# `kokeb-docs hardware --check` validates it and `kokeb-docs hardware --kicad-netlist OUT --circuit ID` exports a
+# circuit for a schematic or PCB tool. Schema: docs/chip-diagrams.md in kokeb-labs/ci-tools.
+#
+# PLACEHOLDER: the XMPL100 is a fictional SPI temperature sensor and so is its datasheet. Replace every value with
+# the real chip's, citing the datasheet section and printed page of each fact, and the pins, hooks, blocks and
+# circuit with the real chip's (this example is SPI; a part on another bus has other pins and hooks). The document
+# `ds` is the one in docs/datasheets.yml.
+#
+# Where the package facts come from in the datasheet:
+#   package.type, pins, sides   the pin configuration chapter (the top view of the package, the pin table)
+#   package.outline             the package outline drawing (chapter "Package", "Package outline" or "Mechanical
+#                               data"): the body length and width in millimetres, the height, the pitch. The outline
+#                               is the BODY, not the land pattern. length_mm is the body edge pin 1 lies along (drawn
+#                               as the left edge), width_mm the other. Leave out a number the datasheet does not give
+#                               (height_mm and pitch_mm are optional); cite a table with height_ref / pitch_ref
+#                               when a value is not on the drawing.
+#   package.variants            the ordering information chapter: one entry per other package the chip is sold in,
+#                               with the part-number suffix or code as `ordering`. Leave it out for a single package.
+#   supply                      the electrical characteristics: the supply range of each rail, as min and max.
+# Every figure and every row of the README's chip card is drawn from this file, so none of it is retyped.
+schema: 1
+chip: XMPL100
+
+refs:
+  pinout: {doc: ds, section: "3 Pin configuration", page: 3}
+  supply: {doc: ds, section: "5 Electrical characteristics", page: 5}
+  spi: {doc: ds, section: "6.2 SPI interface", page: 8}
+  alert: {doc: ds, section: "7.7 ALERT_HIGH and ALERT_LOW", page: 15}
+  reset: {doc: ds, section: "8.3 Hardware reset", page: 18}
+  blocks: {doc: ds, section: "2 Block diagram", page: 2}
+  app: {doc: ds, section: "9 Application information", page: 20}
+  outline: {doc: ds, section: "10.1 Package outline", page: 24}
+  order: {doc: ds, section: "11 Ordering information", page: 26}
+
+package:
+  type: SOIC-8
+  pins: 8
+  ref: pinout
+  # The body from the package outline drawing, in millimetres (the XMPL100's values are an example).
+  outline: {length_mm: 4.9, width_mm: 3.9, height_mm: 1.75, pitch_mm: 1.27, ref: outline}
+  # Other packages the chip is sold in, from the ordering information. Delete the list for a single package.
+  variants:
+    - {id: dfn, type: DFN-8, pins: 8, size: "3.0 x 3.0 x 0.8 mm", ordering: "XMPL100D", note: "exposed pad to GND",
+       ref: order}
+
+# The supply range of each rail (the README's chip card shows it).
+supply:
+  - {name: VDD, min_v: 1.8, max_v: 3.6, ref: supply}
+
+# The port hooks a pin can map to (the names the driver's port headers declare). Add `source: inc/<file>` and
+# `symbol: <name>` to a hook and the check fails when the symbol leaves that header.
+hooks:
+  - {id: transfer, call: "Transfer()", kind: spi}
+  - {id: reset, call: "GpioSet(CtrlPin::Reset)", kind: gpio-out}
+
+pins:
+  - {number: 1, name: CS_N, type: bus, domain: VDD, function: "SPI chip select, active low", hook: transfer,
+     ref: spi}
+  - {number: 2, name: SDO, type: bus, domain: VDD, function: "SPI data out (MISO); high impedance while CS_N is high",
+     hook: transfer, ref: spi}
+  - {number: 3, name: ALERT, type: open-drain, domain: VDD,
+     function: "Threshold alert, open drain; read STATUS when it fires", unused: Leave open, ref: alert}
+  - {number: 4, name: GND, type: ground, domain: GND, function: Ground, ref: pinout}
+  - {number: 5, name: SDI, type: bus, domain: VDD, function: "SPI data in (MOSI)", hook: transfer, ref: spi}
+  - {number: 6, name: SCLK, type: bus, domain: VDD, function: "SPI clock, up to 10 MHz", hook: transfer, ref: spi}
+  - {number: 7, name: RESET_N, type: digital-in, domain: VDD,
+     function: "Hardware reset, active low, internal 100 kΩ pull-up", hook: reset, unused: Leave open, ref: reset}
+  - {number: 8, name: VDD, type: power, domain: VDD, function: "Supply, 1.8 V to 3.6 V", ref: supply}
+
+block_diagram:
+  ref: blocks
+  blocks:
+    - {id: spi, label: SPI interface, detail: "mode 0 or 3, up to 10 MHz", at: [0, 0], tone: blue,
+       pins: [CS_N, SCLK, SDI, SDO]}
+    - {id: regs, label: Registers and CRC, detail: "CTRL, STATUS, TEMP, CRC-8", at: [1, 0]}
+    - {id: adc, label: Temperature ADC, detail: "16-bit, t_CONV", at: [2, 0], tone: teal}
+    - {id: alert, label: Alert comparator, detail: "ALERT_HIGH, ALERT_LOW", at: [1, 1], tone: amber,
+       pins: [ALERT], side: right}
+    - {id: por, label: Reset and power-on, detail: "POR, RESET_N, soft reset", at: [0, 1], tone: slate,
+       pins: [RESET_N, VDD, GND]}
+  links:
+    - {from: spi, to: regs, label: frames, both: true}
+    - {from: adc, to: regs, label: result}
+    - {from: regs, to: alert, label: thresholds}
+    - {from: por, to: regs, label: reset}
+
+circuits:
+  - id: typical
+    title: Typical application
+    description: >-
+      The XMPL100 on an MCU's SPI bus, with RESET_N on a GPIO the driver drives through GpioSet() and ALERT on an
+      interrupt input.
+    ref: app
+    parts:
+      - {id: U1, kind: chip}
+      - id: U2
+        kind: mcu
+        label: MCU
+        pins:
+          - {name: SCK, label: SPI SCK}
+          - {name: MOSI, label: SPI MOSI}
+          - {name: MISO, label: SPI MISO}
+          - {name: CS, label: GPIO / CS}
+          - {name: RST, label: GPIO}
+          - {name: IRQ, label: GPIO (IRQ)}
+          - VDD
+          - GND
+      - {id: C1, kind: capacitor, value: 100 nF, ref: supply}
+      - {id: R1, kind: resistor, value: 10 kΩ, ref: alert}
+    nets:
+      - {name: "+3V3", kind: supply, nodes: [U1.VDD, C1.1, R1.1, U2.VDD]}
+      - {name: GND, kind: ground, nodes: [U1.GND, C1.2, U2.GND]}
+      - {name: SCLK, nodes: [U1.SCLK, U2.SCK]}
+      - {name: SDI, nodes: [U1.SDI, U2.MOSI]}
+      - {name: SDO, nodes: [U1.SDO, U2.MISO]}
+      - {name: CS_N, nodes: [U1.CS_N, U2.CS]}
+      - {name: RESET_N, nodes: [U1.RESET_N, U2.RST]}
+      - {name: ALERT, nodes: [U1.ALERT, R1.2, U2.IRQ]}

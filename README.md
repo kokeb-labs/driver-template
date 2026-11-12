@@ -43,6 +43,52 @@ it a small class that moves bytes on your bus, and it does the rest.
 | **Status** | 0.1.0, not yet verified on hardware: host-tested against a register model of the chip |
 <!-- /scaffold:readme-glance -->
 
+<!-- figure: chip-pinout -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/chip-pinout.dark.svg">
+  <img src="docs/diagrams/chip-pinout.svg"
+    alt="Pinout of the XMPL100 in SOIC-8, top view: 8 pins, each with its name, its electrical type as a
+    colour and the driver hook that uses it.">
+</picture>
+<!-- /figure -->
+
+<!-- figure: chip-outline -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/chip-outline.dark.svg">
+  <img src="docs/diagrams/chip-outline.svg"
+    alt="Outline of the XMPL100 in SOIC-8 drawn to scale from above: body 4.9 x 3.9 x 1.75 mm, pitch 1.27 mm,
+    8 pins.">
+</picture>
+<!-- /figure -->
+
+<!-- figure: chip-blocks -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/chip-blocks.dark.svg">
+  <img src="docs/diagrams/chip-blocks.svg"
+    alt="Block diagram of the XMPL100: its function blocks, how they connect and which package pins reach
+    each block.">
+</picture>
+<!-- /figure -->
+
+<!-- generated: chip-card -->
+| | | Datasheet |
+| --- | --- | --- |
+| **Package** | SOIC-8 | 3, p. 3 |
+| **Pins** | 8 | 3, p. 3 |
+| **Body size** | 4.9 x 3.9 x 1.75 mm | 10.1, p. 24 |
+| **Pin pitch** | 1.27 mm | 10.1, p. 24 |
+| **Variants** | `dfn` (below) | 11, p. 26 |
+| **Supply VDD** | 1.8 V to 3.6 V | 5, p. 5 |
+
+Also sold as:
+
+| Variant | Package | Pins | Size | Ordering | Note | Datasheet |
+| --- | --- | --- | --- | --- | --- | --- |
+| `dfn` | DFN-8 | 8 | 3.0 x 3.0 x 0.8 mm | XMPL100D | exposed pad to GND | 11, p. 26 |
+
+From [`docs/hardware.yml`](docs/hardware.yml); pins, circuits and the block diagram: [Hardware](docs/hardware.md).
+<!-- /generated -->
+
 ## Datasheet
 
 <!-- generated: datasheet-card -->
