@@ -118,7 +118,8 @@ TEMPLATE_ONLY = [
 # else (code, tests, docs, README, CHANGELOG) is the repository's own.
 TEMPLATE_RECORD = ".kokeb/template.yml"
 MANAGED_PREFIXES = (".github/", "_config/", ".claude/skills/", ".claude/agents/", "cmake/")
-MANAGED_FILES = {"CLAUDE.md", "tests/check_doxygen.cmake", "tests/check_install.cmake",
+MANAGED_FILES = {"CLAUDE.md", "docs/knowledge-index.md", "docs/mechanization-policy.md", "docs/recurring-defects.md",
+                 "tests/check_doxygen.cmake", "tests/check_install.cmake",
                  "tests/check_version_copy.cmake", "tools/check_standalone.py", "tools/misra_lint.py",
                  "tools/preflight.sh"}
 # Inside those folders but the repository's own from the first commit.

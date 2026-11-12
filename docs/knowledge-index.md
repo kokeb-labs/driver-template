@@ -21,3 +21,7 @@ What to read or run, and when. Skills are in `.claude/skills/`, the agent in `.c
 
 Order for a new driver: build with `new-driver-from-template`, `datasheet-conformance` and `add-driver-feature`;
 host tests and `verify`; the gate (see the policy); `review-round` until the stop rule holds; `first-push`; `release`.
+
+These three pages and the skills are managed by the template: `scaffold.py --check-drift --fix` ships them to every
+driver, `_config/mkdocs.yml` keeps the pages out of the site navigation (`not_in_nav`), and the skills link to them
+by relative path, so the links resolve in the repository.

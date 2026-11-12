@@ -10,7 +10,8 @@ version bump (a minor bump before 1.0).
 
 - `docs/recurring-defects.md` (the catalogue of defects that recurred across drivers), `docs/mechanization-policy.md`
   (where each class is caught and when it moves up), `docs/knowledge-index.md`, and the `review-round` skill. The
-  review skills and the `safety-reviewer` agent are rewritten as checklists that cite the catalogue ids.
+  review skills and the `safety-reviewer` agent are rewritten as checklists that cite the catalogue ids. The three pages
+  are managed files (drift sync ships them to every driver) and sit outside the site navigation (`not_in_nav`).
 - The `first-push` skill: the rehearsal, the independent review rounds and the evidence a new driver needs before its
   first push.
 - `tools/preflight.sh --container` runs the whole preflight and the Linux-only gates (coverage with MC/DC, ASan and

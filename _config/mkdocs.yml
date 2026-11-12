@@ -17,6 +17,11 @@ site_description: >-
 repo_url: https://github.com/kokeb-labs/driver-template
 copyright: Copyright (c) 2026 The driver-template authors
 docs_dir: ../docs
+# Repository knowledge pages, managed by the template: read in the repository, linked from the skills, not in the site.
+not_in_nav: |
+  /knowledge-index.md
+  /mechanization-policy.md
+  /recurring-defects.md
 site_dir: ../site
 
 theme:
