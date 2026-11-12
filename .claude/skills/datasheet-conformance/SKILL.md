@@ -15,6 +15,13 @@ the PDF) and one topic per thing the driver takes from it (section, printed page
 made from the template starts with the fictional XMPL100 placeholder there: replace all of it. Then run
 `kokeb-docs gen`, which rebuilds the README card, the Datasheet map and the box on each page.
 
+`docs/hardware.yml` is the same for the chip's hardware: the package, the pins, the hooks, the blocks, the
+circuit, and the package facts the README's chip card and the outline figure are drawn from. Take
+`package.outline` (body length and width in millimetres, height, pitch) from the datasheet's package outline
+drawing and `package.variants` (the other packages, with their part-number suffixes) from its ordering
+information; give each its section and printed page, and leave a number out when the datasheet does not state it.
+`kokeb-docs hardware --check` validates the file; `kokeb-docs figures && kokeb-docs gen` redraw from it.
+
 Every number in the driver has a source. Work one subsystem at a time (reset, identification, one mode, one
 register block).
 

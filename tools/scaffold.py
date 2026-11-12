@@ -151,6 +151,7 @@ LIBRARY_REMOVE = [
     "docs/configuration.md",
     "docs/diagrams",
     "docs/hardware.md",
+    "docs/hardware.yml",
     "docs/installation.md",
     "docs/porting.md",
     "docs/troubleshooting.md",
