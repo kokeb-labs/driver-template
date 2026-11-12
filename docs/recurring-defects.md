@@ -280,8 +280,8 @@ Rule: a matrix row, test id or knob named in docs exists in code, and a row's te
 Seen: ads9324 (review1 J5, J6: 873 rows unproved, fuzz claims invariants it does not check), pf1550 (review2 F4: 47 rows
 cite symbols that do not exist; F5: knobs that do not exist; review1 M11), ws2812 (review2 n9: "each fix has a test"
 overstated). 3 drivers.
-Detection: `lint` (planned `claims-symbols`): every backticked identifier in `docs/datasheet.md`, the coverage matrix
-and `docs/ambiguities.md` resolves with grep in `inc/ src/ tests/`. `review`: row-level sample.
+Detection: `lint` (planned `claims-symbols`): every backticked identifier in the datasheet coverage page,
+the coverage matrix and `docs/ambiguities.md` resolves with grep in `inc/ src/ tests/`. `review`: row-level sample.
 
 ### RD-32 Docs style
 
