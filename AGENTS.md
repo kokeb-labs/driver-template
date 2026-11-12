@@ -166,6 +166,7 @@ In `.claude/skills/`:
 - `cpp20-profile`, `misra-review`, `hardware-lessons-review`: the reviews of the standards above.
 - `release`, `bump-pin`: a version release; a submodule or workflow pin update.
 - `new-driver-from-template`: turning a repository made from the template into a real driver.
+- `first-push`: the gate before a new driver's first push: container rehearsal, independent review, evidence.
 
 `.claude/agents/safety-reviewer.md` runs the review skills with `datasheet-conformance` and reports findings by
 severity for the author to act on.

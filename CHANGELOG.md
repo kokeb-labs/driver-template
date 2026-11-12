@@ -8,6 +8,8 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- The `first-push` skill: the rehearsal, the independent review rounds and the evidence a new driver needs before its
+  first push.
 - `tools/preflight.sh --container` runs the whole preflight and the Linux-only gates (coverage with MC/DC, ASan and
   UBSan tests, libFuzzer) in `tools/ci-container`, an Ubuntu 24.04 image with the CI toolchain (GCC 14, clang 18,
   cppcheck 2.13, lizard, gcovr, Arm GCC, the docs theme). Only the MISRA scan and the ESP32 builds stay with CI.
