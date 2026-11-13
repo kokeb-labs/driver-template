@@ -106,6 +106,11 @@ The tests build as ISO C++20 (`CMAKE_CXX_EXTENSIONS OFF`, `-pedantic-errors`) wi
 the compilers you have. The host example runs as the CTest `xmpl100_host_example`. ESP32 builds run in CI
 (`esp32-examples-build-ci.yml`); the host build covers a change locally.
 
+Test and fuzz code never passes a driver call and a read of the state it changes (`sent()`, a counter, a flag), or
+two reads of the fuzzer's input, as arguments or operands of the same expression: the evaluation order is unspecified
+and differs between GCC on x86-64 and Clang (RD-34). Compute the result into a local first.
+`tools/eval_order_check.py` enforces it in the preflight.
+
 ## Docs checks
 
 ```bash

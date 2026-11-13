@@ -120,8 +120,8 @@ TEMPLATE_RECORD = ".kokeb/template.yml"
 MANAGED_PREFIXES = (".github/", "_config/", ".claude/skills/", ".claude/agents/", "cmake/")
 MANAGED_FILES = {"CLAUDE.md", "docs/knowledge-index.md", "docs/mechanization-policy.md", "docs/recurring-defects.md",
                  "tests/check_doxygen.cmake", "tests/check_install.cmake",
-                 "tests/check_version_copy.cmake", "tools/check_standalone.py", "tools/misra_lint.py",
-                 "tools/preflight.sh"}
+                 "tests/check_version_copy.cmake", "tools/check_standalone.py", "tools/eval_order_check.py",
+                 "tools/misra_lint.py", "tools/preflight.sh"}
 # Inside those folders but the repository's own from the first commit.
 UNMANAGED_RE = re.compile(r"_config/Kconfig|cmake/[a-z0-9_]+_build_settings\.cmake")
 # The arguments the record keeps, in order; each is a scaffold option of the same name.
@@ -1226,6 +1226,7 @@ def check_output(out: Path, a: argparse.Namespace) -> list[str]:
         bad.append(f"README.md: no link to {a.org}/{a.repo}")
     bad += standalone_problems(out, a.repo)
     bad += misra_lint_problems(out)
+    bad += eval_order_problems(out)
     # Markdown the description, the datasheet link or the names made too long (markdownlint MD013).
     bad += md_long_lines(out)
     # The record names the template commit the copy was made from: this checkout's HEAD.
@@ -1255,6 +1256,16 @@ def misra_lint_problems(root: Path) -> list[str]:
     done = subprocess.run([sys.executable, str(script), "--root", str(root), "--quiet"],
                           capture_output=True, text=True, check=False)
     return [] if done.returncode == 0 else [f"misra_lint: {line}" for line in done.stdout.splitlines() if line.strip()]
+
+
+def eval_order_problems(root: Path) -> list[str]:
+    """tools/eval_order_check.py over the tree: no call takes an operation and a read of its state as arguments."""
+    script = root / "tools/eval_order_check.py"
+    if not script.is_file():
+        return ["tools/eval_order_check.py: missing"]
+    done = subprocess.run([sys.executable, "-I", str(script), "--root", str(root), "--quiet"],
+                          capture_output=True, text=True, check=False)
+    return [] if done.returncode == 0 else [f"eval_order_check: {line}" for line in done.stdout.splitlines() if line.strip()]
 
 
 def record_problems() -> list[str]:
@@ -1398,6 +1409,13 @@ def selftest(only: str | None) -> int:
     bad = misra_lint_problems(ROOT)
     if bad:
         print("the template breaks its own MISRA lint:", *bad, sep="\n  ")
+        return 1
+    if subprocess.run([sys.executable, "-I", str(ROOT / "tools/eval_order_check.py"), "--selftest"],
+                      check=False).returncode:
+        return 1
+    bad = eval_order_problems(ROOT)
+    if bad:
+        print("the template breaks the evaluation-order rule:", *bad, sep="\n  ")
         return 1
     bad = standalone_problems(ROOT, TEMPLATE_REPO)
     if bad:

@@ -164,6 +164,24 @@ declaration and the definition the same parameter names, use the returned value 
 (`// codeql::misra_deviation_next_line(MD-CPP-...)` on the line before) or `// misra-lint: ignore 8.0.1` on the
 line. `--strict-precedence` (`a < b + 1`) reports more 8.0.1.
 
+### Evaluation order in checks, rehearsed locally
+
+The arguments of a call are evaluated in an unspecified order. GCC on x86-64 reads them right to left; Clang and GCC
+on aarch64 read them left to right, so a call such as `Check(d.Write(v), was_up, sent())` reads `sent()` before the
+write on the x86-64 CI runner only: a "nothing was sent" promise passes vacuously, and a positive one aborts on a
+correct driver. No local rehearsal on Apple silicon or in the aarch64 container sees it. Compute the result first
+(`const auto r = d.Write(v); Check(r, was_up, sent());`), or pass the probe and read it inside the helper after the
+call. `tools/eval_order_check.py` (standard-library Python, run as `python3 -I`) reports a call whose arguments hold a
+driver operation (`d.Op(...)`) and, in another argument, a read of a probe (`sent()`, `Transfers()`, `pending()`,
+`++`), or whose arguments read the fuzzer's input twice (`in.Byte()`, `FuzzConfig(in)`: the same corpus file then
+decodes into different calls per compiler). `tools/preflight.sh` runs it over `tests/` and `examples/` as the
+`eval-order` step (its `--selftest` as `eval-order-selftest`); neither can be skipped. It prints
+`file:line: error eval-order: <call>` and exits 1 on a finding; `// eval-order: ignore` on the line of the call is
+the deliberate exception. It is a token scan without types: it reports what it can decide, and a clean run does not
+replace review. Where a fuzz target has a positive check on a counter, keep a one-edit mutant of the counter that
+must abort the corpus replay (see `tests/fuzz/CMakeLists.txt` of a driver that has one), so the check cannot become
+vacuous unseen.
+
 The include subset is read from `handbook_check.py` of a ci-tools checkout (`CI_TOOLS_DIR`, default `../ci-tools`),
 so the two never differ; without the checkout the built-in list of ADR-0017 applies. The preflight also runs that
 `handbook_check.py` itself (the `handbook-check` step; skipped, with the reason named, only when the checkout or
