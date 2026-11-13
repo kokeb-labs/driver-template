@@ -93,6 +93,10 @@ fi
 # MISRA C++:2023 defect classes the CI scan reported on earlier drivers (tools/misra_lint.py): not skippable.
 step misra-lint-selftest python3 tools/misra_lint.py --selftest
 step misra-lint python3 tools/misra_lint.py --quiet --root . --ci-tools "$CI_TOOLS"
+# Unspecified evaluation order in a test or fuzz check (RD-34): a call must not take a driver operation and a read of the
+# state it changes as separate arguments (GCC on x86-64 reads the arguments right to left; no other rehearsal sees it).
+step eval-order-selftest python3 -I tools/eval_order_check.py --selftest
+step eval-order python3 -I tools/eval_order_check.py --quiet --root .
 # The first-push gitlink: after `git add -A`, examples/esp32/scripts is a gitlink (mode 160000), not a missing or
 # empty folder (checked on a scratch copy of the index, the working tree's index is left alone).
 gitlink() {

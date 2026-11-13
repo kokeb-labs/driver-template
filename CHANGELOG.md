@@ -18,6 +18,14 @@ version bump (a minor bump before 1.0).
   UBSan tests, libFuzzer) in `tools/ci-container`, an Ubuntu 24.04 image with the CI toolchain (GCC 14, clang 18,
   cppcheck 2.13, lizard, gcovr, Arm GCC, the docs theme). Only the MISRA scan and the ESP32 builds stay with CI.
 
+- `tools/eval_order_check.py` and the `eval-order` preflight step (RD-34, a managed file): a test or fuzz call must not
+  take a driver operation and a read of the state it changes as separate arguments; GCC on x86-64 evaluates them
+  right to left, so the defect showed on one CI runner only.
+
+### Fixed
+
+- `tests/fuzz/fuzz_xmpl100.cpp` computes each result into a local before reading `sent()` (five cases).
+
 ### Breaking
 
 - The exact port concepts match each hook's address with `detail::ExactHook<Port, Sig>` instead of probing it

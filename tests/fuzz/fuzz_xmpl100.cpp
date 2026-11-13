@@ -338,15 +338,20 @@ void RunOne(Driver& d, FuzzPort& port, Input& in) noexcept {
     CheckStarted(d, r);
     break;
   }
-  case 4:
-    CheckSetter(d.ApplyConfig(FuzzConfig(in)), was_up, sent());
+  case 4: {
+    const auto r = d.ApplyConfig(FuzzConfig(in));
+    CheckSetter(r, was_up, sent());
     break;
-  case 5:
-    CheckSetter(d.SetMode(static_cast<xmpl100::Mode>(in.Byte() % 4U)), was_up, sent());
+  }
+  case 5: {
+    const auto r = d.SetMode(static_cast<xmpl100::Mode>(in.Byte() % 4U));
+    CheckSetter(r, was_up, sent());
     break;
+  }
   case 6: {
     const float low = FuzzThreshold(in);
-    CheckSetter(d.SetAlertThresholdsC(low, FuzzThreshold(in)), was_up, sent());
+    const auto r = d.SetAlertThresholdsC(low, FuzzThreshold(in));
+    CheckSetter(r, was_up, sent());
     break;
   }
   case 7: {
@@ -367,12 +372,16 @@ void RunOne(Driver& d, FuzzPort& port, Input& in) noexcept {
     CheckTemperature(r);
     break;
   }
-  case 10:
-    CheckCommon(d, d.TriggerOneShot(), was_up, sent());
+  case 10: {
+    const auto r = d.TriggerOneShot();
+    CheckCommon(d, r, was_up, sent());
     break;
-  case 11:
-    CheckCommon(d, d.WaitDataReady(), was_up, sent());
+  }
+  case 11: {
+    const auto r = d.WaitDataReady();
+    CheckCommon(d, r, was_up, sent());
     break;
+  }
   case 12: {
     const auto r = d.MeasureOnceC();
     CheckCommon(d, r, was_up, sent());
