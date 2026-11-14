@@ -10,12 +10,45 @@
       "docs/hardware.yml"
     ]
   },
+  "chip-capabilities": {
+    "title": "What the XMPL100 does",
+    "alt": "Capability map of the XMPL100: Temperature (supported): Measures the die temperature as a 16-bit result, 1/128 °C per count; Continuous and one-shot (supported): Converts continuously at a chosen rate, or once on request to save power; Alert window (supported): Pulls the open-drain ALERT pin low outside a high and a low threshold; Result CRC (supported): Protects each result with a CRC-8 on revision B silicon; Offset trim (supported): Shifts every result by a signed offset, 1/16 °C per count; Reset and identity (supported): Soft or hardware reset, then a chip ID and revision check before anything else.",
+    "description": "Each card is one function of the XMPL100: an icon, its name and what it does for the application. The filled pill says how this driver covers it (legend below); the outlined pills are the chip registers behind it. The coverage table in the README gives the driver calls and the datasheet section of each card.",
+    "profile": "overview",
+    "width": 1200,
+    "source": "docs/hardware.yml",
+    "sources": [
+      "docs/hardware.yml"
+    ]
+  },
   "chip-circuit-typical": {
     "title": "XMPL100: Typical application",
     "alt": "Schematic of the XMPL100 typical application: the chip with U2 MCU, C1 capacitor 100 nF, R1 resistor 10 kΩ; the MCU wires carry the port hooks GpioSet(CtrlPin::Reset), Transfer().",
     "description": "A schematic. The MCU is on the left, each of its pins level with the chip pin it connects to; above each wire is the hook of the driver's port that drives or reads it. Supply pins point up to their supply and decoupling, ground pins down. Pins on the right carry the loads and the pins tied to a supply or ground; a cross marks a pin left open. A dot is a junction; wires that cross without a dot are not connected.",
     "profile": "detail",
     "width": 840,
+    "source": "docs/hardware.yml",
+    "sources": [
+      "docs/hardware.yml"
+    ]
+  },
+  "chip-frame-spi": {
+    "title": "XMPL100: SPI register access",
+    "alt": "SPI register access of the XMPL100, 16 bits, most significant bit first. Write: R/W (bit 15), address (bits 14 to 8), data (bits 7 to 0); Read: R/W (bit 15), address (bits 14 to 8), any value (bits 7 to 0); Reply: ignored (bits 15 to 8), register data (bits 7 to 0). Below, the SPI mode 0 waveform of one transfer in the same bit grid.",
+    "description": "One SPI register access of the XMPL100, 16 bits in a row from the most significant (left, sent first) to the least significant (right). Each row is one kind of frame; each coloured box a field, with its first and last bit number under it. The waveform below draws the select, the clock and the data lines over the same bits.",
+    "profile": "overview",
+    "width": 1200,
+    "source": "docs/hardware.yml",
+    "sources": [
+      "docs/hardware.yml"
+    ]
+  },
+  "chip-hero": {
+    "title": "XMPL100",
+    "alt": "Overview of the XMPL100, a digital temperature sensor that measures its own die from -40 °C to +125 °C in steps of 1/128 °C and pulls an alert line low when the temperature leaves a window you set. A MCU talks to it over SPI; it drives ALERT line; it reads back Die temperature. Headline figures: -40 to +125 °C measurement range; 1/128 °C resolution of the 16-bit result; 10 MHz SPI clock, mode 0 or 3; 1.8 to 3.6 V supply.",
+    "description": "The XMPL100 in the middle, drawn as its SOIC-8 package. On the left the MCU that runs the driver, joined to it by SPI. To the right, what the chip drives, in the order the power flows. Below it, what the chip reads back. The tiles at the bottom are the headline numbers, each with the datasheet section and page it comes from.",
+    "profile": "overview",
+    "width": 1200,
     "source": "docs/hardware.yml",
     "sources": [
       "docs/hardware.yml"
@@ -38,6 +71,17 @@
     "description": "The XMPL100 seen from the top, in its SOIC-8 package. Pin 1 is marked by the dot; the numbers run counter-clockwise from it. Each pad is coloured by the pin's electrical type (legend below). Next to it is the pin's name and, in mono, the hook of the driver's port that drives or reads it; a pin without a hook is not used by the driver.",
     "profile": "detail",
     "width": 992,
+    "source": "docs/hardware.yml",
+    "sources": [
+      "docs/hardware.yml"
+    ]
+  },
+  "chip-wiring-typical": {
+    "title": "Wiring: Typical application",
+    "alt": "Wiring of the XMPL100 for the Typical application: MCU SPI SCK to SCLK (Transfer()); MCU SPI MOSI to SDI (Transfer()); MCU SPI MISO to SDO (Transfer()); MCU GPIO / CS to CS_N (Transfer()); MCU GPIO to RESET_N (GpioSet(CtrlPin::Reset)); MCU GPIO (IRQ) to ALERT. Supplies, grounds and the support parts are listed under the drawing.",
+    "description": "The MCU on the left, the XMPL100 in the middle. Each wire is coloured by the chip pin's electrical type and carries the net name and the chip pin number above it and, under it, the driver hook that uses it (and any part on the net). The boxes underneath list the supplies, the support parts and the pins this circuit leaves unconnected.",
+    "profile": "overview",
+    "width": 1200,
     "source": "docs/hardware.yml",
     "sources": [
       "docs/hardware.yml"

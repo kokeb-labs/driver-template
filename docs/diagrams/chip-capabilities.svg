@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="673" viewBox="0 0 1200 673" role="img" aria-labelledby="chip-capabilities-title chip-capabilities-desc" font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="chip-capabilities-title">What the XMPL100 does</title>
+<desc id="chip-capabilities-desc">Capability map of the XMPL100: Temperature (supported): Measures the die temperature as a 16-bit result, 1/128 °C per count; Continuous and one-shot (supported): Converts continuously at a chosen rate, or once on request to save power; Alert window (supported): Pulls the open-drain ALERT pin low outside a high and a low threshold; Result CRC (supported): Protects each result with a CRC-8 on revision B silicon; Offset trim (supported): Shifts every result by a signed offset, 1/16 °C per count; Reset and identity (supported): Soft or hardware reset, then a chip ID and revision check before anything else.</desc>
+<rect x="0.5" y="0.5" width="1199" height="672" rx="16" fill="#FFFFFF" stroke="#E2E7EE"/>
+<text x="32" y="46.8" font-size="16" font-weight="700" letter-spacing="1.2" fill="#7A360E">CAPABILITIES</text>
+<text x="32" y="85.6" font-size="32" font-weight="700" fill="#0E1726">What the XMPL100 does</text>
+<text x="32" y="115.4" font-size="18" fill="#566070">One card per function of the chip, with how this driver covers it and the registers behind it.</text>
+<rect x="32" y="131.4" width="1136" height="1" fill="#E2E7EE"/>
+<rect x="32" y="149.4" width="365.3" height="225.3" rx="12" fill="#FFFFFF" stroke="#C9D1DB" stroke-width="1"/>
+<rect x="417.3" y="149.4" width="365.3" height="225.3" rx="12" fill="#FFFFFF" stroke="#C9D1DB" stroke-width="1"/>
+<rect x="802.7" y="149.4" width="365.3" height="225.3" rx="12" fill="#FFFFFF" stroke="#C9D1DB" stroke-width="1"/>
+<rect x="32" y="394.7" width="365.3" height="215.9" rx="12" fill="#FFFFFF" stroke="#C9D1DB" stroke-width="1"/>
+<rect x="417.3" y="394.7" width="365.3" height="215.9" rx="12" fill="#FFFFFF" stroke="#C9D1DB" stroke-width="1"/>
+<rect x="802.7" y="394.7" width="365.3" height="215.9" rx="12" fill="#FFFFFF" stroke="#C9D1DB" stroke-width="1"/>
+<circle cx="78" cy="195.4" r="28" fill="#FBEFE6" stroke="#E9C3A6" stroke-width="1.2"/>
+<path d="M75.1 199.7 L75.1 185.3 L80.9 185.3 L80.9 199.7" fill="none" stroke="#9A4A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="78" cy="203.4" r="5.1" fill="none" stroke="#9A4A17" stroke-width="2.5"/>
+<path d="M84.5 189.6 L88.1 189.6" fill="none" stroke="#9A4A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M84.5 194 L88.1 194" fill="none" stroke="#9A4A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="120" y="201.4" font-size="20" font-weight="700" fill="#0E1726">Temperature</text>
+<text x="50" y="249.8" font-size="17" fill="#2B3442">Measures the die temperature as a</text>
+<text x="50" y="274.5" font-size="17" fill="#2B3442">16-bit result, 1/128 °C per count</text>
+<rect x="50" y="293" width="103.4" height="26" rx="13" fill="#14532D"/>
+<text x="58" y="311.2" font-size="16" font-weight="700" fill="#FFFFFF">Supported</text>
+<rect x="161.4" y="293" width="110.6" height="26" rx="13" fill="#F1F4F8" stroke="#CBD5E1" stroke-width="1"/>
+<text x="169.4" y="311.2" font-size="16" font-weight="700" fill="#334155">TEMP_MSB</text>
+<rect x="50" y="327" width="104.4" height="26" rx="13" fill="#F1F4F8" stroke="#CBD5E1" stroke-width="1"/>
+<text x="58" y="345.2" font-size="16" font-weight="700" fill="#334155">TEMP_LSB</text>
+<circle cx="463.3" cy="195.4" r="28" fill="#FBEFE6" stroke="#E9C3A6" stroke-width="1.2"/>
+<circle cx="463.3" cy="195.4" r="13" fill="none" stroke="#9A4A17" stroke-width="2.5"/>
+<path d="M463.3 188.2 L463.3 195.4 L468.4 198.3" fill="none" stroke="#9A4A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="505.3" y="188.4" font-size="20" font-weight="700" fill="#0E1726">Continuous and</text>
+<text x="505.3" y="214.4" font-size="20" font-weight="700" fill="#0E1726">one-shot</text>
+<text x="435.3" y="249.8" font-size="17" fill="#2B3442">Converts continuously at a chosen</text>
+<text x="435.3" y="274.5" font-size="17" fill="#2B3442">rate, or once on request to save</text>
+<text x="435.3" y="299.1" font-size="17" fill="#2B3442">power</text>
+<rect x="435.3" y="317.7" width="103.4" height="26" rx="13" fill="#14532D"/>
+<text x="443.3" y="335.8" font-size="16" font-weight="700" fill="#FFFFFF">Supported</text>
+<rect x="546.7" y="317.7" width="60.6" height="26" rx="13" fill="#F1F4F8" stroke="#CBD5E1" stroke-width="1"/>
+<text x="554.7" y="335.8" font-size="16" font-weight="700" fill="#334155">CTRL</text>
+<rect x="615.3" y="317.7" width="82" height="26" rx="13" fill="#F1F4F8" stroke="#CBD5E1" stroke-width="1"/>
+<text x="623.3" y="335.8" font-size="16" font-weight="700" fill="#334155">CONFIG</text>
+<circle cx="848.7" cy="195.4" r="28" fill="#FBEFE6" stroke="#E9C3A6" stroke-width="1.2"/>
+<path d="M848.7 183.1 L862.4 207 L834.9 207 Z" fill="none" stroke="#9A4A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M848.7 191.8 L848.7 198.3" fill="none" stroke="#9A4A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="848.7" cy="202.6" r="2" fill="#9A4A17"/>
+<text x="890.7" y="201.4" font-size="20" font-weight="700" fill="#0E1726">Alert window</text>
+<text x="820.7" y="249.8" font-size="17" fill="#2B3442">Pulls the open-drain ALERT pin low</text>
+<text x="820.7" y="274.5" font-size="17" fill="#2B3442">outside a high and a low threshold</text>
+<rect x="820.7" y="293" width="103.4" height="26" rx="13" fill="#14532D"/>
+<text x="828.7" y="311.2" font-size="16" font-weight="700" fill="#FFFFFF">Supported</text>
+<rect x="932" y="293" width="121.9" height="26" rx="13" fill="#F1F4F8" stroke="#CBD5E1" stroke-width="1"/>
+<text x="940" y="311.2" font-size="16" font-weight="700" fill="#334155">ALERT_HIGH</text>
+<rect x="820.7" y="327" width="119.3" height="26" rx="13" fill="#F1F4F8" stroke="#CBD5E1" stroke-width="1"/>
+<text x="828.7" y="345.2" font-size="16" font-weight="700" fill="#334155">ALERT_LOW</text>
+<rect x="948" y="327" width="85.9" height="26" rx="13" fill="#F1F4F8" stroke="#CBD5E1" stroke-width="1"/>
+<text x="956" y="345.2" font-size="16" font-weight="700" fill="#334155">STATUS</text>
+<circle cx="78" cy="440.7" r="28" fill="#FBEFE6" stroke="#E9C3A6" stroke-width="1.2"/>
+<circle cx="78" cy="440.7" r="13" fill="none" stroke="#9A4A17" stroke-width="2.5"/>
+<path d="M71.5 441.4 L75.8 445.8 L84.5 436.4" fill="none" stroke="#9A4A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="120" y="446.7" font-size="20" font-weight="700" fill="#0E1726">Result CRC</text>
+<text x="50" y="495.1" font-size="17" fill="#2B3442">Protects each result with a CRC-8 on</text>
+<text x="50" y="519.8" font-size="17" fill="#2B3442">revision B silicon</text>
+<rect x="50" y="538.3" width="103.4" height="26" rx="13" fill="#14532D"/>
+<text x="58" y="556.5" font-size="16" font-weight="700" fill="#FFFFFF">Supported</text>
+<rect x="161.4" y="538.3" width="108.7" height="26" rx="13" fill="#F1F4F8" stroke="#CBD5E1" stroke-width="1"/>
+<text x="169.4" y="556.5" font-size="16" font-weight="700" fill="#334155">TEMP_CRC</text>
+<circle cx="463.3" cy="440.7" r="28" fill="#FBEFE6" stroke="#E9C3A6" stroke-width="1.2"/>
+<path d="M451.8 433.5 L474.9 433.5" fill="none" stroke="#9A4A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="459" cy="433.5" r="3.2" fill="none" stroke="#9A4A17" stroke-width="2.5"/>
+<path d="M451.8 440.7 L474.9 440.7" fill="none" stroke="#9A4A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="467.7" cy="440.7" r="3.2" fill="none" stroke="#9A4A17" stroke-width="2.5"/>
+<path d="M451.8 447.9 L474.9 447.9" fill="none" stroke="#9A4A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="456.8" cy="447.9" r="3.2" fill="none" stroke="#9A4A17" stroke-width="2.5"/>
+<text x="505.3" y="446.7" font-size="20" font-weight="700" fill="#0E1726">Offset trim</text>
+<text x="435.3" y="495.1" font-size="17" fill="#2B3442">Shifts every result by a signed offset,</text>
+<text x="435.3" y="519.8" font-size="17" fill="#2B3442">1/16 °C per count</text>
+<rect x="435.3" y="538.3" width="103.4" height="26" rx="13" fill="#14532D"/>
+<text x="443.3" y="556.5" font-size="16" font-weight="700" fill="#FFFFFF">Supported</text>
+<rect x="546.7" y="538.3" width="81.7" height="26" rx="13" fill="#F1F4F8" stroke="#CBD5E1" stroke-width="1"/>
+<text x="554.7" y="556.5" font-size="16" font-weight="700" fill="#334155">OFFSET</text>
+<circle cx="848.7" cy="440.7" r="28" fill="#FBEFE6" stroke="#E9C3A6" stroke-width="1.2"/>
+<path d="M837.1 429.1 L848.7 429.1 L860.2 440.7 L848.7 452.3 L837.1 440.7 Z" fill="none" stroke="#9A4A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="843.6" cy="435.6" r="2.3" fill="#9A4A17"/>
+<text x="890.7" y="446.7" font-size="20" font-weight="700" fill="#0E1726">Reset and identity</text>
+<text x="820.7" y="495.1" font-size="17" fill="#2B3442">Soft or hardware reset, then a chip ID</text>
+<text x="820.7" y="519.8" font-size="17" fill="#2B3442">and revision check before anything</text>
+<text x="820.7" y="544.4" font-size="17" fill="#2B3442">else</text>
+<rect x="820.7" y="563" width="103.4" height="26" rx="13" fill="#14532D"/>
+<text x="828.7" y="581.1" font-size="16" font-weight="700" fill="#FFFFFF">Supported</text>
+<rect x="932" y="563" width="82.1" height="26" rx="13" fill="#F1F4F8" stroke="#CBD5E1" stroke-width="1"/>
+<text x="940" y="581.1" font-size="16" font-weight="700" fill="#334155">CHIP_ID</text>
+<rect x="1022.1" y="563" width="75.2" height="26" rx="13" fill="#F1F4F8" stroke="#CBD5E1" stroke-width="1"/>
+<text x="1030.1" y="581.1" font-size="16" font-weight="700" fill="#334155">REV_ID</text>
+<rect x="32" y="623" width="14" height="14" rx="4" fill="#EAF7EF" stroke="#15803D" stroke-width="1.4"/>
+<text x="54" y="637.6" font-size="16" fill="#566070">Supported: the driver covers it and a host test checks it</text>
+</svg>

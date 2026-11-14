@@ -1,5 +1,10 @@
 # XMPL100 Driver
 
+<!-- generated: chip-summary -->
+The **XMPL100** is a digital temperature sensor that measures its own die from -40 °C to +125 °C in steps of 1/128 °C
+and pulls an alert line low when the temperature leaves a window you set (1 Features, p. 1).
+<!-- /generated -->
+
 C++20 driver for the XMPL100, a fictional example SPI temperature sensor: chip ID, one-shot and continuous reads, CRC.
 
 [![CI](https://github.com/kokeb-labs/driver-template/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kokeb-labs/driver-template/actions/workflows/ci.yml)
@@ -14,34 +19,57 @@ The site at <https://kokeb-labs.github.io/driver-template/> opens when the repos
 > see [Using the template](docs/template.md).
 <!-- /scaffold:remove -->
 
-The XMPL100 measures the temperature of its own die, from -40 °C to +125 °C in steps of 1/128 °C, and raises an
-alert pin when it leaves a window you set. This driver starts it safely, reads it continuously or on demand, checks
-the CRC of every result and turns the chip's status flags into errors you can act on. It runs on any MCU: you give
-it a small class that moves bytes on your bus, and it does the rest.
-
-<!-- figure: driver-layers -->
+<!-- figure: chip-hero -->
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/driver-layers.dark.svg">
-  <img src="docs/diagrams/driver-layers.svg"
-    alt="Layer diagram: your application calls the XMPL100 core, which sends register reads and writes
-    through the SPI port contract to the port class you write, which drives the chip; the core and the
-    contract are the same on every MCU.">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/chip-hero.dark.svg">
+  <img src="docs/diagrams/chip-hero.svg"
+    alt="Overview of the XMPL100, a digital temperature sensor that measures its own die from -40 °C to +125
+    °C in steps of 1/128 °C and pulls an alert line low when the temperature leaves a window you set. A
+    MCU talks to it over SPI; it drives ALERT line; it reads back Die temperature. Headline figures: -40
+    to +125 °C measurement range; 1/128 °C resolution of the 16-bit result; 10 MHz SPI clock, mode 0 or
+    3; 1.8 to 3.6 V supply.">
 </picture>
 <!-- /figure -->
 
-## At a glance
+## What it does
 
-<!-- scaffold:readme-glance -->
-| | |
-| --- | --- |
-| **Chip** | XMPL100 digital temperature sensor, 1.8 V to 3.6 V |
-| **Measures** | Die temperature, -40 °C to +125 °C, 16-bit result at 1/128 °C per count |
-| **Bus** | SPI mode 0 or 3, up to 10 MHz; 7-bit register addresses with auto-increment |
-| **Also drives** | The open-drain ALERT pin (high and low thresholds); RESET_N, when your port has `GpioSet()` |
-| **Driver** | Header-only C++20; no heap, exceptions, RTTI or virtual calls; every call returns `Result<T>` |
-| **Runs on** | Any MCU with SPI and a C++20 compiler; the host example runs on any PC ([Platforms](docs/platforms.md)) |
-| **Status** | 0.1.0, not yet verified on hardware: host-tested against a register model of the chip |
-<!-- /scaffold:readme-glance -->
+<!-- figure: chip-capabilities -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/chip-capabilities.dark.svg">
+  <img src="docs/diagrams/chip-capabilities.svg"
+    alt="Capability map of the XMPL100: Temperature (supported): Measures the die temperature as a 16-bit
+    result, 1/128 °C per count; Continuous and one-shot (supported): Converts continuously at a chosen
+    rate, or once on request to save power; Alert window (supported): Pulls the open-drain ALERT pin low
+    outside a high and a low threshold; Result CRC (supported): Protects each result with a CRC-8 on
+    revision B silicon; Offset trim (supported): Shifts every result by a signed offset, 1/16 °C per
+    count; Reset and identity (supported): Soft or hardware reset, then a chip ID and revision check
+    before anything else.">
+</picture>
+<!-- /figure -->
+
+## Where it is used
+
+<!-- generated: chip-uses -->
+- Board and enclosure temperature monitoring
+- Thermal protection of power stages
+- Battery pack temperature
+- Data loggers
+
+Uses named by the datasheet (1 Features, p. 1).
+<!-- /generated -->
+
+## Inside the chip
+
+<!-- figure: chip-blocks -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/chip-blocks.dark.svg">
+  <img src="docs/diagrams/chip-blocks.svg"
+    alt="Block diagram of the XMPL100: its function blocks, how they connect and which package pins reach
+    each block.">
+</picture>
+<!-- /figure -->
+
+## Pins and wiring
 
 <!-- figure: chip-pinout -->
 <picture>
@@ -52,21 +80,45 @@ it a small class that moves bytes on your bus, and it does the rest.
 </picture>
 <!-- /figure -->
 
+<!-- figure: chip-wiring-typical -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/chip-wiring-typical.dark.svg">
+  <img src="docs/diagrams/chip-wiring-typical.svg"
+    alt="Wiring of the XMPL100 for the Typical application: MCU SPI SCK to SCLK (Transfer()); MCU SPI MOSI to
+    SDI (Transfer()); MCU SPI MISO to SDO (Transfer()); MCU GPIO / CS to CS_N (Transfer()); MCU GPIO to
+    RESET_N (GpioSet(CtrlPin::Reset)); MCU GPIO (IRQ) to ALERT. Supplies, grounds and the support parts
+    are listed under the drawing.">
+</picture>
+<!-- /figure -->
+
+<!-- scaffold:bus-wiring -->
+| MCU | XMPL100 | Notes |
+| --- | --- | --- |
+| SPI SCLK | SCLK | Mode 0 or 3, up to 10 MHz; 1 MHz for bring-up on jumper wires |
+| SPI MOSI | SDI | |
+| SPI MISO | SDO | High impedance while CS_N is high, so the bus can be shared |
+| GPIO (chip select) | CS_N | Low for the whole frame: one transfer per frame |
+| 3.3 V | VDD | 1.8 V to 3.6 V; 100 nF to GND close to the pin |
+| GND | GND | |
+<!-- /scaffold:bus-wiring -->
+
+<!-- figure: chip-frame-spi -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/chip-frame-spi.dark.svg">
+  <img src="docs/diagrams/chip-frame-spi.svg"
+    alt="SPI register access of the XMPL100, 16 bits, most significant bit first. Write: R/W (bit 15),
+    address (bits 14 to 8), data (bits 7 to 0); Read: R/W (bit 15), address (bits 14 to 8), any value
+    (bits 7 to 0); Reply: ignored (bits 15 to 8), register data (bits 7 to 0). Below, the SPI mode 0
+    waveform of one transfer in the same bit grid.">
+</picture>
+<!-- /figure -->
+
 <!-- figure: chip-outline -->
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/chip-outline.dark.svg">
   <img src="docs/diagrams/chip-outline.svg"
     alt="Outline of the XMPL100 in SOIC-8 drawn to scale from above: body 4.9 x 3.9 x 1.75 mm, pitch 1.27 mm,
     8 pins.">
-</picture>
-<!-- /figure -->
-
-<!-- figure: chip-blocks -->
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/chip-blocks.dark.svg">
-  <img src="docs/diagrams/chip-blocks.svg"
-    alt="Block diagram of the XMPL100: its function blocks, how they connect and which package pins reach
-    each block.">
 </picture>
 <!-- /figure -->
 
@@ -88,6 +140,94 @@ Also sold as:
 
 From [`docs/hardware.yml`](docs/hardware.yml); pins, circuits and the block diagram: [Hardware](docs/hardware.md).
 <!-- /generated -->
+
+## Quick start
+
+**1. Wire it** as in [Pins and wiring](#pins-and-wiring).
+
+<!-- scaffold:readme-port -->
+**2. Write the port**: a class with `EnsureInitialized()` (bring the bus up), `Transfer()` (one full-duplex frame
+with CS_N low) and `DelayUs()`, about 20 lines on most SDKs. [Porting](docs/porting.md) has the contract and a
+complete example.
+<!-- /scaffold:readme-port -->
+
+**3. Read the temperature:**
+
+<!-- generated: quickstart-code -->
+```cpp
+#include "xmpl100.hpp"
+
+int read_board_temperature(MyPort& port, float& celsius) {
+  xmpl100::XMPL100<MyPort> sensor(port); // no I/O yet
+
+  if (auto r = sensor.EnsureInitialized(); !r) { // 1. bus up, reset, CHIP_ID, Config{}
+    return static_cast<int>(r.error); //    Bus, Timeout or DeviceIdMismatch: check wiring
+  }
+  const auto t = sensor.ReadTemperatureC(); // 2. latest continuous result
+  if (!t) {
+    return static_cast<int>(t.error); //    DeviceFault: sensing element open or shorted
+  }
+  celsius = t.value; // 3. degrees Celsius, 1/128 °C resolution
+  return 0;
+}
+```
+<!-- /generated -->
+
+`EnsureInitialized()` is the only call that starts the chip. Every other call returns `Error::NotInitialized`
+until it has succeeded, and no read ever starts the chip on its own.
+
+## Driver coverage
+
+<!-- generated: chip-coverage -->
+| Capability | What the chip does | Driver API | Registers | Status | Datasheet |
+| --- | --- | --- | --- | --- | --- |
+| [Temperature](docs/api-guide.md) | Measures the die temperature as a 16-bit result, 1/128 °C per count | `ReadTemperatureC`, `ReadRawTemperature` | `TEMP_MSB`, `TEMP_LSB` | Supported | 7.6, p. 14 |
+| [Continuous and one-shot](docs/api-guide.md) | Converts continuously at a chosen rate, or once on request to save power | `SetMode`, `TriggerOneShot`, `WaitDataReady`, `MeasureOnceC` | `CTRL`, `CONFIG` | Supported | 7.4, p. 13 |
+| [Alert window](docs/hardware.md) | Pulls the open-drain ALERT pin low outside a high and a low threshold | `SetAlertThresholdsC`, `ReadStatus` | `ALERT_HIGH`, `ALERT_LOW`, `STATUS` | Supported | 7.7, p. 15 |
+| [Result CRC](docs/api-guide.md) | Protects each result with a CRC-8 on revision B silicon | `ReadTemperatureC` | `TEMP_CRC` | Supported | 7.9, p. 16 |
+| [Offset trim](docs/api-guide.md) | Shifts every result by a signed offset, 1/16 °C per count | `ApplyConfig` | `OFFSET` | Supported | 7.8, p. 15 |
+| [Reset and identity](docs/hardware.md) | Soft or hardware reset, then a chip ID and revision check before anything else | `EnsureInitialized`, `SoftReset`, `HardwareReset` | `CHIP_ID`, `REV_ID` | Supported | 8.3, p. 18 |
+
+**Supported**: the driver covers it and a host test checks it.
+
+From [`docs/hardware.yml`](docs/hardware.yml); `kokeb-docs hardware --check` confirms that every API name is in
+`inc/xmpl100.hpp` and every register in `inc/xmpl100_registers.hpp`.
+<!-- /generated -->
+
+This driver starts it safely, reads it continuously or on demand, checks the CRC of every result and turns the chip's
+status flags into errors you can act on. It runs on any MCU: you give it a small class that moves bytes on your bus, and
+it does the rest.
+
+<!-- scaffold:readme-glance -->
+| | |
+| --- | --- |
+| **Measures** | Die temperature, -40 °C to +125 °C, 16-bit result at 1/128 °C per count |
+| **Bus** | SPI mode 0 or 3, up to 10 MHz; 7-bit register addresses with auto-increment |
+| **Also drives** | The open-drain ALERT pin (high and low thresholds); RESET_N, when your port has `GpioSet()` |
+| **Driver** | Header-only C++20; no heap, exceptions, RTTI or virtual calls; every call returns `Result<T>` |
+| **Runs on** | Any MCU with SPI and a C++20 compiler; the host example runs on any PC ([Platforms](docs/platforms.md)) |
+| **Status** | 0.1.0, not yet verified on hardware: host-tested against a register model of the chip |
+<!-- /scaffold:readme-glance -->
+
+- Brings the chip up with a soft reset and a CHIP_ID check; nothing touches the chip before that succeeds.
+- Reads the temperature in continuous mode, or one conversion on demand, with a bounded wait.
+- Checks the CRC-8 of every result on revision B silicon and reports sensor faults.
+- Programs the alert thresholds and the offset from a `Config` with datasheet defaults and three presets.
+- Returns `Result<T>` with an `Error` from every call: no exceptions, no heap, no RTTI, no virtual calls.
+
+## Documentation
+
+| Page | Read it when you want to |
+| --- | --- |
+| [Quickstart](docs/quickstart.md) | Go from a bare chip to a temperature on your MCU |
+| [Hardware](docs/hardware.md) | Wire it, check the bus settings, the timing and the power |
+| [Porting](docs/porting.md) | Write the port class for your MCU's SDK |
+| [API guide](docs/api-guide.md) | Use each call: start, configure, measure, set alerts, handle errors |
+| [Configuration](docs/configuration.md) | Choose every setting, or start from a preset |
+| [Troubleshooting](docs/troubleshooting.md) | Find the cause of an error or a wrong reading |
+| [Contract](docs/contract.md) | Know exactly what the driver promises, needs and returns |
+| [Datasheet map](docs/datasheet.md) | Find the datasheet section behind each part of the driver |
+| [API reference](docs/api-reference.md) | Look up a class or member (Doxygen; built by CI and locally) |
 
 ## Datasheet
 
@@ -133,60 +273,6 @@ You need git, CMake 3.16+ and a C++20 compiler (GCC 10+, Clang 13+ or MSVC 2022)
 
 To run the whole test suite instead: `cmake -S . -B build -DXMPL100_BUILD_TESTS=ON && cmake --build build && ctest
 --test-dir build`.
-
-## Use it on your MCU
-
-**1. Wire it** ([Hardware](docs/hardware.md) has every pin, the timing and the power):
-
-<!-- scaffold:bus-wiring -->
-| MCU | XMPL100 | Notes |
-| --- | --- | --- |
-| SPI SCLK | SCLK | Mode 0 or 3, up to 10 MHz; 1 MHz for bring-up on jumper wires |
-| SPI MOSI | SDI | |
-| SPI MISO | SDO | High impedance while CS_N is high, so the bus can be shared |
-| GPIO (chip select) | CS_N | Low for the whole frame: one transfer per frame |
-| 3.3 V | VDD | 1.8 V to 3.6 V; 100 nF to GND close to the pin |
-| GND | GND | |
-<!-- /scaffold:bus-wiring -->
-
-<!-- scaffold:readme-port -->
-**2. Write the port**: a class with `EnsureInitialized()` (bring the bus up), `Transfer()` (one full-duplex frame
-with CS_N low) and `DelayUs()`, about 20 lines on most SDKs. [Porting](docs/porting.md) has the contract and a
-complete example.
-<!-- /scaffold:readme-port -->
-
-**3. Read the temperature:**
-
-<!-- generated: quickstart-code -->
-```cpp
-#include "xmpl100.hpp"
-
-int read_board_temperature(MyPort& port, float& celsius) {
-  xmpl100::XMPL100<MyPort> sensor(port); // no I/O yet
-
-  if (auto r = sensor.EnsureInitialized(); !r) { // 1. bus up, reset, CHIP_ID, Config{}
-    return static_cast<int>(r.error); //    Bus, Timeout or DeviceIdMismatch: check wiring
-  }
-  const auto t = sensor.ReadTemperatureC(); // 2. latest continuous result
-  if (!t) {
-    return static_cast<int>(t.error); //    DeviceFault: sensing element open or shorted
-  }
-  celsius = t.value; // 3. degrees Celsius, 1/128 °C resolution
-  return 0;
-}
-```
-<!-- /generated -->
-
-`EnsureInitialized()` is the only call that starts the chip. Every other call returns `Error::NotInitialized`
-until it has succeeded, and no read ever starts the chip on its own.
-
-## What it does
-
-- Brings the chip up with a soft reset and a CHIP_ID check; nothing touches the chip before that succeeds.
-- Reads the temperature in continuous mode, or one conversion on demand, with a bounded wait.
-- Checks the CRC-8 of every result on revision B silicon and reports sensor faults.
-- Programs the alert thresholds and the offset from a `Config` with datasheet defaults and three presets.
-- Returns `Result<T>` with an `Error` from every call: no exceptions, no heap, no RTTI, no virtual calls.
 
 ## Add it to your project
 
@@ -250,20 +336,6 @@ details.
    ```
 
 The target is `xmpl100::xmpl100` every way, so switching later changes nothing else.
-
-## Documentation
-
-| Page | Read it when you want to |
-| --- | --- |
-| [Quickstart](docs/quickstart.md) | Go from a bare chip to a temperature on your MCU |
-| [Hardware](docs/hardware.md) | Wire it, check the bus settings, the timing and the power |
-| [Porting](docs/porting.md) | Write the port class for your MCU's SDK |
-| [API guide](docs/api-guide.md) | Use each call: start, configure, measure, set alerts, handle errors |
-| [Configuration](docs/configuration.md) | Choose every setting, or start from a preset |
-| [Troubleshooting](docs/troubleshooting.md) | Find the cause of an error or a wrong reading |
-| [Contract](docs/contract.md) | Know exactly what the driver promises, needs and returns |
-| [Datasheet map](docs/datasheet.md) | Find the datasheet section behind each part of the driver |
-| [API reference](docs/api-reference.md) | Look up a class or member (Doxygen; built by CI and locally) |
 
 ## Tests and quality
 

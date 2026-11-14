@@ -64,11 +64,19 @@ Use the `datasheet-conformance` skill for every step, one subsystem at a time:
    information (every other package the part is sold in, with its part-number suffix; delete the list for a
    single package); `supply` from the electrical characteristics; the hooks from the port header, the blocks from
    the block diagram and one circuit from the application chapter. Cite section and page for each fact and leave
-   out a number the datasheet does not give. The README's pinout, outline and block figures and its chip card
-   (`<!-- generated: chip-card -->`) are drawn from this file, so the module view of the chip is never typed.
-3. Every page in `docs/`: the chip card, pins, timing, power, errors; the README's paragraph, At a glance table,
-   wiring and documentation table. Remove every statement about the XMPL100.
-4. `kokeb-docs figures && kokeb-docs gen`, `mkdocs build -f _config/mkdocs.yml --strict`.
+   out a number the datasheet does not give. Then the README's chip-first opening, in the same file
+   (ci-tools `docs/readme-chip-first.md`): `overview` (the one-sentence `summary`, the datasheet's applications,
+   two to six headline `specs`, and the `system` the hero draws: host, bus, what the chip drives and reads back),
+   `capabilities` (one per chip function: icon, one line, status, the driver calls and registers that cover it,
+   checked against the headers under `driver`) and `frames` (one bus transfer, bit by bit). The README's hero,
+   capability map, block diagram, pinout, wiring, frame and outline figures, its chip summary, uses, chip card and
+   coverage table are all drawn from this file, so the view of the chip is never typed.
+3. Every page in `docs/`: the chip card, pins, timing, power, errors; the README's driver line under the chip
+   summary, the notes under Driver coverage (the driver paragraph, the glance table, the feature list) and the
+   documentation table. Remove every statement about the XMPL100. Keep the README's section order (the chip
+   first; no software layering figure in the README).
+4. `kokeb-docs figures && kokeb-docs gen && kokeb-docs check` (it runs `kokeb-docs readme --check`),
+   `mkdocs build -f _config/mkdocs.yml --strict`.
 5. `CHANGELOG.md`: `## [Unreleased]` / `### Added` describing the first version. Headings are only `### Breaking`,
    `### Added`, `### Changed`, `### Deprecated`, `### Removed`, `### Fixed`, `### Security` (the `release` skill
    and CI check this); anything else is a bold lead-in under one of them.

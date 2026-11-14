@@ -8,6 +8,13 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- A chip-first README: the title, then what the chip is (`chip-summary`), the hero figure (`chip-hero`), What it
+  does (`chip-capabilities`), Where it is used (`chip-uses`), Inside the chip (`chip-blocks`), Pins and wiring
+  (pinout, `chip-wiring-typical`, the wiring table, `chip-frame-spi`, outline, chip card), Quick start, Driver coverage
+  (`chip-coverage`, then the driver notes) and Documentation. The layering figure moves to the architecture page
+  only. `docs/hardware.yml` gains the XMPL100's `overview`, `driver`, `capabilities` and `frames`; the adc and none
+  scaffolds get their own capabilities and README in the same layout. Needs the ci-tools release with the chip-first
+  README (ci-tools docs/readme-chip-first.md).
 - `docs/recurring-defects.md` (the catalogue of defects that recurred across drivers), `docs/mechanization-policy.md`
   (where each class is caught and when it moves up), `docs/knowledge-index.md`, and the `review-round` skill. The
   review skills and the `safety-reviewer` agent are rewritten as checklists that cite the catalogue ids. The three pages
