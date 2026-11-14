@@ -1,5 +1,8 @@
 # XMPL100 Driver
 
+<!-- generated: chip-summary -->
+<!-- /generated -->
+
 C++20 driver for the XMPL100, a fictional example SPI temperature sensor: chip ID, one-shot and continuous reads, CRC.
 
 [![CI](https://github.com/kokeb-labs/driver-template/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kokeb-labs/driver-template/actions/workflows/ci.yml)
@@ -9,25 +12,93 @@ C++20 driver for the XMPL100, a fictional example SPI temperature sensor: chip I
 **Documentation: [`docs/`](docs/index.md)**, with the API reference built by Doxygen ([how](docs/api-reference.md)).
 The site at <https://kokeb-labs.github.io/driver-template/> opens when the repository is public.
 
-The XMPL100 is an analog temperature sensor: its output voltage rises 10 mV for every degree, from 500 mV at 0 °C.
-This driver powers it up, checks that a sensor is really on the ADC channel, averages several conversions and turns
-the voltage into degrees with the datasheet's transfer function or your calibration. It runs on any MCU: you give it
-a small class that reads one ADC channel in millivolts, and it does the rest.
-
-<!-- figure: driver-layers -->
+<!-- figure: chip-hero -->
 <!-- /figure -->
 
-## At a glance
+## What it does
+
+<!-- figure: chip-capabilities -->
+<!-- /figure -->
+
+## Where it is used
+
+<!-- generated: chip-uses -->
+<!-- /generated -->
+
+## Inside the chip
+
+<!-- figure: chip-blocks -->
+<!-- /figure -->
+
+## Pins and wiring
+
+<!-- figure: chip-pinout -->
+<!-- /figure -->
+
+<!-- figure: chip-wiring-typical -->
+<!-- /figure -->
+
+| MCU | XMPL100 | Notes |
+| --- | --- | --- |
+| ADC input | VOUT | An input range that covers 0 V to 1.8 V |
+| 3.3 V | VDD | 100 nF to GND close to the pin |
+| GND | GND | Same ground as the ADC reference |
+
+<!-- figure: chip-frame-spi -->
+<!-- /figure -->
+
+## Quick start
+
+**1. Wire it** as in [Pins and wiring](#pins-and-wiring).
+
+**2. Write the port**: a class with `EnsureInitialized()` (bring the ADC up), `ReadVoltageMv()` (one calibrated
+conversion) and `DelayUs()`, about 20 lines on most SDKs. [Porting](docs/porting.md) has the contract and a
+complete example.
+
+**3. Read the temperature:**
+
+<!-- generated: quickstart-code -->
+<!-- /generated -->
+
+`EnsureInitialized()` is the only call that starts the sensor. Every other call returns `Error::NotInitialized`
+until it has succeeded, and no read ever starts the sensor on its own.
+
+## Driver coverage
+
+<!-- generated: chip-coverage -->
+<!-- /generated -->
+
+This driver powers it up, checks that a sensor is really on the ADC channel, averages several conversions and turns the
+voltage into degrees with the datasheet's transfer function or your calibration. It runs on any MCU: you give it a small
+class that reads one ADC channel in millivolts, and it does the rest.
 
 | | |
 | --- | --- |
-| **Chip** | XMPL100 analog temperature sensor |
 | **Measures** | Temperature, -40 °C to +125 °C, as 500 mV at 0 °C plus 10 mV/°C (typical) |
 | **Bus** | None: one analog output to an MCU ADC channel |
 | **Also drives** | SHDN_N, when your port has `GpioSet()` |
 | **Driver** | Header-only C++20; no heap, exceptions, RTTI or virtual calls; every call returns `Result<T>` |
 | **Runs on** | Any MCU with an ADC and a C++20 compiler; the host example runs on any PC ([Platforms](docs/platforms.md)) |
 | **Status** | 0.1.0, not yet verified on hardware: host-tested against a model of the output |
+
+- Powers the sensor (SHDN_N, when your port drives it), waits t_ON and checks the output is in range.
+- Reads the temperature through your MCU's ADC, averaging several conversions.
+- Converts with the datasheet transfer function, or a calibrated offset and slope.
+- Returns `Result<T>` with an `Error` from every call: no exceptions, no heap, no RTTI, no virtual calls.
+
+## Documentation
+
+| Page | Read it when you want to |
+| --- | --- |
+| [Quickstart](docs/quickstart.md) | Go from a bare sensor to a temperature on your MCU |
+| [Hardware](docs/hardware.md) | Wire it, check the transfer function, the output range and the power |
+| [Porting](docs/porting.md) | Write the port class for your MCU's SDK |
+| [API guide](docs/api-guide.md) | Use each call: start, read, calibrate, handle errors |
+| [Configuration](docs/configuration.md) | Choose the channel, the averaging and the calibration |
+| [Troubleshooting](docs/troubleshooting.md) | Find the cause of an error or a wrong reading |
+| [Contract](docs/contract.md) | Know exactly what the driver promises, needs and returns |
+| [Datasheet map](docs/datasheet.md) | Find the datasheet section behind each part of the driver |
+| [API reference](docs/api-reference.md) | Look up a class or member (Doxygen; built by CI and locally) |
 
 ## Datasheet
 
@@ -66,35 +137,6 @@ You need git, CMake 3.16+ and a C++20 compiler (GCC 10+, Clang 13+ or MSVC 2022)
 
 To run the whole test suite instead: `cmake -S . -B build -DXMPL100_BUILD_TESTS=ON && cmake --build build && ctest
 --test-dir build`.
-
-## Use it on your MCU
-
-**1. Wire it** ([Hardware](docs/hardware.md) has every pin, the transfer function and the power):
-
-| MCU | XMPL100 | Notes |
-| --- | --- | --- |
-| ADC input | VOUT | An input range that covers 0 V to 1.8 V |
-| 3.3 V | VDD | 100 nF to GND close to the pin |
-| GND | GND | Same ground as the ADC reference |
-
-**2. Write the port**: a class with `EnsureInitialized()` (bring the ADC up), `ReadVoltageMv()` (one calibrated
-conversion) and `DelayUs()`, about 20 lines on most SDKs. [Porting](docs/porting.md) has the contract and a
-complete example.
-
-**3. Read the temperature:**
-
-<!-- generated: quickstart-code -->
-<!-- /generated -->
-
-`EnsureInitialized()` is the only call that starts the sensor. Every other call returns `Error::NotInitialized`
-until it has succeeded, and no read ever starts the sensor on its own.
-
-## What it does
-
-- Powers the sensor (SHDN_N, when your port drives it), waits t_ON and checks the output is in range.
-- Reads the temperature through your MCU's ADC, averaging several conversions.
-- Converts with the datasheet transfer function, or a calibrated offset and slope.
-- Returns `Result<T>` with an `Error` from every call: no exceptions, no heap, no RTTI, no virtual calls.
 
 ## Add it to your project
 
@@ -158,20 +200,6 @@ details.
    ```
 
 The target is `xmpl100::xmpl100` every way, so switching later changes nothing else.
-
-## Documentation
-
-| Page | Read it when you want to |
-| --- | --- |
-| [Quickstart](docs/quickstart.md) | Go from a bare sensor to a temperature on your MCU |
-| [Hardware](docs/hardware.md) | Wire it, check the transfer function, the output range and the power |
-| [Porting](docs/porting.md) | Write the port class for your MCU's SDK |
-| [API guide](docs/api-guide.md) | Use each call: start, read, calibrate, handle errors |
-| [Configuration](docs/configuration.md) | Choose the channel, the averaging and the calibration |
-| [Troubleshooting](docs/troubleshooting.md) | Find the cause of an error or a wrong reading |
-| [Contract](docs/contract.md) | Know exactly what the driver promises, needs and returns |
-| [Datasheet map](docs/datasheet.md) | Find the datasheet section behind each part of the driver |
-| [API reference](docs/api-reference.md) | Look up a class or member (Doxygen; built by CI and locally) |
 
 ## Tests and quality
 

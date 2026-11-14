@@ -1,0 +1,12 @@
+# Headers the capability names are checked against.
+driver:
+  api: [inc/xmpl100.hpp]
+
+# One entry per function of the chip: the card in chip-capabilities and the row in the README's coverage table.
+capabilities:
+  - {id: measure, title: Over-temperature output, icon: alert, status: supported, ref: temp, docs: api-guide.md,
+     what: "Reads the output pin and reports an over-temperature condition",
+     api: [ReadOutput, ReadRawOutput, IsOverTemperature]}
+  - {id: power, title: Shutdown, icon: sleep, status: supported, ref: reset, docs: api-guide.md,
+     what: "Powers the sensor down between readings through SHDN_N",
+     api: [Sleep, EnsureInitialized]}

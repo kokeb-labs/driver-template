@@ -1,6 +1,5 @@
 | | |
 | --- | --- |
-| **Chip** | XMPL100 digital temperature sensor, 1.8 V to 3.6 V |
 | **Measures** | Die temperature, -40 °C to +125 °C, 16-bit result at 1/128 °C per count |
 | **Bus** | UART at 115200 baud, 8N1; framed register access with a CRC-8 on every frame |
 | **Also drives** | The open-drain ALERT pin (high and low thresholds); RESET_N, when your port has `GpioSet()` |

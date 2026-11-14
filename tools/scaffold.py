@@ -518,6 +518,9 @@ def scaffold(a: argparse.Namespace, dest: Path) -> list[str]:
         if "esp32" in n.platforms:
             todo.append(f"examples/esp32/main/esp32_{n.name}_port.hpp: the board's pins; the example app.")
         todo += [
+            "docs/hardware.yml: overview (summary, applications, specs, system), capabilities (one per chip"
+            " function, with the driver API and registers that cover it) and frames: the README's chip-first opening"
+            " (ci-tools docs/readme-chip-first.md); then kokeb-docs figures && kokeb-docs gen && kokeb-docs check.",
             "docs/: index (hero, chip card), quickstart wiring, hardware, porting, api-guide, configuration,"
             f" troubleshooting, contract: remove every statement about the example part.",
             "_config/Kconfig and inc/" + n.name + "_kconfig.hpp: the options that make sense for the chip.",
@@ -529,7 +532,8 @@ def scaffold(a: argparse.Namespace, dest: Path) -> list[str]:
             "docs/: index, quickstart, concepts, contract, api-guide, integration.",
         ]
     todo += [
-        "README.md: the hero line, What it does, the documentation table.",
+        "README.md: the driver line under the chip summary, the Driver coverage notes, the documentation table"
+        " (the chip sections are drawn from docs/hardware.yml; kokeb-docs readme --check keeps the order).",
         "_config/mkdocs.yml: site_description if --description was generic.",
         "CHANGELOG.md: describe the first version under ## [Unreleased].",
         "Ask an org owner to run docs/repo-setup.md (metadata, merge settings, security, rulesets, labels).",
