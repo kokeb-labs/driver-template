@@ -35,6 +35,11 @@ refs:
   app: {doc: ds, section: "9 Application information", page: 20}
   outline: {doc: ds, section: "10.1 Package outline", page: 24}
   order: {doc: ds, section: "11 Ordering information", page: 26}
+  features: {doc: ds, section: "1 Features", page: 1}
+  temp: {doc: ds, section: "7.6 TEMP_MSB, TEMP_LSB and TEMP_CRC", page: 14}
+  modes: {doc: ds, section: "7.4 CTRL", page: 13}
+  offset: {doc: ds, section: "7.8 OFFSET", page: 15}
+  crc: {doc: ds, section: "7.9 CRC", page: 16}
 
 package:
   type: SOIC-8
@@ -50,6 +55,101 @@ package:
 # The supply range of each rail (the README's chip card shows it).
 supply:
   - {name: VDD, min_v: 1.8, max_v: 3.6, ref: supply}
+
+# The chip-first README (ci-tools docs/readme-chip-first.md): what the chip is and does, where it is used, how
+# the driver covers it and what one SPI access carries. `kokeb-docs figures` draws chip-hero, chip-capabilities,
+# chip-frame-spi and chip-wiring-typical from it, `kokeb-docs gen` the README's chip-summary, chip-uses and
+# chip-coverage regions. PLACEHOLDER like the rest of this file: write the real chip's facts, each with its citation.
+overview:
+  # Completes "The XMPL100 is ...": what the chip is and what it does for the board, in one sentence, no full stop.
+  summary: >-
+    a digital temperature sensor that measures its own die from -40 °C to +125 °C in steps of 1/128 °C and pulls an
+    alert line low when the temperature leaves a window you set
+  category: Digital temperature sensor
+  ref: features
+  # Where the datasheet says the chip is used (its applications list); one short noun phrase each.
+  applications:
+    - Board and enclosure temperature monitoring
+    - Thermal protection of power stages
+    - Battery pack temperature
+    - Data loggers
+  # Two to six headline numbers, the ones a reader compares parts by.
+  specs:
+    - {value: "-40 to +125 °C", label: measurement range, ref: temp}
+    - {value: "1/128 °C", label: resolution of the 16-bit result, ref: temp}
+    - {value: "10 MHz", label: "SPI clock, mode 0 or 3", ref: spi}
+    - {value: "1.8 to 3.6 V", label: supply, ref: supply}
+  # The hero: the host and its bus, what the chip drives (left to right) and what it reads back.
+  system:
+    host: MCU
+    bus: SPI
+    drives:
+      - {label: ALERT line, detail: "open drain, to an interrupt input", ref: alert}
+    senses:
+      - {label: Die temperature, ref: temp}
+
+# scaffold:chip-coverage
+# Headers the capability names are checked against.
+driver:
+  api: [inc/xmpl100.hpp]
+  registers: [inc/xmpl100_registers.hpp]
+
+# One entry per function of the chip: the card in chip-capabilities and the row in the README's coverage table.
+# icon: one of the names in kokeb_mkdocs_theme/hardware/icons.py; status: supported, guarded, partial, read-only or
+# not-covered; api and registers are checked against the headers above.
+capabilities:
+  - {id: measure, title: Temperature, icon: temperature, status: supported, ref: temp, docs: api-guide.md,
+     what: "Measures the die temperature as a 16-bit result, 1/128 °C per count",
+     api: [ReadTemperatureC, ReadRawTemperature], registers: [TEMP_MSB, TEMP_LSB]}
+  - {id: modes, title: Continuous and one-shot, icon: clock, status: supported, ref: modes, docs: api-guide.md,
+     what: "Converts continuously at a chosen rate, or once on request to save power",
+     api: [SetMode, TriggerOneShot, WaitDataReady, MeasureOnceC], registers: [CTRL, CONFIG]}
+  - {id: alert, title: Alert window, icon: alert, status: supported, ref: alert, docs: hardware.md,
+     what: "Pulls the open-drain ALERT pin low outside a high and a low threshold",
+     api: [SetAlertThresholdsC, ReadStatus], registers: [ALERT_HIGH, ALERT_LOW, STATUS]}
+  - {id: crc, title: Result CRC, icon: check, status: supported, ref: crc, docs: api-guide.md,
+     what: "Protects each result with a CRC-8 on revision B silicon",
+     api: [ReadTemperatureC], registers: [TEMP_CRC]}
+  - {id: offset, title: Offset trim, icon: settings, status: supported, ref: offset, docs: api-guide.md,
+     what: "Shifts every result by a signed offset, 1/16 °C per count",
+     api: [ApplyConfig], registers: [OFFSET]}
+  - {id: identity, title: Reset and identity, icon: tag, status: supported, ref: reset, docs: hardware.md,
+     what: "Soft or hardware reset, then a chip ID and revision check before anything else",
+     api: [EnsureInitialized, SoftReset, HardwareReset], registers: [CHIP_ID, REV_ID]}
+# /scaffold:chip-coverage
+
+# One bus access bit by bit: each row a kind of frame, the fields from the most significant bit down.
+frames:
+  - id: spi
+    title: SPI register access
+    description: One register per access; a burst continues with the next address.
+    bits: 16
+    ref: spi
+    rows:
+      - label: Write
+        sub: "SDI, R/W = 0"
+        fields:
+          - {name: R/W, bits: 15, tone: amber}
+          - {name: address, bits: [14, 8], tone: blue}
+          - {name: data, bits: [7, 0], tone: green}
+      - label: Read
+        sub: "SDI, R/W = 1"
+        fields:
+          - {name: R/W, bits: 15, tone: amber}
+          - {name: address, bits: [14, 8], tone: blue}
+          - {name: any value, bits: [7, 0], tone: slate}
+      - label: Reply
+        sub: SDO
+        fields:
+          - {name: ignored, bits: [15, 8], tone: slate}
+          - {name: register data, bits: [7, 0], tone: green}
+    waveform:
+      spi_mode: 0
+      select: CS_N
+      clock: SCLK
+      lanes:
+        - {name: SDI, row: Read}
+        - {name: SDO, row: Reply}
 
 # The port hooks a pin can map to (the names the driver's port headers declare). Add `source: inc/<file>` and
 # `symbol: <name>` to a hook and the check fails when the symbol leaves that header.
