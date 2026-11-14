@@ -74,9 +74,11 @@ Use the `datasheet-conformance` skill for every step, one subsystem at a time:
 3. Every page in `docs/`: the chip card, pins, timing, power, errors; the README's driver line under the chip
    summary, the notes under Driver coverage (the driver paragraph, the glance table, the feature list) and the
    documentation table. Remove every statement about the XMPL100. Keep the README's section order (the chip
-   first; no software layering figure in the README).
-4. `kokeb-docs figures && kokeb-docs gen && kokeb-docs check` (it runs `kokeb-docs readme --check`),
-   `mkdocs build -f _config/mkdocs.yml --strict`.
+   first; no software layering figure in the README), and the same order on the site's home page, `docs/index.md`
+   (hero, chip summary, What it does, Where it is used, Inside the chip, Pins and wiring, Quick start, Driver
+   coverage, then What you get, Datasheet and the navigation cards).
+4. `kokeb-docs figures && kokeb-docs gen && kokeb-docs check` (it runs `kokeb-docs readme --check` and
+   `kokeb-docs readme --site --check`), `mkdocs build -f _config/mkdocs.yml --strict`.
 5. `CHANGELOG.md`: `## [Unreleased]` / `### Added` describing the first version. Headings are only `### Breaking`,
    `### Added`, `### Changed`, `### Deprecated`, `### Removed`, `### Fixed`, `### Security` (the `release` skill
    and CI check this); anything else is a bold lead-in under one of them.

@@ -79,7 +79,7 @@
   "chip-wiring-typical": {
     "title": "Wiring: Typical application",
     "alt": "Wiring of the XMPL100 for the Typical application: MCU SPI SCK to SCLK (Transfer()); MCU SPI MOSI to SDI (Transfer()); MCU SPI MISO to SDO (Transfer()); MCU GPIO / CS to CS_N (Transfer()); MCU GPIO to RESET_N (GpioSet(CtrlPin::Reset)); MCU GPIO (IRQ) to ALERT. Supplies, grounds and the support parts are listed under the drawing.",
-    "description": "The MCU on the left, the XMPL100 in the middle. Each wire is coloured by the chip pin's electrical type and carries the net name and the chip pin number above it and, under it, the driver hook that uses it (and any part on the net). The boxes underneath list the supplies, the support parts and the pins this circuit leaves unconnected.",
+    "description": "The MCU on the left, the XMPL100 in the middle. Each wire to the chip is coloured by the chip pin's electrical type and carries the net name and the chip pin number above it and, under it, the driver hooks that use it (and any part on the net). The boxes underneath list the supplies, the support parts and the pins this circuit leaves unconnected.",
     "profile": "overview",
     "width": 1200,
     "source": "docs/hardware.yml",
