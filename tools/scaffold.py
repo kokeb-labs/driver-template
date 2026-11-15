@@ -156,6 +156,7 @@ LIBRARY_REMOVE = [
     "docs/hardware.md",
     "docs/hardware.yml",
     "docs/installation.md",
+    "docs/language-standard.md",  # the block lives in driver.yml, which a library does not have
     "docs/porting.md",
     "docs/troubleshooting.md",
     "examples/esp32/main/esp32_xmpl100_port.hpp",
