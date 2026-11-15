@@ -13,3 +13,13 @@ hardware:           # the validation level, see the hardware-validation skill
   rig: null         # H1/H2: docs/bench-rig.md
   evidence: null    # H1/H2: the release asset with the bench logs
   reviewed: null    # H2: the engineer's review and the release it covers
+language:           # the C++ standard, declared once; tools/check_language.py checks every place that repeats it
+  standard: 20      # the minimum ISO C++ standard: a consumer needs at least this (docs/language-standard.md)
+  profile: KB-CPP20          # the handbook profile of that standard
+  profile_version: "1.0"     # the handbook release that defines it
+  misra: "MISRA C++:2023"    # the MISRA edition the driver is analysed against
+  compilers:                 # the oldest versions the driver promises to build with (quote them)
+    gcc: "10"
+    clang: "13"
+  tested: [20]               # every standard CI compiles the headers under; includes the minimum
+  effective_from: 2026-11-15 # the date this declaration took effect

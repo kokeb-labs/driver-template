@@ -121,7 +121,7 @@ MANAGED_PREFIXES = (".github/", "_config/", ".claude/skills/", ".claude/agents/"
 MANAGED_FILES = {"CLAUDE.md", "docs/agent-context.md", "docs/knowledge-index.md", "docs/mechanization-policy.md", "docs/recurring-defects.md",
                  "tests/check_doxygen.cmake", "tests/check_install.cmake",
                  "tests/check_version_copy.cmake", "tools/check_standalone.py", "tools/eval_order_check.py",
-                 "tools/check_skills.py", "tools/check_layout.py", "tools/check_hardware.py",
+                 "tools/check_skills.py", "tools/check_layout.py", "tools/check_hardware.py", "tools/check_language.py",
                  "tools/misra_lint.py", "tools/preflight.sh"}
 # Inside those folders but the repository's own from the first commit.
 UNMANAGED_RE = re.compile(r"_config/Kconfig|cmake/[a-z0-9_]+_build_settings\.cmake")
@@ -358,6 +358,8 @@ class Names:
             text = text.replace("kind: template", f"kind: {self.kind}")
         if rel == "driver.yml":
             text = text.replace("bus: [spi]", f"bus: [{BUS_FILE[self.bus]}]")
+            # The language declaration takes effect on the day the driver is made.
+            text = re.sub(r"(effective_from: )\d{4}-\d{2}-\d{2}", rf"\g<1>{datetime.date.today().isoformat()}", text)
         for token, value in (
             ("@ROOT@", self.root),
             ("@NS@", self.ns),
@@ -964,6 +966,35 @@ def managed(rel: str) -> bool:
     return rel in MANAGED_FILES or rel.startswith(MANAGED_PREFIXES)
 
 
+LANGUAGE_BLOCK_RE = re.compile(r"^language:[ \t]*(?:#.*)?\n(?:[ \t]+\S.*\n?|[ \t]*#.*\n?)+", re.M)
+
+
+def language_drift(repo: Path, fix: bool) -> str | None:
+    """driver.yml without the `language:` block: report it, or with `fix` append the template's block (C++20 today).
+
+    driver.yml is the repository's own, so the block is the one file content the drift check adds rather than
+    replaces. `effective_from` is today's date: set it to the day the repository first built as this standard.
+    Returns the path to count as drift, or None.
+    """
+    manifest = repo / "driver.yml"
+    if not manifest.is_file():
+        return None
+    text = manifest.read_text(encoding="utf-8")
+    if LANGUAGE_BLOCK_RE.search(text):
+        return None
+    if fix:
+        block = LANGUAGE_BLOCK_RE.search((ROOT / "driver.yml").read_text(encoding="utf-8"))
+        if block is None:
+            fail("the template's driver.yml has no language block")
+        mine = re.sub(r"(effective_from: )\d{4}-\d{2}-\d{2}", rf"\g<1>{datetime.date.today().isoformat()}", block.group(0))
+        manifest.write_text(text.rstrip("\n") + "\n" + mine, encoding="utf-8")
+        print("driver.yml: language block added (check effective_from and the compilers; tools/check_language.py)")
+        return "driver.yml"
+    print("\ndriver.yml: no language block (scaffold.py --check-drift --fix adds the template's; "
+          "docs/language-standard.md)")
+    return "driver.yml"
+
+
 def check_drift(repo: Path, fix: bool) -> int:
     """Compare the files the template manages in `repo` with a fresh scaffold. 0: no drift (or fixed)."""
     repo = repo.resolve()
@@ -1025,6 +1056,9 @@ def check_drift(repo: Path, fix: bool) -> int:
         if not managed(rel):
             print(f"{rel}: listed under local but not a file the template manages; remove it from local")
             drift.append(rel)
+    missing_language = language_drift(repo, fix)
+    if missing_language:
+        drift.append(missing_language)
     if fix:
         record.write_text(record_text(values, local, template_commit()), encoding="utf-8")
         print(f"{TEMPLATE_RECORD}: template commit updated")
@@ -1293,9 +1327,9 @@ def eval_order_problems(root: Path) -> list[str]:
 
 
 def agent_tool_problems(root: Path, tools_from: Path) -> list[str]:
-    """tools/check_skills.py, check_layout.py and check_hardware.py (selftest only in the template) over `root`."""
+    """tools/check_skills.py, check_layout.py, check_hardware.py and check_language.py (selftest only in the template)."""
     bad = []
-    for name in ("check_skills", "check_layout", "check_hardware"):
+    for name in ("check_skills", "check_layout", "check_hardware", "check_language"):
         script = tools_from / f"tools/{name}.py"
         if not script.is_file():
             bad.append(f"tools/{name}.py: missing")

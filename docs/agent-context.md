@@ -47,6 +47,7 @@ skips is named in its last line: install the tool; do not push around it.
 | `python3 -I tools/check_skills.py` | Every skill named in this page exists, has front matter, and names existing files |
 | `python3 -I tools/check_layout.py` | One source per header, SDK code only in `src/boundary/` |
 | `python3 -I tools/check_hardware.py` | `driver.yml` hardware level, README badge and rig document agree |
+| `python3 -I tools/check_language.py` | `driver.yml` `language:` block and every place that repeats the C++ standard agree (`--fix` rewrites them) |
 | `python3 tools/misra_lint.py --root .` | No error; fix warnings in files you touch |
 | `kokeb-docs figures && kokeb-docs gen && kokeb-docs check` | No diff afterwards (`git diff --exit-code docs README.md`) |
 | `mkdocs build -f _config/mkdocs.yml --strict -d /tmp/site` | Exit 0, no warning |

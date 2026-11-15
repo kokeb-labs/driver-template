@@ -8,6 +8,14 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- **Language standard declared once.** `driver.yml` gains a `language:` block (`standard`, `profile`,
+  `profile_version`, `misra`, `compilers`, `tested`, `effective_from`). `tools/check_language.py` (managed, with a
+  `--selftest`, in the preflight and the repository checks) checks the block and every place that repeats the standard:
+  `cxx_std_N` and `CMAKE_CXX_STANDARD`, clang-format `Standard`, `__cplusplus` assertions, `-std` flags and workflow
+  `std` inputs (any standard in `tested`), the README badge and prose, the compiler floors; `--fix` rewrites them when
+  the standard is raised. `scaffold.py --check-drift` reports a `driver.yml` without the block and `--fix` adds it. A
+  driver without the block passes with a note. Needs no ci-tools release; the organisation registry
+  (ci-tools `tools/standards/`) decides which profiles are accepted. See `docs/language-standard.md`.
 - **Agent-ready template.** `docs/agent-context.md` is the page agents read first (`CLAUDE.md` loads it with
   `AGENTS.md`): the flow with the skill for each step, the exact local checks and what passes, the file layout, naming,
   docs and diagram requirements, standing rules, known pitfalls with their fixes, and when to stop and report. It is a
