@@ -118,9 +118,10 @@ TEMPLATE_ONLY = [
 # else (code, tests, docs, README, CHANGELOG) is the repository's own.
 TEMPLATE_RECORD = ".kokeb/template.yml"
 MANAGED_PREFIXES = (".github/", "_config/", ".claude/skills/", ".claude/agents/", "cmake/")
-MANAGED_FILES = {"CLAUDE.md", "docs/knowledge-index.md", "docs/mechanization-policy.md", "docs/recurring-defects.md",
+MANAGED_FILES = {"CLAUDE.md", "docs/agent-context.md", "docs/knowledge-index.md", "docs/mechanization-policy.md", "docs/recurring-defects.md",
                  "tests/check_doxygen.cmake", "tests/check_install.cmake",
                  "tests/check_version_copy.cmake", "tools/check_standalone.py", "tools/eval_order_check.py",
+                 "tools/check_skills.py", "tools/check_layout.py", "tools/check_hardware.py",
                  "tools/misra_lint.py", "tools/preflight.sh"}
 # Inside those folders but the repository's own from the first commit.
 UNMANAGED_RE = re.compile(r"_config/Kconfig|cmake/[a-z0-9_]+_build_settings\.cmake")
@@ -164,6 +165,7 @@ LIBRARY_REMOVE = [
     ".claude/skills/add-port",
     ".claude/skills/datasheet-conformance",
     ".claude/skills/hardware-lessons-review",
+    ".claude/skills/hardware-validation",
     # A library has no datasheet (handbook ADR-0019 applies to drivers): no map, no generator, no regions.
     "docs/datasheets.yml",
     "docs/datasheet.md",
@@ -909,7 +911,24 @@ def read_record(path: Path) -> tuple[dict, list[dict], str]:
             return [x.strip() for x in raw[1:-1].split(",") if x.strip()]
         return raw
 
-    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    lines = path.read_text(encoding="utf-8").splitlines()
+    n = 0
+    while n < len(lines):
+        line = lines[n]
+        n += 1
+        # A double-quoted value may continue on the next lines with a trailing backslash (YAML line folding, used to
+        # keep a long description inside the yamllint limit): join them before reading the value.
+        while re.fullmatch(r'[a-z_]+: ?"(?:[^"\\]|\\.)*\\', line) and n < len(lines):
+            line = line[:-1] + lines[n].lstrip()
+            n += 1
+        # A folded block scalar (`key: >-` and indented lines), as yamllint-friendly editors write long values.
+        block = re.fullmatch(r"([a-z_]+): ?>[-+]?", line)
+        if block:
+            words = []
+            while n < len(lines) and lines[n].startswith("  ") and not re.match(r"  - path: |    reason: ", lines[n]):
+                words.append(lines[n].strip())
+                n += 1
+            line = f"{block.group(1)}: " + json.dumps(" ".join(words))
         if not line.strip() or line.lstrip().startswith("#") or line == "---":
             continue
         m = re.fullmatch(r"  - path: (\S+)", line)
@@ -1231,6 +1250,7 @@ def check_output(out: Path, a: argparse.Namespace) -> list[str]:
     bad += standalone_problems(out, a.repo)
     bad += misra_lint_problems(out)
     bad += eval_order_problems(out)
+    bad += agent_tool_problems(out, out)
     # Markdown the description, the datasheet link or the names made too long (markdownlint MD013).
     bad += md_long_lines(out)
     # The record names the template commit the copy was made from: this checkout's HEAD.
@@ -1270,6 +1290,51 @@ def eval_order_problems(root: Path) -> list[str]:
     done = subprocess.run([sys.executable, "-I", str(script), "--root", str(root), "--quiet"],
                           capture_output=True, text=True, check=False)
     return [] if done.returncode == 0 else [f"eval_order_check: {line}" for line in done.stdout.splitlines() if line.strip()]
+
+
+def agent_tool_problems(root: Path, tools_from: Path) -> list[str]:
+    """tools/check_skills.py, check_layout.py and check_hardware.py (selftest only in the template) over `root`."""
+    bad = []
+    for name in ("check_skills", "check_layout", "check_hardware"):
+        script = tools_from / f"tools/{name}.py"
+        if not script.is_file():
+            bad.append(f"tools/{name}.py: missing")
+            continue
+        if root == ROOT:
+            done = subprocess.run([sys.executable, "-I", str(script), "--selftest"], capture_output=True, text=True,
+                                  check=False)
+            if done.returncode:
+                bad += [f"{name} selftest: {line}" for line in (done.stdout + done.stderr).splitlines() if line.strip()]
+        done = subprocess.run([sys.executable, "-I", str(script), "--root", str(root), "--quiet"],
+                              capture_output=True, text=True, check=False)
+        if done.returncode:
+            bad += [f"{name}: {line}" for line in done.stdout.splitlines() if line.strip()]
+    return bad
+
+
+def record_parse_problems() -> list[str]:
+    """.kokeb/template.yml values: plain, quoted, and a quoted value continued with a trailing backslash."""
+    text = ('---\ntemplate: abc123\nkind: driver\nname: tmp117\n'
+            'description: "C++20 driver for the TMP117 temperature \\\n  sensor, with the alert pin."\n'
+            'author: "The driver-tmp117 authors"\nlocal: []\n')
+    with tempfile.TemporaryDirectory(prefix="record-parse-") as tmp:
+        path = Path(tmp) / "template.yml"
+        path.write_text(text, encoding="utf-8")
+        values, local, commit = read_record(path)
+    with tempfile.TemporaryDirectory(prefix="record-parse-") as tmp:
+        path = Path(tmp) / "template.yml"
+        path.write_text('---\ndescription: >-\n  C++20 driver for the TMP117 temperature\n  sensor, with the alert pin.\n'
+                        'include_root: null\n', encoding="utf-8")
+        folded, _, _ = read_record(path)
+    bad = []
+    if folded.get("description") != "C++20 driver for the TMP117 temperature sensor, with the alert pin." \
+            or folded.get("include_root") is not None:
+        bad.append(f"a folded description reads as {folded}")
+    if values.get("description") != "C++20 driver for the TMP117 temperature sensor, with the alert pin.":
+        bad.append(f"a continued description reads as {values.get('description')!r}")
+    if values.get("author") != "The driver-tmp117 authors" or values.get("name") != "tmp117" or commit != "abc123":
+        bad.append(f"plain values read as {values}, {commit}")
+    return bad
 
 
 def record_problems() -> list[str]:
@@ -1425,9 +1490,13 @@ def selftest(only: str | None) -> int:
     if bad:
         print("the template is not stand-alone:", *bad, sep="\n  ")
         return 1
-    bad = record_problems()
+    bad = record_problems() + record_parse_problems()
     if bad:
         print("the template commit in .kokeb/template.yml is wrong:", *bad, sep="\n  ")
+        return 1
+    bad = agent_tool_problems(ROOT, ROOT)
+    if bad:
+        print("the template breaks its agent checks:", *bad, sep="\n  ")
         return 1
     tidy = tidy_exe()
     npx = shutil.which("npx")
