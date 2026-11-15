@@ -105,6 +105,10 @@ step layout-selftest python3 -I tools/check_layout.py --selftest
 step layout python3 -I tools/check_layout.py --quiet
 step hardware-selftest python3 -I tools/check_hardware.py --selftest
 step hardware python3 -I tools/check_hardware.py --quiet
+# The C++ standard is declared once in driver.yml (`language:`) and agrees with the CMake files, clang-format, the
+# -std flags, the workflows and the README (docs/language-standard.md).
+step language-selftest python3 -I tools/check_language.py --selftest
+step language python3 -I tools/check_language.py --quiet
 # The first-push gitlink: after `git add -A`, examples/esp32/scripts is a gitlink (mode 160000), not a missing or
 # empty folder (checked on a scratch copy of the index, the working tree's index is left alone).
 gitlink() {
