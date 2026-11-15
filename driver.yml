@@ -8,3 +8,8 @@ mcus: [any]         # any, or the MCU families it needs, e.g. [esp32]
 peripheral: null    # an MCU peripheral it needs with mcus, e.g. rmt
 kb_core_min: null   # the oldest kb-core release whose handler works with this version; null until kb-core exists
 authors: ["The driver-template authors"]  # the copyright holder, as in LICENSE
+hardware:           # the validation level, see the hardware-validation skill
+  level: H0         # H0 host model only, H1 bench rig exercised with logs, H2 verified by a hardware engineer
+  rig: null         # H1/H2: docs/bench-rig.md
+  evidence: null    # H1/H2: the release asset with the bench logs
+  reviewed: null    # H2: the engineer's review and the release it covers

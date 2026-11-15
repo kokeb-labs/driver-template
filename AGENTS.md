@@ -7,9 +7,16 @@ XMPL100, a fictional example sensor on SPI. It follows the
 (agents: `standards/agents.md`, drivers: `standards/driver.md`).
 <!-- /scaffold:agents-intro -->
 
+## Start here
+
+[`docs/agent-context.md`](docs/agent-context.md) is the page to read first (CLAUDE.md loads it): the whole flow from
+the plan to the release candidate and the skill for each step, the exact local checks and what passes, the file
+layout, the standing rules, the known pitfalls with their fixes, and when to stop and report.
+
 ## Layout
 
-- `inc/`, `src/`: the driver. `inc/xmpl100.hpp` is the umbrella header, `src/xmpl100.ipp` the implementation,
+- `inc/`, `src/`: the driver, one source per header with the same stem (`tools/check_layout.py`); SDK code only in
+  `src/boundary/`, one file per component. `inc/xmpl100.hpp` is the umbrella header, `src/xmpl100.ipp` the implementation,
   `inc/xmpl100_spi_interface.hpp` the port, `inc/xmpl100_types.hpp` errors and config, `inc/xmpl100_detail.hpp`
   the compile-time helpers (typed integer literals, exact hook probes, typed register fields, enumeration checks).
 - `tests/`: host tests over the register model `tests/mock_xmpl100.hpp`, `tests/compile_fail/`, `tests/docs/`
@@ -163,15 +170,19 @@ gates); anything hardware-dependent marked **not verified on hardware** with ben
 
 ## Skills
 
-In `.claude/skills/`:
+In `.claude/skills/`, linked by step in `docs/agent-context.md`:
 
-- `verify`: every check CI runs, before each push.
+- `plan-driver`: before anything is scaffolded: new driver, extension or duplicate, the API shape, `placement.md`.
+- `new-driver-from-template`: turning a repository made from the template into a real driver or library.
 - `datasheet-conformance`: register maps, timing, reset values and errors from the datasheet, test first.
 - `add-driver-feature`, `add-port`: a new driver capability; a new platform under `examples/`.
 - `cpp20-profile`, `misra-review`, `hardware-lessons-review`: the reviews of the standards above.
+- `verify`: every check CI runs, before each push.
+- `review-round`: one independent review round and its stop rule.
+- `first-push`: the gate before a new driver's first publication: container rehearsal, review, evidence.
+- `publish-driver`: iterate privately, keep a copy, publish one clean commit, let CI run, enable Pages, tag the candidate.
+- `hardware-validation`: levels H0, H1 and H2, the evidence, the rig document, the labels and the wording.
 - `release`, `bump-pin`: a version release; a submodule or workflow pin update.
-- `new-driver-from-template`: turning a repository made from the template into a real driver.
-- `first-push`: the gate before a new driver's first push: container rehearsal, independent review, evidence.
 
 `.claude/agents/safety-reviewer.md` runs the review skills with `datasheet-conformance` and reports findings by
 severity for the author to act on.

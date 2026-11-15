@@ -8,6 +8,27 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- **Agent-ready template.** `docs/agent-context.md` is the page agents read first (`CLAUDE.md` loads it with
+  `AGENTS.md`): the flow with the skill for each step, the exact local checks and what passes, the file layout, naming,
+  docs and diagram requirements, standing rules, known pitfalls with their fixes, and when to stop and report. It is a
+  managed file kept out of the site navigation.
+- **Three skills.** `plan-driver` (run before the scaffold: new driver, extension or duplicate, the survey of the
+  organisation's and comparable open-source drivers, the API shape, what to share through the shared layer, and the
+  `placement.md` verdict `NEW`, `EXTEND:<driver>`, `DUPLICATE:<driver>` or `BLOCKED`), `publish-driver` (iterate
+  privately, keep a local copy, publish one fresh clean commit into the public repository, scans, CI, Pages, then the
+  release candidate; what only the owner may do) and `hardware-validation` (levels H0, H1 and H2, the evidence for each,
+  the bench-rig document, the labels and the wording of candidates that are not hardware-verified).
+- `driver.yml` gains `hardware: {level, rig, evidence, reviewed}` and the README a hardware badge (`H0` for a new
+  driver); the labels `needs-hardware` and `hardware-verified`; `docs/testing.md` "On hardware" explains the levels.
+- `tools/check_skills.py` (skills linked from the agent context, front matter, every `tools/...` file a skill names
+  exists, relative links resolve), `tools/check_layout.py` (one source per header with the same stem, SDK includes only
+  in `src/boundary/`, exceptions in `tools/layout.yml` with reasons) and `tools/check_hardware.py` (level, badge and
+  rig document agree), each with a `--selftest`, in the preflight, the repository checks and the template self-test.
+  A repository that has no `hardware` block is told so and treated as H0; the layout check reports every header of an
+  existing driver that has no source of its own stem, so each lists it in `tools/layout.yml` with a reason or adds the
+  source.
+- The preflight fails when its clang-tidy step takes over 400 s (CI stops the lint job at 20 minutes).
+
 - A chip-first README: the title, then what the chip is (`chip-summary`), the hero figure (`chip-hero`), What it
   does (`chip-capabilities`), Where it is used (`chip-uses`), Inside the chip (`chip-blocks`), Pins and wiring
   (pinout, `chip-wiring-typical`, the wiring table, `chip-frame-spi`, outline, chip card), Quick start, Driver coverage
@@ -28,6 +49,15 @@ version bump (a minor bump before 1.0).
 - `tools/eval_order_check.py` and the `eval-order` preflight step (RD-34, a managed file): a test or fuzz call must not
   take a driver operation and a read of the state it changes as separate arguments; GCC on x86-64 evaluates them
   right to left, so the defect showed on one CI runner only.
+
+### Changed
+
+- The order for a new driver: private iteration, a fresh single commit pushed to the public repository, `main` green,
+  Pages, and only then `v0.1.0-rc.N`; the final tag is the owner's. `first-push`, `release`, `new-driver-from-template`
+  and `docs/repo-setup.md` section 6 say the same.
+- `docs/repo-setup.md` uses a neutral placeholder for the repository topics.
+- `scaffold.py --check-drift` reads a long `.kokeb/template.yml` value written as a folded block (`description: >-`)
+  or as a quoted value continued with a trailing backslash (both used to stop it with a parse error).
 
 ### Fixed
 
