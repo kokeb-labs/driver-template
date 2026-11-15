@@ -223,5 +223,16 @@ The workflows call the shared, versioned workflows of
 
 ## On hardware
 
+The tests prove the driver against a model of the chip written from the datasheet; a bench proves the model. The
+driver states how far it has been checked as a level, in `driver.yml` (`hardware.level`) and as the README badge:
+
+| Level | Means |
+| --- | --- |
+| H0 | Host model only: never run on a chip. Releases say **not hardware-verified** |
+| H1 | A defined bench rig ran the example; the rig document and the logs are kept |
+| H2 | A hardware engineer reviewed the rig and the steps and signed off |
+
 An MCU example ([Examples](examples.md)) is the bench test: it logs the temperature twice a second. Warm the chip
-and watch the value rise. Record the board and the result in the pull request's bench-status section.
+and watch the value rise. Record the rig and the result in the pull request's bench-status section; the
+`hardware-validation` skill says what evidence each level needs and how to write the rig document.
+`tools/check_hardware.py` keeps the level, the badge and the evidence in step.
