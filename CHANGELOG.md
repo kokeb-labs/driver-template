@@ -8,6 +8,10 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- **The header-only rule is lenient, and says so.** A public header that holds only templates, constants or inline
+  types may be listed under `header_only` in `tools/layout.yml` with a one-line reason; a header with real logic
+  still gets its own `src/<stem>.cpp`. The checker already worked this way; `check_layout.py`, `docs/agent-context.md`
+  and the `new-driver-from-template` skill now state it.
 - **Safety class in `driver.yml`.** A `safety: {class: passive | sensing | actuating}` block says what the chip path
   can do to the physical world. `tools/check_hardware.py` rejects any other value and notes a missing block (a driver
   not yet updated still passes). The block ships as `actuating`, the cautious start. The organisation page shows the
