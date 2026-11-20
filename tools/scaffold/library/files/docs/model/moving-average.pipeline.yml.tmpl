@@ -1,0 +1,44 @@
+---
+# Model of the figure 'moving-average'. Edit this file; `kokeb-docs figures` draws it. Never edit the SVGs.
+kind: pipeline
+id: moving-average
+title: How Push and Average keep a running sum
+alt: >-
+  Flow of one Push call: the window-full check picks between counting up and subtracting the oldest sample, the
+  sample is stored and added to the sum, and Average divides the sum by the count.
+reads: >-
+  Four columns from left to right: Check, Update, Store and Output. Push sample starts in the Check column as the
+  question Window full. When the window is not full the Update step adds one to the count, and when it is full the
+  Update step subtracts the oldest sample from the sum. Both paths reach the Store step, which stores the sample and
+  adds it to the sum. The Output step, Average, divides the sum by the count.
+print: landscape
+sources:
+  - docs/model/moving-average.pipeline.yml
+columns:
+  - id: check
+    title: Check
+    tone: amber
+    items:
+      - {id: full, title: "Push: window full?"}
+  - id: update
+    title: Update
+    tone: violet
+    items:
+      - {id: count, title: count + 1}
+      - {id: oldest, title: sum - oldest}
+  - id: store
+    title: Store
+    tone: green
+    items:
+      - {id: store, title: "store, sum + sample"}
+  - id: output
+    title: Output
+    tone: brand
+    items:
+      - {id: avg, title: "Average = sum / count"}
+links:
+  - {from: full, to: count, label: "no"}
+  - {from: full, to: oldest, label: "yes"}
+  - {from: count, to: store}
+  - {from: oldest, to: store}
+  - {from: store, to: avg}

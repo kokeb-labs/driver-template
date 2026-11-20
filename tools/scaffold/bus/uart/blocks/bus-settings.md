@@ -9,10 +9,5 @@
 | CRC | CRC-8, polynomial 0x31, initial value 0xFF, over everything after `0xA5` |
 | Reply time | 5 ms maximum (t_REPLY); a missing reply is `Error::Timeout` |
 
-```mermaid
-sequenceDiagram
-    participant Host
-    participant XMPL100
-    Host->>XMPL100: 0xA5, 0x85 (read TEMP_MSB), 3, CRC
-    XMPL100-->>Host: 0xA5, TEMP_MSB, TEMP_LSB, TEMP_CRC, CRC
-```
+<!-- figure: bus-frame -->
+<!-- /figure -->

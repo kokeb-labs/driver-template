@@ -1,0 +1,23 @@
+---
+# Model of the figure 'bus-frame'. Edit this file; `kokeb-docs figures` draws it. Never edit the SVGs.
+kind: seq
+id: bus-frame
+title: One register read on the I2C bus
+alt: >-
+  Sequence of one I2C register read: the host sends START, the write address and the TEMP_MSB register, repeats START
+  with the read address, the XMPL100 returns three bytes and the host ends with NACK and STOP.
+reads: >-
+  Two participants, the host and the XMPL100. The host sends START, address 0x48 with the write bit and register 0x05,
+  TEMP_MSB. It repeats START with address 0x48 and the read bit. The chip returns TEMP_MSB, TEMP_LSB and TEMP_CRC.
+  The host answers the last byte with NACK and ends the transaction with STOP.
+print: landscape
+sources:
+  - docs/model/bus-frame.seq.yml
+participants:
+  - {id: host, label: Host, tone: magenta}
+  - {id: chip, label: XMPL100, tone: green}
+steps:
+  - {from: host, to: chip, label: "START, 0x48 + W, 0x05 (TEMP_MSB)"}
+  - {from: host, to: chip, label: "repeated START, 0x48 + R"}
+  - {from: chip, to: host, label: "TEMP_MSB, TEMP_LSB, TEMP_CRC", return: true}
+  - {from: host, to: chip, label: "NACK, STOP"}

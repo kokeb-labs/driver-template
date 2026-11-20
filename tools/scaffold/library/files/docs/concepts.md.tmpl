@@ -6,15 +6,8 @@ The model the library implements: here, a moving average over a fixed window.
 sum. Each `Push()` adds the new sample to the sum and, once the window is full, subtracts the sample it replaces,
 so both `Push()` and `Average()` take constant time whatever the window.
 
-```mermaid
-flowchart LR
-    S[Push sample] --> F{window full?}
-    F -- no --> A[count + 1]
-    F -- yes --> D[sum - oldest]
-    A --> W[store, sum + sample]
-    D --> W
-    W --> M[Average = sum / count]
-```
+<!-- figure: moving-average -->
+<!-- /figure -->
 
 | Property | Value |
 | --- | --- |
