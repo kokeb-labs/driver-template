@@ -35,20 +35,14 @@ How the driver is built: three layers, one of them yours, and what happens in ea
 
 ## One call through the layers
 
-```mermaid
-sequenceDiagram
-    participant App as Your code
-    participant Core as XMPL100<Port>
-    participant Port as Your port
-    App->>Core: ReadTemperatureC()
-    Core->>Port: Transfer(read STATUS)
-    Port-->>Core: true, STATUS
-    Note over Core: FAULT set? return DeviceFault
-    Core->>Port: Transfer(read TEMP_MSB..TEMP_CRC)
-    Port-->>Core: true, 3 bytes
-    Note over Core: CRC-8 check, counts / 128
-    Core-->>App: Result<float>{23.45, Ok}
-```
+<!-- figure: read-call -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/read-call.dark.svg">
+  <img src="diagrams/read-call.svg"
+    alt="Sequence of one temperature read: your code calls the XMPL100 core, which reads STATUS and then the
+    three temperature bytes through your port, checks the CRC and returns a Result.">
+</picture>
+<!-- /figure -->
 
 ## Design choices
 

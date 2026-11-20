@@ -59,15 +59,14 @@ ALERT is not read by the driver. Wire it to an MCU interrupt and read STATUS (`R
 | Burst | The address auto-increments; the driver reads at most 4 bytes per frame |
 | Chip select | Low for the whole frame; the chip decodes the frame when CS_N rises |
 
-```mermaid
-sequenceDiagram
-    participant Host
-    participant XMPL100
-    Host->>XMPL100: CS_N low
-    Host->>XMPL100: 0x85 (read, TEMP_MSB)
-    XMPL100-->>Host: TEMP_MSB, TEMP_LSB, TEMP_CRC
-    Host->>XMPL100: CS_N high
-```
+<!-- figure: bus-frame -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/bus-frame.dark.svg">
+  <img src="diagrams/bus-frame.svg"
+    alt="Sequence of one SPI read frame: the host pulls CS_N low, sends the read command for TEMP_MSB, the
+    XMPL100 answers with three bytes, and the host releases CS_N.">
+</picture>
+<!-- /figure -->
 <!-- /scaffold:bus-settings -->
 
 ## Timing

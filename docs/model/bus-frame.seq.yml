@@ -1,0 +1,22 @@
+---
+# Model of the figure 'bus-frame'. Edit this file; `kokeb-docs figures` draws it. Never edit the SVGs.
+kind: seq
+id: bus-frame
+title: One register read on the SPI bus
+alt: >-
+  Sequence of one SPI read frame: the host pulls CS_N low, sends the read command for TEMP_MSB, the XMPL100 answers
+  with three bytes, and the host releases CS_N.
+reads: >-
+  Two participants, the host and the XMPL100. The host pulls CS_N low and sends 0x85, the read command for TEMP_MSB.
+  The chip returns TEMP_MSB, TEMP_LSB and TEMP_CRC in the same frame. The host then raises CS_N, which ends the frame.
+print: landscape
+sources:
+  - docs/model/bus-frame.seq.yml
+participants:
+  - {id: host, label: Host, tone: magenta}
+  - {id: chip, label: XMPL100, tone: green}
+steps:
+  - {from: host, to: chip, label: CS_N low}
+  - {from: host, to: chip, label: "0x85 (read, TEMP_MSB)"}
+  - {from: chip, to: host, label: "TEMP_MSB, TEMP_LSB, TEMP_CRC", return: true}
+  - {from: host, to: chip, label: CS_N high}

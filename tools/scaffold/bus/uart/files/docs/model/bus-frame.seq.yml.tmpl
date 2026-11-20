@@ -1,0 +1,21 @@
+---
+# Model of the figure 'bus-frame'. Edit this file; `kokeb-docs figures` draws it. Never edit the SVGs.
+kind: seq
+id: bus-frame
+title: One register read on the UART link
+alt: >-
+  Sequence of one UART read: the host sends a framed read command for TEMP_MSB with a CRC and the XMPL100 replies with
+  a framed answer of three bytes and a CRC.
+reads: >-
+  Two participants, the host and the XMPL100. The host sends the frame 0xA5, 0x85 (read TEMP_MSB), a length of 3 and a
+  CRC. The chip answers with the frame 0xA5, TEMP_MSB, TEMP_LSB, TEMP_CRC and a CRC. A missing reply within 5 ms is a
+  timeout.
+print: landscape
+sources:
+  - docs/model/bus-frame.seq.yml
+participants:
+  - {id: host, label: Host, tone: magenta}
+  - {id: chip, label: XMPL100, tone: green}
+steps:
+  - {from: host, to: chip, label: "0xA5, 0x85 (read TEMP_MSB), 3, CRC"}
+  - {from: chip, to: host, label: "0xA5, TEMP_MSB, TEMP_LSB, TEMP_CRC, CRC", return: true}

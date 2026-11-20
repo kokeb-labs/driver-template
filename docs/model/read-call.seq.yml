@@ -1,0 +1,29 @@
+---
+# Model of the figure 'read-call'. Edit this file; `kokeb-docs figures` draws it. Never edit the SVGs.
+kind: seq
+id: read-call
+title: One call through the layers
+alt: >-
+  Sequence of one temperature read: your code calls the XMPL100 core, which reads STATUS and then the three
+  temperature bytes through your port, checks the CRC and returns a Result.
+reads: >-
+  Three participants: your code, the core class XMPL100<Port> and your port. Your code calls ReadTemperatureC. The core
+  asks the port to transfer a STATUS read and gets the byte back; a set FAULT bit ends the call with DeviceFault.
+  The core then asks for TEMP_MSB to TEMP_CRC, checks the CRC-8, converts counts by dividing by 128 and returns a
+  Result holding the value 23.45 and the status Ok to your code.
+print: landscape
+sources:
+  - docs/model/read-call.seq.yml
+participants:
+  - {id: app, label: Your code, tone: magenta}
+  - {id: core, label: "XMPL100<Port>", tone: green}
+  - {id: port, label: Your port, tone: teal}
+steps:
+  - {from: app, to: core, label: ReadTemperatureC()}
+  - {from: core, to: port, label: Transfer(read STATUS)}
+  - {from: port, to: core, label: "true, STATUS", return: true}
+  - {note: "FAULT set? return DeviceFault", over: [core, port]}
+  - {from: core, to: port, label: Transfer(TEMP_MSB..TEMP_CRC)}
+  - {from: port, to: core, label: "true, 3 bytes", return: true}
+  - {note: "CRC-8 check, counts / 128", over: [core, port]}
+  - {from: core, to: app, label: "Result<float>{23.45, Ok}", return: true}

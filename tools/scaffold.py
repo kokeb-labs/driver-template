@@ -153,6 +153,8 @@ LIBRARY_REMOVE = [
     "docs/architecture.md",
     "docs/configuration.md",
     "docs/diagrams",
+    "docs/model/read-call.seq.yml",  # the library has its own models in the library overlay
+    "docs/model/bus-frame.seq.yml",
     "docs/hardware.md",
     "docs/hardware.yml",
     "docs/installation.md",
@@ -758,7 +760,7 @@ def regenerate(dest: Path) -> bool:
         return False
     env = dict(os.environ, KOKEB_DOCS_ROOT=str(dest))
     for args in (["figures"], ["gen"]):
-        if args == ["figures"] and not (dest / "docs/diagrams/figures").is_dir():
+        if args == ["figures"] and not any((dest / d).is_dir() for d in ("docs/diagrams/figures", "docs/model")):
             continue
         subprocess.run([exe, *args], cwd=dest, env=env, check=True, stdout=subprocess.DEVNULL)
     return True

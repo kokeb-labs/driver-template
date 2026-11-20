@@ -6,6 +6,23 @@ Every figure on this site is drawn by a Python module from facts extracted from 
 not redrawn, when the code changes. CI runs `kokeb-docs figures --check` and fails when a
 committed figure no longer matches the code. Each figure below lists the files it is drawn from.
 
+## One register read on the SPI bus
+
+<!-- figure: bus-frame -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="bus-frame.dark.svg">
+  <img src="bus-frame.svg"
+    alt="Sequence of one SPI read frame: the host pulls CS_N low, sends the read command for TEMP_MSB, the
+    XMPL100 answers with three bytes, and the host releases CS_N.">
+</picture>
+<!-- /figure -->
+
+Hardware description: [`docs/model/bus-frame.seq.yml`](../model/bus-frame.seq.yml)
+
+Drawn from:
+
+- [`docs/model/bus-frame.seq.yml`](../model/bus-frame.seq.yml)
+
 ## Inside the XMPL100
 
 <!-- figure: chip-blocks -->
@@ -172,3 +189,20 @@ Drawn from:
 
 - `public calls` in [`inc/xmpl100.hpp`](../../inc/xmpl100.hpp)
 - `SpiInterface` in [`inc/xmpl100_spi_interface.hpp`](../../inc/xmpl100_spi_interface.hpp)
+
+## One call through the layers
+
+<!-- figure: read-call -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="read-call.dark.svg">
+  <img src="read-call.svg"
+    alt="Sequence of one temperature read: your code calls the XMPL100 core, which reads STATUS and then the
+    three temperature bytes through your port, checks the CRC and returns a Result.">
+</picture>
+<!-- /figure -->
+
+Hardware description: [`docs/model/read-call.seq.yml`](../model/read-call.seq.yml)
+
+Drawn from:
+
+- [`docs/model/read-call.seq.yml`](../model/read-call.seq.yml)

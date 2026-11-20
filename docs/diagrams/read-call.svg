@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="626" height="535" viewBox="0 0 626 535" role="img" aria-labelledby="read-call-title read-call-desc" font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="read-call-title">One call through the layers</title>
+<desc id="read-call-desc">Sequence of one temperature read: your code calls the XMPL100 core, which reads STATUS and then the three temperature bytes through your port, checks the CRC and returns a Result.</desc>
+<defs><marker id="read-call-arrow-rail" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7C8798"/></marker></defs>
+<rect x="0.5" y="0.5" width="625" height="534" rx="16" fill="#FFFFFF" stroke="#E2E7EE"/>
+<text x="32" y="54.8" font-size="26" font-weight="700" fill="#0E1726">One call through the layers</text>
+<rect x="32" y="70.8" width="562" height="1" fill="#E2E7EE"/>
+<path d="M104.7 144.8 L104.7 538.8" fill="none" stroke="#738093" stroke-width="1.2" stroke-dasharray="5 5"/>
+<path d="M285.7 144.8 L285.7 538.8" fill="none" stroke="#738093" stroke-width="1.2" stroke-dasharray="5 5"/>
+<path d="M521.3 144.8 L521.3 538.8" fill="none" stroke="#738093" stroke-width="1.2" stroke-dasharray="5 5"/>
+<path d="M108.7 180.8 L281.7 180.8" fill="none" stroke="#7C8798" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#read-call-arrow-rail)"/>
+<path d="M289.7 224.8 L517.3 224.8" fill="none" stroke="#7C8798" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#read-call-arrow-rail)"/>
+<path d="M517.3 268.8 L289.7 268.8" fill="none" stroke="#7C8798" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#read-call-arrow-rail)"/>
+<path d="M289.7 364.8 L517.3 364.8" fill="none" stroke="#7C8798" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#read-call-arrow-rail)"/>
+<path d="M517.3 408.8 L289.7 408.8" fill="none" stroke="#7C8798" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#read-call-arrow-rail)"/>
+<path d="M281.7 504.8 L108.7 504.8" fill="none" stroke="#7C8798" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#read-call-arrow-rail)"/>
+<rect x="39.7" y="88.8" width="130" height="52" rx="10" fill="#FDF0FF" stroke="#A21CAF" stroke-width="1.4"/>
+<rect x="39.7" y="96.8" width="4" height="36" rx="2" fill="#A21CAF"/>
+<rect x="200.7" y="88.8" width="170.1" height="52" rx="10" fill="#EAF7EF" stroke="#15803D" stroke-width="1.4"/>
+<rect x="200.7" y="96.8" width="4" height="36" rx="2" fill="#15803D"/>
+<rect x="456.3" y="88.8" width="130" height="52" rx="10" fill="#E6F6F4" stroke="#0B7A72" stroke-width="1.4"/>
+<rect x="456.3" y="96.8" width="4" height="36" rx="2" fill="#0B7A72"/>
+<rect x="215.7" y="296.8" width="375.6" height="41" rx="10" fill="#FFF5E3" stroke="#F1CF93" stroke-width="1"/>
+<rect x="215.7" y="436.8" width="375.6" height="41" rx="10" fill="#FFF5E3" stroke="#F1CF93" stroke-width="1"/>
+<text x="107.7" y="119.3" font-size="15" font-weight="700" text-anchor="middle" fill="#86198F">Your code</text>
+<text x="288.7" y="119.3" font-size="15" font-weight="700" text-anchor="middle" fill="#14532D">XMPL100&lt;Port&gt;</text>
+<text x="524.3" y="119.3" font-size="15" font-weight="700" text-anchor="middle" fill="#0B5F59">Your port</text>
+<rect x="125" y="156.8" width="140.4" height="20" rx="10" fill="#FFFFFF"/>
+<text x="195.2" y="171.1" font-size="12" font-weight="500" text-anchor="middle" fill="#566070">ReadTemperatureC()</text>
+<rect x="325.6" y="200.8" width="155.9" height="20" rx="10" fill="#FFFFFF"/>
+<text x="403.5" y="215.1" font-size="12" font-weight="500" text-anchor="middle" fill="#566070">Transfer(read STATUS)</text>
+<rect x="356" y="244.8" width="95.1" height="20" rx="10" fill="#FFFFFF"/>
+<text x="403.5" y="259.1" font-size="12" font-weight="500" text-anchor="middle" fill="#566070">true, STATUS</text>
+<text x="229.7" y="321.9" font-size="13" fill="#8A3C0B">FAULT set? return DeviceFault</text>
+<rect x="293.7" y="340.8" width="219.6" height="20" rx="10" fill="#FFFFFF"/>
+<text x="403.5" y="355.1" font-size="12" font-weight="500" text-anchor="middle" fill="#566070">Transfer(TEMP_MSB..TEMP_CRC)</text>
+<rect x="359.1" y="384.8" width="88.8" height="20" rx="10" fill="#FFFFFF"/>
+<text x="403.5" y="399.1" font-size="12" font-weight="500" text-anchor="middle" fill="#566070">true, 3 bytes</text>
+<text x="229.7" y="461.9" font-size="13" fill="#8A3C0B">CRC-8 check, counts / 128</text>
+<rect x="112.7" y="480.8" width="165" height="20" rx="10" fill="#FFFFFF"/>
+<text x="195.2" y="495.1" font-size="12" font-weight="500" text-anchor="middle" fill="#566070">Result&lt;float&gt;{23.45, Ok}</text>
+</svg>
