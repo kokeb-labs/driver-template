@@ -8,6 +8,11 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- **Weekly floor compilers.** `.github/workflows/weekly-floor-compilers.yml` (managed) builds and tests every Monday
+  with the oldest compilers `language.compilers` promises, GCC 10 and Clang 13, in digest-pinned containers, by calling
+  ci-tools `ru-floor-compilers.yml@v1`. It is the one scheduled workflow the trigger policy allows and must stay a bare
+  call with `contents: read`. A failure means the driver uses something its declared floor does not have: fix the code
+  or raise the declared floor. Needs ci-tools 1.23.0.
 - **The header-only rule is lenient, and says so.** A public header that holds only templates, constants or inline
   types may be listed under `header_only` in `tools/layout.yml` with a one-line reason; a header with real logic
   still gets its own `src/<stem>.cpp`. The checker already worked this way; `check_layout.py`, `docs/agent-context.md`
