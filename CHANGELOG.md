@@ -8,6 +8,10 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- **Safety class in `driver.yml`.** A `safety: {class: passive | sensing | actuating}` block says what the chip path
+  can do to the physical world. `tools/check_hardware.py` rejects any other value and notes a missing block (a driver
+  not yet updated still passes). The block ships as `actuating`, the cautious start. The organisation page shows the
+  class beside the hardware level. See the `hardware-validation` skill, section 4.
 - **Language standard declared once.** `driver.yml` gains a `language:` block (`standard`, `profile`,
   `profile_version`, `misra`, `compilers`, `tested`, `effective_from`). `tools/check_language.py` (managed, with a
   `--selftest`, in the preflight and the repository checks) checks the block and every place that repeats the standard:
