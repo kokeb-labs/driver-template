@@ -1,0 +1,38 @@
+---
+# Model of the figure 'bus-timing'. Edit this file; `kokeb-docs figures` draws it. Never edit the SVGs.
+# Every number is a param with the datasheet section and page it comes from (`ref`, a name under refs here or in
+# docs/hardware.yml); a number without one fails the build. Wave characters and keys: docs/figkit.md in ci-tools.
+kind: timing
+id: bus-timing
+title: SPI timing of one byte
+kicker: On the bus
+alt: >-
+  SPI timing of the XMPL100 in mode 0: CS_N low frames the transfer, SDI is read on each rising SCLK edge and SDO
+  changes on each falling edge for one byte, with the select, setup and hold times of the datasheet.
+reads: >-
+  The four lanes are CS_N, SCLK, SDI and SDO, left to right in time. CS_N goes low, SCLK idles low and clocks one
+  byte in on SDI while the chip shifts one out on SDO; the bits between the first three and the last three are left
+  out. The table under the lanes gives each interval with its datasheet value.
+print: landscape
+sources:
+  - docs/model/bus-timing.timing.yml
+bus: spi
+mode: {cpol: 0, cpha: 0}
+signals:
+  - {id: cs, label: CS_N, wave: "10........1."}
+  - {id: sclk, label: SCLK, wave: "0.ppp|ppp0..", clock: true}
+  - {id: sdi, label: SDI, wave: "x.===|===x..", data: [C7, C6, C5, C2, C1, C0]}
+  - {id: sdo, label: SDO, wave: "z.===|===z..", data: [D7, D6, D5, D2, D1, D0], tone: teal}
+groups:
+  - {from: 2, to: 9, label: "8 bits per byte, MSB first", ref: spi}
+params:
+  - {id: tcss, symbol: tCSS, label: CS_N low to the first SCLK edge, min: 50, unit: ns, ref: spi-timing}
+  - {id: tsu, symbol: tSU, label: SDI setup time before the rising SCLK edge, min: 10, unit: ns, ref: spi-timing}
+  - {id: th, symbol: tH, label: SDI hold time after the rising SCLK edge, min: 10, unit: ns, ref: spi-timing}
+  - {id: tcsh, symbol: tCSH, label: Last SCLK edge to CS_N high, min: 50, unit: ns, ref: spi-timing}
+  - {id: fsclk, symbol: fSCLK, label: SCLK frequency, max: 10, unit: MHz, ref: spi}
+marks:
+  - {param: tcss, signal: cs, from: 1, to: 2}
+  - {param: tsu, signal: sdi, from: 2, to: 2.5}
+  - {param: th, signal: sdi, from: 2.5, to: 3}
+  - {param: tcsh, signal: cs, from: 9, to: 10}

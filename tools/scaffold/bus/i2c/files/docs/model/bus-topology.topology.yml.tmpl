@@ -1,0 +1,29 @@
+---
+# Model of the figure 'bus-topology'. Edit this file; `kokeb-docs figures` draws it. Never edit the SVGs.
+# Draw it only when the datasheet says how several devices share the bus (address pins, a daisy chain); every
+# address and limit cites the section and page it comes from.
+kind: topology
+id: bus-topology
+title: Several XMPL100 on one I2C bus
+kicker: Several devices
+alt: >-
+  An I2C bus on which an MCU and up to four XMPL100 devices share SDA and SCL, each at the address its ADDR pin
+  selects, with one pull-up resistor per line.
+reads: >-
+  The MCU on top and the XMPL100 devices under it connect to the rails SDA and SCL on the right; the dashed card
+  stands for the devices in between. One pull-up per line ties the bus to the supply.
+print: landscape
+sources:
+  - docs/model/bus-topology.topology.yml
+style: bus
+refs:
+  addr: {doc: ds, section: "6.2 I2C interface", page: 8}
+host: {label: MCU, detail: I2C controller}
+nodes:
+  - {label: XMPL100, address: "0x48, ADDR to GND", ref: addr}
+  - {more: true, label: "…", detail: ADDR to VDD or SDA}
+  - {label: XMPL100, address: "0x4B, ADDR to SCL", ref: addr}
+shared: [SDA, SCL]
+pullups: {label: pull-ups to VDD}
+facts:
+  - {text: "Four addresses, 0x48 to 0x4B, chosen by the ADDR pin", ref: addr}

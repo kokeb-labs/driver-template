@@ -3,3 +3,8 @@ tests/mock_xmpl100_bus.hpp
 tests/test_bus_faults.cpp
 tests/test_model.cpp
 tests/compile_fail/checked_config_invalid.cpp
+docs/model/bus-timing.timing.yml
+docs/diagrams/bus-timing.svg
+docs/diagrams/bus-timing.dark.svg
+docs/diagrams/bus-timing.adaptive.svg
+docs/diagrams/bus-timing.table.html
