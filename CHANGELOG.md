@@ -8,6 +8,27 @@ version bump (a minor bump before 1.0).
 
 ### Added
 
+- **CI path filter.** A `changes` job in `.github/workflows/ci.yml` lists the files a pull request changes. A pull
+  request that touches only documentation (`docs/`, figure models, Markdown, `_config/mkdocs.yml`, `_config/Doxyfile`)
+  runs only the docs and the repository checks; the host tests, quality, cross-compile, MISRA, C++ lint and ESP32 jobs
+  are skipped. Workflows, tools, sources and everything else still run every job, and pushes to main, release
+  branches and tags always run everything. The gate (`CI gate / gate`) allows those jobs to be skipped only when
+  `changes` found a documentation-only pull request (its `skippable` output); any job that ran must pass.
+- **Bus figures.** `docs/bus.md` ("On the bus") with a `timing` figure of the bus (`docs/model/bus-timing.timing.yml`,
+  SPI here; the I2C and UART overlays ship their own, and the I2C overlay a `topology` figure of several devices by
+  address). Every time and rate is a param citing the datasheet section and page; a number without a reference fails
+  `kokeb-docs figures`. The skills and `docs/agent-context.md` say how to fill them. Needs ci-tools 1.27.0.
+
+### Fixed
+
+- The docs publish runs only on main and on `v*` tags: a scaffolded repository's `deploy` was `true` on every push,
+  so a push to a `release/*` branch failed the docs job ("publishes only from main or a tag"). Pull requests never
+  publish, as before.
+- The `publish-driver` skill tags the fetched public `main` instead of `git pull --ff-only`, which fails in a clone
+  whose local `main` has no upstream.
+
+### Added
+
 - **Weekly floor compilers.** `.github/workflows/weekly-floor-compilers.yml` (managed) builds and tests every Monday
   with the oldest compilers `language.compilers` promises, GCC 10 and Clang 13, in digest-pinned containers, by calling
   ci-tools `ru-floor-compilers.yml@v1`. It is the one scheduled workflow the trigger policy allows and must stay a bare

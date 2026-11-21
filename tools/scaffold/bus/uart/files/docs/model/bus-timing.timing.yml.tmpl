@@ -1,0 +1,28 @@
+---
+# Model of the figure 'bus-timing'. Edit this file; `kokeb-docs figures` draws it. Never edit the SVGs.
+# Every number is a param with the datasheet section and page it comes from (`ref`, a name under refs here or in
+# docs/hardware.yml); a number without one fails the build. Wave characters and keys: docs/figkit.md in ci-tools.
+kind: timing
+id: bus-timing
+title: UART character
+kicker: On the bus
+alt: >-
+  One UART character of the XMPL100 on its TX line: the start bit, eight data bits least significant first and the
+  stop bit, at the bit rate of the datasheet.
+reads: >-
+  The lane is TX, left to right in time. The line idles high, the start bit pulls it low for one bit time, the data
+  bits D0 to D7 follow and the stop bit returns it high. The table under the lane gives the bit rate.
+print: landscape
+sources:
+  - docs/model/bus-timing.timing.yml
+bus: uart
+refs:
+  uart: {doc: ds, section: "6.2 UART interface", page: 8}
+signals:
+  - {id: tx, label: TX, wave: "10========1", data: [D0, D1, D2, D3, D4, D5, D6, D7]}
+groups:
+  - {from: 1, to: 2, label: start}
+  - {from: 2, to: 10, label: "8 data bits, LSB first", ref: uart}
+  - {from: 10, to: 11, label: stop}
+params:
+  - {id: baud, symbol: baud, label: Bit rate, typ: 115200, unit: bit/s, ref: uart}

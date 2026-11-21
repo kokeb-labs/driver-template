@@ -29,6 +29,7 @@ refs:
   pinout: {doc: ds, section: "3 Pin configuration", page: 3}
   supply: {doc: ds, section: "5 Electrical characteristics", page: 5}
   spi: {doc: ds, section: "6.2 SPI interface", page: 8}
+  spi-timing: {doc: ds, section: "6.3 SPI timing", page: 9}
   alert: {doc: ds, section: "7.7 ALERT_HIGH and ALERT_LOW", page: 15}
   reset: {doc: ds, section: "8.3 Hardware reset", page: 18}
   blocks: {doc: ds, section: "2 Block diagram", page: 2}

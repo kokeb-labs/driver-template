@@ -1,0 +1,35 @@
+---
+# Model of the figure 'bus-timing'. Edit this file; `kokeb-docs figures` draws it. Never edit the SVGs.
+# Every number is a param with the datasheet section and page it comes from (`ref`, a name under refs here or in
+# docs/hardware.yml); a number without one fails the build. Wave characters and keys: docs/figkit.md in ci-tools.
+kind: timing
+id: bus-timing
+title: I2C timing of the address byte
+kicker: On the bus
+alt: >-
+  I2C timing of the XMPL100: the start condition, the 7-bit address and the write bit, each held while SCL is high,
+  and the acknowledge, with the start, setup and hold times of the datasheet.
+reads: >-
+  The two lanes are SCL and SDA, left to right in time. SDA falls while SCL is high (the start), the address bits
+  follow, each stable while SCL is high, then the XMPL100 pulls SDA low for the acknowledge. The table under the lanes
+  gives each interval with its datasheet value.
+print: landscape
+sources:
+  - docs/model/bus-timing.timing.yml
+bus: i2c
+refs:
+  i2c: {doc: ds, section: "6.2 I2C interface", page: 8}
+  i2c-timing: {doc: ds, section: "6.3 I2C timing", page: 9}
+signals:
+  - {id: scl, label: SCL, wave: "11nnnnnnnnn1"}
+  - {id: sda, label: SDA, wave: "10========0.", data: [A6, A5, A4, A3, A2, A1, A0, W]}
+groups:
+  - {from: 2, to: 9, label: "address 0x48 and W", ref: i2c}
+  - {from: 10, to: 11, label: ACK}
+params:
+  - {id: thd-sta, symbol: tHD;STA, label: Hold time after a start condition, min: 0.6, unit: µs, ref: i2c-timing}
+  - {id: tsu-dat, symbol: tSU;DAT, label: Data setup time, min: 100, unit: ns, ref: i2c-timing}
+  - {id: fscl, symbol: fSCL, label: SCL clock frequency, max: 400, unit: kHz, ref: i2c}
+marks:
+  - {param: thd-sta, signal: sda, from: 1, to: 2}
+  - {param: tsu-dat, signal: sda, from: 3, to: 3.5}

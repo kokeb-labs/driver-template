@@ -23,6 +23,24 @@ Drawn from:
 
 - [`docs/model/bus-frame.seq.yml`](../model/bus-frame.seq.yml)
 
+## SPI timing of one byte
+
+<!-- figure: bus-timing -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="bus-timing.dark.svg">
+  <img src="bus-timing.svg"
+    alt="SPI timing of the XMPL100 in mode 0: CS_N low frames the transfer, SDI is read on each rising SCLK
+    edge and SDO changes on each falling edge for one byte, with the select, setup and hold times of the
+    datasheet.">
+</picture>
+<!-- /figure -->
+
+Hardware description: [`docs/model/bus-timing.timing.yml`](../model/bus-timing.timing.yml)
+
+Drawn from:
+
+- [`docs/model/bus-timing.timing.yml`](../model/bus-timing.timing.yml)
+
 ## Inside the XMPL100
 
 <!-- figure: chip-blocks -->

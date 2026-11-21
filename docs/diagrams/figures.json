@@ -16,6 +16,23 @@
     "twin": false,
     "font": ""
   },
+  "bus-timing": {
+    "title": "SPI timing of one byte",
+    "alt": "SPI timing of the XMPL100 in mode 0: CS_N low frames the transfer, SDI is read on each rising SCLK edge and SDO changes on each falling edge for one byte, with the select, setup and hold times of the datasheet.",
+    "description": "The four lanes are CS_N, SCLK, SDI and SDO, left to right in time. CS_N goes low, SCLK idles low and clocks one byte in on SDI while the chip shifts one out on SDO; the bits between the first three and the last three are left out. The table under the lanes gives each interval with its datasheet value.",
+    "profile": "phone",
+    "width": 640,
+    "source": "docs/model/bus-timing.timing.yml",
+    "sources": [
+      "docs/model/bus-timing.timing.yml"
+    ],
+    "kind": "timing",
+    "palette": 2,
+    "print": "landscape",
+    "adaptive": true,
+    "twin": true,
+    "font": ""
+  },
   "chip-blocks": {
     "title": "Inside the XMPL100",
     "alt": "Block diagram of the XMPL100: its function blocks, how they connect and which package pins reach each block.",

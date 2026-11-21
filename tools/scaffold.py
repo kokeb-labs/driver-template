@@ -155,6 +155,8 @@ LIBRARY_REMOVE = [
     "docs/diagrams",
     "docs/model/read-call.seq.yml",  # the library has its own models in the library overlay
     "docs/model/bus-frame.seq.yml",
+    "docs/model/bus-timing.timing.yml",  # a library has no bus: no bus page
+    "docs/bus.md",
     "docs/hardware.md",
     "docs/hardware.yml",
     "docs/installation.md",
@@ -177,7 +179,8 @@ LIBRARY_REMOVE = [
 # Blocks every scaffolded repository gets, whatever the kind (an overlay's block of the same name wins).
 COMMON_BLOCKS = {
     # The template has no Pages site; a repository made from it publishes.
-    "docs-deploy": "      deploy: true\n",
+    # Only main (the dev version) and v* tags publish; pull requests never do, and a release/* branch only builds.
+    "docs-deploy": "      deploy: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}\n",
 }
 
 BLOCK_RE = re.compile(
