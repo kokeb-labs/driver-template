@@ -96,7 +96,7 @@ CheckOptions:
   - { key: hicpp-signed-bitwise.IgnorePositiveIntegerLiterals,          value: true }
   # A span or string_view built from a temporary dangles (KB-CPP20-044).
   - { key: bugprone-dangling-handle.HandleClasses,                      value: 'std::basic_string_view;std::experimental::basic_string_view;std::span' }
-  # Types: PascalCase. Chip classes keep the part number (PCA9685, TMC9660).
+  # Types: PascalCase. Chip classes keep the part number (for example PCA9685).
   - { key: readability-identifier-naming.NamespaceCase,                 value: lower_case }
   - { key: readability-identifier-naming.ClassCase,                     value: CamelCase }
   - { key: readability-identifier-naming.StructCase,                    value: CamelCase }

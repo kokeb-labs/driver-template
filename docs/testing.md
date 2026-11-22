@@ -189,6 +189,47 @@ PyYAML is missing), lints `tests/install_consumer/main.cpp` with clang-tidy like
 by its own CMake project, so it is not in the host build's compilation database), and checks the first-push gitlink:
 after `git add -A`, `examples/esp32/scripts` must be a gitlink (mode 160000).
 
+### Rehearsing the MISRA scan and the ESP32 builds locally
+
+A first push is green only when the two CI checks a workstation used to leave to CI have passed locally.
+`tools/preflight.sh --container` runs them in Docker, in addition to everything else it runs, and its last lines are
+`== N failure(s)` and the gates line; both must show 0 failures.
+
+- **`misra`** runs the `ru-misra` workflow's own scripts (`tools/ci-container/misra.sh`, image
+  `tools/ci-container/Dockerfile.misra`): the caller's inputs are read from `.github/workflows/ci-misra.yml`; the
+  tools are the versions and SHA-256 hashes of `tools/misra/toolchain.json` of the pinned ci-tools commit
+  (CodeQL CLI bundle, `codeql/misra-cpp-coding-standards` pack, Arm GNU toolchain, clang-tidy, cppcheck); the
+  configure, traced build, analysis, deviation records and report are the CI's. It passes when the report passes:
+  a finding of a mandatory or required guideline that no record deviates, a scan problem or a suppression error
+  fails; advisory findings are warnings. Each blocking finding is listed as `file:line failure Rule message`.
+  The SARIF, JSON and CSV reports and the full log are kept in `$PREFLIGHT_OUT/misra` (default
+  `$TMPDIR/kokeb-preflight/<repository>-<time>`).
+- **`esp32`** builds what `ru-build.yml` builds: the matrix of `examples/esp32/app_config.yml` (the submodule's
+  `generate_matrix.py`), every app and build type with `build_app.sh`, on ESP-IDF `release/v5.5` for the target of
+  the examples. An app listed for another ESP-IDF version or target is not built in the image; the last line names
+  it.
+
+The CodeQL CLI and the pinned Arm toolchain exist for Linux x86-64 only. On an arm64 host (Apple silicon) the MISRA
+image is `linux/amd64` and runs emulated; the ESP32 image is native on both architectures. A host without Docker
+cannot run either; `tools/preflight.sh` then names both as skipped.
+
+Differences from CI to know: the ESP-IDF commit is pinned in `Dockerfile.esp32` (CI clones the tip of the release
+branch each run) and the ESP32 image uses Ubuntu's Python 3.12; the MISRA image has Ubuntu's `cmake` and `ninja`
+where the runner has newer ones. `MISRA_ARGS=--host-only` scans the host build only, which is faster and leaves
+the Cortex-M preprocessor paths to CI.
+
+#### Bumping the pins
+
+`Dockerfile.misra`: `CI_TOOLS_REF` is the commit `ru-misra.yml@v1` resolves to (`git ls-remote
+https://github.com/kokeb-labs/ci-tools v1`), `HANDBOOK_REF` the default `handbook_ref` of that workflow; the tool
+versions follow from `toolchain.json` of that commit. `Dockerfile.esp32`: `IDF_COMMIT` is the commit CI prints as
+`ESP-IDF release/v5.5 is <sha>`. Rebuild with `docker rmi kokeb-ci-misra:local kokeb-ci-esp32:local`, then run
+`--container`.
+
+#### CodeQL licence
+
+The CodeQL CLI is not free software. LICENSE_FACTS_PLACEHOLDER
+
 ## Documentation snippets
 
 Every C++ block on this site is included from [`tests/docs/`](../tests/docs/my_port.hpp), which the host build
