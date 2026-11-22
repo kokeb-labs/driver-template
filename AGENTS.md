@@ -94,8 +94,9 @@ application supplies (`inc/xmpl100_spi_interface.hpp`). `docs/architecture.md` d
 - **C++20 profile** (KB-CPP20-001 to 058): the `cpp20-profile` skill lists which features to use, use with
   rules, or leave out, and runs the automated checks first.
 - **MISRA C++:2023 matrix**: the CI job `MISRA` (`.github/workflows/ci-misra.yml`) analyses every translation
-  unit; the `misra-review` skill reviews against the handbook's compliance matrix, lists the patterns the code
-  follows (`default: break;` in every enumeration switch, `else` after `else if`, typed constant arguments with
+  unit, and `tools/preflight.sh --container` runs the same scan locally (step `misra`); the `misra-review` skill
+  reviews against the handbook's compliance matrix, lists the patterns the code follows
+  (`default: break;` in every enumeration switch, `else` after `else if`, typed constant arguments with
   `_u8`/`_u16`/`_u32`, ...) and cites guideline numbers only.
 - **Hardware lessons** (reply validity, stuck and floating lines, resynchronisation, retries, ready waits, bus
   requirements, pin idle levels): the `hardware-lessons-review` skill checks each rule has a code path and a
@@ -111,7 +112,7 @@ cmake --build build --parallel && ctest --test-dir build --output-on-failure
 The tests build as ISO C++20 (`CMAKE_CXX_EXTENSIONS OFF`, `-pedantic-errors`) with `-fno-exceptions -fno-rtti
 -Werror`, and the target `xmpl100_header_checks` compiles each public header alone. CI runs GCC and Clang; run
 the compilers you have. The host example runs as the CTest `xmpl100_host_example`. ESP32 builds run in CI
-(`esp32-examples-build-ci.yml`); the host build covers a change locally.
+(`esp32-examples-build-ci.yml`) and locally in the container (`tools/preflight.sh --container`, step `esp32`).
 
 Test and fuzz code never passes a driver call and a read of the state it changes (`sent()`, a counter, a flag), or
 two reads of the fuzzer's input, as arguments or operands of the same expression: the evaluation order is unspecified
@@ -133,7 +134,8 @@ the CTest `xmpl100_doxygen` when `doxygen` is installed; every public symbol in 
 The `verify` skill (`.claude/skills/verify/SKILL.md`) runs every check CI runs, in order: GCC and Clang host
 tests, the strict-dialect header checks, the handbook source checks, `tools/check_standalone.py`, clang-format
 20, clang-tidy 20, cppcheck, lizard, markdownlint and the docs build. `tools/preflight.sh` runs all of them in one
-command; push only when it ends with `0 failure(s)`, and push the fixes together.
+command; push only when it ends with `0 failure(s)`, and push the fixes together. `--container` adds the MISRA
+scan (`misra`) and the ESP32 builds (`esp32`) as CI runs them: a driver's first push requires both green.
 
 ## Branches, commits and pull requests
 

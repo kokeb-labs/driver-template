@@ -13,10 +13,9 @@ command** and ends with `0 failure(s)` or the list of failing steps and their lo
 `tools/preflight.sh --container` runs it in the CI image (Docker) and adds the coverage,
 sanitizer and fuzz gates (the `first-push` skill). It says what it skipped because a tool is missing (set `VENV`,
 `CXX_GCC`, `CXX_CLANG`, `CLANG_FORMAT`, `CLANG_TIDY`, `ARM_CXX`, `HANDBOOK_DIR` or `CI_TOOLS_DIR` to point at
-yours). Push only
-when it passes: CI minutes are for what a workstation cannot run (the ESP32 builds, the MISRA scan, the coverage,
-sanitizer and fuzz gates),
-not for finding a format or lint error. Fix everything it reports and push once, not once per finding. The steps
+yours). Push only when it passes. `--container` also runs the ESP32 example builds (`esp32`) and the MISRA scan
+(`misra`) as CI does, and a first push requires both green; without Docker they are skipped by name and CI finds what
+they would have. CI minutes are not for finding a format, lint, MISRA or ESP32 build error. Fix everything it reports and push once, not once per finding. The steps
 below say what each check does and how to run it alone.
 
 1. Configure and build the host tests, doc snippets, compile-fail tests and the strict-dialect header checks:
@@ -74,7 +73,8 @@ below say what each check does and how to run it alone.
     and reports without editing. Fix what they find, or list it in the PR with the reason.
 12. Delete the build directories (`build*/`, `/tmp/site`) when done.
 
-Report what ran and what could not run locally (ESP32 builds always run in CI only).
+Report what ran and what could not run locally (name each skipped step; without `--container` that includes `esp32`
+and `misra`).
 
 On macOS: Apple's linker cannot link libFuzzer targets from Homebrew LLVM (add `-Wl,-ld_classic`, or run the fuzz
 entry point over random inputs under ASan and UBSan instead), and local branch coverage differs from CI's GCC

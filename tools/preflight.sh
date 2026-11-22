@@ -10,23 +10,72 @@
 #   VENV (a Python venv with lizard, yamllint, kokeb-docs and mkdocs; see AGENTS.md "Docs checks"),
 #   CI_TOOLS_DIR (a kokeb-labs/ci-tools checkout, default ../ci-tools: handbook_check.py runs from it, and its include
 #   subset is the one tools/misra_lint.py enforces; handbook_check needs PyYAML, which the VENV has).
-# Left to CI: the ESP32 builds, the MISRA scan, and the coverage, sanitizer and fuzz gates.
+#
+#   tools/preflight.sh --container   all of it in Docker, with the CI toolchains (Ubuntu 24.04, GCC 14, clang 18/20,
+#                                    cppcheck, lizard, gcovr, Arm GCC), plus the gates that need Linux (coverage,
+#                                    sanitizers, libFuzzer), the ESP32 example builds (ESP-IDF, the CI release) and
+#                                    the MISRA scan (CodeQL, the CI pack). First run builds the images (tools/ci-container:
+#                                    Dockerfile, Dockerfile.esp32, Dockerfile.misra); logs and reports are kept in
+#                                    $PREFLIGHT_OUT (default $TMPDIR/kokeb-preflight/<repository>-<time>).
+#   --container --quick              without the MISRA scan (the slow step); named in the last line
+# Variables of --container: PREFLIGHT_OUT, PREFLIGHT_CACHE (ccache, default ~/.cache/kokeb-preflight), DOCKER_PREFIX
+# (a command that wraps every docker call, for example a lock shared by builders), FUZZ_SECONDS, MISRA_ARGS
+# (for example --host-only).
+# Without --container, `esp32` runs when IDF_PATH names an ESP-IDF install and `misra` never (CodeQL is Linux x86-64
+# only): both are then named in the last line, never dropped silently.
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root" || exit 2
-quick=0; [ "${1:-}" = "--quick" ] && quick=1
-if [ "${1:-}" = "--container" ]; then
-  # The CI toolchain (Ubuntu 24.04, GCC 14, clang 18/20, cppcheck, lizard, gcovr, Arm GCC) in Docker: this script and the
-  # Linux-only gates (coverage, sanitizers, libFuzzer) run inside it on this checkout. First run builds the image.
-  img=kokeb-ci:local
-  [ -n "$(docker images -q "$img")" ] || docker build -t "$img" tools/ci-container || exit 2
-  docker run --rm -v "$root:/src" "$img" bash -c \
-    'cp -a /src /tmp/w && cd /tmp/w && tools/preflight.sh; a=$?; tools/ci-container/gates.sh /tmp/w; b=$?; exit $((a|b))'
-  exit $?
+quick=0; only=""; skipstep=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --quick) quick=1 ;;
+    --container) container=1 ;;
+    --only) only="$2"; shift ;;      # inside the images: run one step (misra)
+    --skip) skipstep="$2"; shift ;;  # inside the images: a step another container runs (misra)
+    *) echo "unknown option $1"; exit 2 ;;
+  esac
+  shift
+done
+if [ "${container:-0}" = 1 ]; then
+  d() { ${DOCKER_PREFIX:-} docker "$@"; }
+  ci=tools/ci-container; img=kokeb-ci:local; idf=kokeb-ci-esp32:local; mis=kokeb-ci-misra:local
+  out="${PREFLIGHT_OUT:-${TMPDIR:-/tmp}/kokeb-preflight/$(basename "$root")-$(date +%Y%m%d-%H%M%S)}"
+  cache="${PREFLIGHT_CACHE:-$HOME/.cache/kokeb-preflight}"; mkdir -p "$out/main" "$out/misra" "$cache/ccache"
+  [ -n "$(docker images -q "$img")" ] || d build -t "$img" "$ci" || exit 2
+  [ -n "$(docker images -q "$idf")" ] || d build -f "$ci/Dockerfile.esp32" -t "$idf" "$ci" || exit 2
+  qarg=(); [ "$quick" = 1 ] && qarg=(--quick)
+  rc=0; t0=$SECONDS
+  # 1. Everything but MISRA, and the Linux gates, on the CI toolchain (arm64 or x86-64, as the host).
+  d run --rm -v "$root:/src" -v "$out:/out" -v "$cache/ccache:/ccache" -e PREFLIGHT_OUT=/out/main -e CCACHE_DIR=/ccache \
+    -e FUZZ_SECONDS="${FUZZ_SECONDS:-20}" "$idf" bash -c \
+    'cp -a /src /tmp/w && cd /tmp/w && tools/preflight.sh --skip misra "$@"; a=$?;
+     tools/ci-container/gates.sh /tmp/w; b=$?; mkdir -p /out/main/gates && cp /tmp/gates/*.log /tmp/gates/coverage.txt /out/main/gates/ 2>/dev/null
+     exit $((a|b))' _ ${qarg[@]+"${qarg[@]}"} || rc=1
+  echo "-- containers: main $((SECONDS - t0))s"
+  # 2. The MISRA scan: its own image (CodeQL and the pinned Arm toolchain are x86-64, emulated on an arm64 host).
+  if [ "$quick" = 1 ]; then echo "SKIP misra (--quick)" >"$out/misra/skipped"
+  else
+    if [ -z "$(docker images -q "$mis")" ]; then d build --platform linux/amd64 ${MISRA_BASE:+--build-arg MISRA_BASE=$MISRA_BASE} -f "$ci/Dockerfile.misra" -t "$mis" "$ci" || exit 2; fi
+    t1=$SECONDS
+    d run --rm --platform linux/amd64 -v "$root:/src" -v "$out:/out" -e PREFLIGHT_OUT=/out/misra -e MISRA_ARGS="${MISRA_ARGS:-}" \
+      "$mis" bash -c 'cp -a /src /tmp/w && cd /tmp/w && tools/preflight.sh --only misra' || rc=1
+    echo "-- containers: misra $((SECONDS - t1))s"
+  fi
+  # One summary: the preflight line (both containers) and the gates line.
+  fails="$(cat "$out"/main/preflight.fails "$out"/misra/preflight.fails 2>/dev/null | xargs)"
+  skipped="$(cat "$out"/main/preflight.skipped "$out"/misra/preflight.skipped "$out"/misra/skipped 2>/dev/null | tr '\n' ' ' | head -c 400)"
+  [ -f "$out/main/preflight.fails" ] || { fails="$fails preflight(container did not finish)"; rc=1; }
+  [ "$quick" = 1 ] || [ -f "$out/misra/preflight.fails" ] || { fails="$fails misra(container did not finish)"; rc=1; }
+  nf=$(echo $fails | wc -w | tr -d ' ')
+  echo "== $nf failure(s)${fails:+: $fails}${skipped:+; skipped: $skipped}; CI only: fuzz runs longer than FUZZ_SECONDS; logs: $out"
+  cat "$out/main/gates.line" 2>/dev/null || { echo "== gates did not finish"; rc=1; }
+  [ "$nf" = 0 ] || rc=1
+  exit $rc
 fi
 prefix="$(grep -oE 'option\(([A-Z0-9_]+)_BUILD_TESTS' CMakeLists.txt | head -1 | sed 's/option(//; s/_BUILD_TESTS//')"
 [ -n "$prefix" ] || { echo "no <NAME>_BUILD_TESTS option in CMakeLists.txt"; exit 2; }
-work="$(mktemp -d "${TMPDIR:-/tmp}/preflight.XXXXXX")"
+work="$(mktemp -d "${PREFLIGHT_OUT:-${TMPDIR:-/tmp}}/preflight.XXXXXX")"
 fails=(); skipped=()
 
 tool() {  # tool <variable> <candidates...>: the first one found
@@ -35,12 +84,41 @@ tool() {  # tool <variable> <candidates...>: the first one found
   local c; for c in "$@"; do command -v "$c" >/dev/null 2>&1 && { command -v "$c"; return; }; done
 }
 pytool() { if [ -n "${VENV:-}" ] && [ -x "$VENV/bin/$1" ]; then echo "$VENV/bin/$1"; else command -v "$1"; fi; }
-step() {
-  local name="$1"; shift
-  if "$@" >"$work/$name.log" 2>&1; then echo "PASS $name"
-  else echo "FAIL $name (log: $work/$name.log)"; tail -20 "$work/$name.log" | sed 's/^/     /'; fails+=("$name"); fi
+step() {  # step <name> <command...>: PASS/FAIL with the time it took; a step may leave <name>.findings (listed on failure)
+  local name="$1" t0=$SECONDS; shift
+  if "$@" >"$work/$name.log" 2>&1; then echo "PASS $name ($((SECONDS - t0))s)"
+  else
+    echo "FAIL $name ($((SECONDS - t0))s; log: $work/$name.log)"
+    if [ -s "$work/$name.findings" ]; then head -60 "$work/$name.findings" | sed 's/^/     /'
+    else tail -20 "$work/$name.log" | sed 's/^/     /'; fi
+    fails+=("$name")
+  fi
 }
 skip() { echo "SKIP $1 ($2)"; skipped+=("$1"); }
+skipr() { echo "SKIP $1 ($2)"; skipped+=("$1[$2]"); }  # with the reason in the last line
+
+# The MISRA scan: the CI job's own scripts and pack, in the MISRA image (tools/ci-container/misra.sh).
+run_misra() {
+  if [ -z "${KOKEB_MISRA:-}" ]; then
+    skipr misra "CodeQL and the pinned Arm toolchain are Linux x86-64 only: run tools/preflight.sh --container"; return
+  fi
+  step misra misra_all
+}
+misra_all() {  # the scan, then its blocking findings as the failure listing
+  # shellcheck disable=SC2086
+  tools/ci-container/misra.sh ${MISRA_ARGS:-} "$root"; local rc=$?
+  [ -s "$PREFLIGHT_OUT/misra/blocking.txt" ] && sed '/^$/d' "$PREFLIGHT_OUT/misra/blocking.txt" | sort -u >"$work/misra.findings"
+  return $rc
+}
+finish() {
+  echo "$1"
+  if [ -n "${PREFLIGHT_OUT:-}" ]; then
+    echo "${fails[*]:-}" >"$PREFLIGHT_OUT/preflight.fails"; echo "${skipped[*]:-}" >"$PREFLIGHT_OUT/preflight.skipped"
+  fi
+  [ ${#fails[@]} -eq 0 ]
+  exit
+}
+
 
 GCC="$(tool CXX_GCC g++-15 g++-14 g++-13 g++)"
 CLANG="$(tool CXX_CLANG clang++-20 clang++)"
@@ -53,6 +131,57 @@ build() {  # build <compiler> <dir>
   cmake -S . -B "$2" -DCMAKE_BUILD_TYPE=Debug "-D${prefix}_BUILD_TESTS=ON" "-DCMAKE_CXX_COMPILER=$1" \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build "$2" --parallel && ctest --test-dir "$2" --output-on-failure
 }
+# 2b. The ESP32 example builds, as ru-build.yml's native job: the pinned ESP-IDF, the matrix of
+# examples/esp32/app_config.yml (generate_matrix.py of the examples' tools submodule), build_app.sh per app and type.
+esp32_build() (
+  set -e
+  [ -f examples/esp32/scripts/build_app.sh ] || git submodule update --init examples/esp32/scripts
+  # shellcheck disable=SC1091
+  . "$IDF_PATH/export.sh" >/dev/null
+  idf.py --version
+  python3 -m pip install -q pyyaml >/dev/null 2>&1 || true
+  (cd examples/esp32/scripts && python3 generate_matrix.py --validate --verbose)
+  local_matrix="$(cd examples/esp32/scripts && python3 generate_matrix.py)"
+  # One entry per app, IDF version and target, with every build type (ru-build.yml, group_build_types).
+  entries="$(echo "$local_matrix" | jq -c '.include | group_by([.app_name, .idf_version, .target, .config_source])
+    | map(.[0] + {build_type: (map(.build_type) | unique | join(" "))}) | .[]')"
+  [ -n "$entries" ] || { echo "the matrix is empty: no app of examples/esp32/app_config.yml is built"; exit 1; }
+  export ESP32_PROJECT_PATH=examples/esp32 IDF_CCACHE_ENABLE=1 CCACHE_MAXSIZE=400M CCACHE_BASEDIR="$PWD"
+  rc=0
+  while IFS= read -r e; do
+    app="$(echo "$e" | jq -r .app_name)"; ver="$(echo "$e" | jq -r .idf_version)"
+    tgt="$(echo "$e" | jq -r .target)"; types="$(echo "$e" | jq -r .build_type)"
+    if [ "$ver" != "${IDF_VERSION:-release/v5.5}" ] || [ "$tgt" != "${IDF_TARGET:-esp32c6}" ]; then
+      echo "NOT BUILT: $app on $ver for $tgt (this image has ${IDF_VERSION:-release/v5.5}, ${IDF_TARGET:-esp32c6})"
+      echo "$app@$ver/$tgt" >>"$work/esp32.notbuilt"; continue
+    fi
+    for bt in $types; do
+      echo "=== $app $bt $ver $tgt"
+      export IDF_TARGET="$tgt" BUILD_TYPE="$bt" APP_TYPE="$app"
+      examples/esp32/scripts/build_app.sh --project-path examples/esp32 "$app" "$bt" "$ver" || rc=1
+    done
+  done <<<"$entries"
+  exit $rc
+)
+esp32_all() {  # the builds, then the compiler's findings (file:line) as the failure listing
+  esp32_build >"$work/esp32.raw" 2>&1; local rc=$?
+  cat "$work/esp32.raw"
+  grep -hE "(fatal )?error:|CMake Error|Compilation failed|^ERROR" "$work/esp32.raw" | sed -E 's#^/tmp/w/##' | sort -u >"$work/esp32.findings"
+  return $rc
+}
+run_esp32() {
+  if [ -z "${IDF_PATH:-}" ] || [ ! -f "${IDF_PATH:-}/export.sh" ]; then
+    skipr esp32 "no ESP-IDF (IDF_PATH): run tools/preflight.sh --container"; return
+  fi
+  [ -f examples/esp32/app_config.yml ] || { skipr esp32 "no examples/esp32"; return; }
+  if [ "$quick" = 1 ]; then skipr esp32 "--quick"; return; fi
+  step esp32 esp32_all
+  if [ -s "$work/esp32.notbuilt" ]; then skipr esp32 "not built, other ESP-IDF version or target: $(tr '\n' ' ' <"$work/esp32.notbuilt")"; fi
+}
+case "$only" in
+  misra) run_misra; finish "== ${#fails[@]} failure(s)${fails[*]:+: ${fails[*]}}${skipped[*]:+; skipped: ${skipped[*]}}" ;;
+  esp32) run_esp32; finish "== ${#fails[@]} failure(s)${fails[*]:+: ${fails[*]}}${skipped[*]:+; skipped: ${skipped[*]}}" ;;
+esac
 # 1. Host build and tests (strict dialect, header checks, compile-fail tests, docs snippets, examples, Doxygen).
 first=""
 if [ -n "$GCC" ]; then step gcc-build-test build "$GCC" "$work/gcc"; first="$work/gcc"; else skip gcc "no g++"; fi
@@ -67,6 +196,8 @@ if [ -n "$ARM" ]; then
   }
   step cortex-m cross
 else skip cortex-m "no arm-none-eabi-g++; CI builds it"; fi
+
+[ "$skipstep" = esp32 ] || run_esp32
 
 # 3. The handbook's source checks, at the commit CI pins.
 ref="$(grep -oE 'ref: [0-9a-f]{40}' .github/workflows/ci-repo-checks.yml | head -1 | cut -d' ' -f2)"
@@ -205,6 +336,9 @@ ver() {
 step versions ver
 [ -f tools/scaffold.py ] && [ "$quick" = 0 ] && step scaffold-selftest python3 tools/scaffold.py --selftest
 
+[ "$skipstep" = misra ] || { if [ "$quick" = 1 ]; then skipr misra "--quick"; else run_misra; fi; }
+
 rm -rf "$work/gcc" "$work/clang" "$work/arm" "$work/site"
-echo "== ${#fails[@]} failure(s)${fails[*]:+: ${fails[*]}}${skipped[*]:+; skipped: ${skipped[*]}}; CI only: ESP32, MISRA, coverage/sanitizer/fuzz gates"
-[ ${#fails[@]} -eq 0 ]
+if [ "${KOKEB_IN_CONTAINER:-}" = 1 ]; then ci="the longer fuzz runs of CI"
+else ci="MISRA scan, ESP32 builds, coverage/sanitizer/fuzz gates unless --container"; fi
+finish "== ${#fails[@]} failure(s)${fails[*]:+: ${fails[*]}}${skipped[*]:+; skipped: ${skipped[*]}}; CI only: $ci"

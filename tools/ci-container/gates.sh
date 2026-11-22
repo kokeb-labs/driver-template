@@ -31,5 +31,6 @@ fuzz() {
 }
 run coverage cov; [ -f "$out/coverage.txt" ] && grep -E "^(TOTAL|lines|branches|conditions)" "$out/coverage.txt"; run sanitizers san
 if [ -n "$fz" ]; then run fuzz fuzz; fi
-echo "== ${#fails[@]} gate failure(s)${fails[*]:+: ${fails[*]}} (logs in the container: $out)"
+line="== ${#fails[@]} gate failure(s)${fails[*]:+: ${fails[*]}} (logs in the container: $out)"
+echo "$line"; [ -n "${PREFLIGHT_OUT:-}" ] && echo "$line" >"$PREFLIGHT_OUT/gates.line"
 [ ${#fails[@]} -eq 0 ]
