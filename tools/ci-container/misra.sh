@@ -130,12 +130,12 @@ EOF
 fi
 for c in "${configs[@]}"; do grep -h '^::error' "$out/scan-$c.log" 2>/dev/null; done | sed 's/^::error::/- /' >>"$out/blocking.txt"
 echo
-if [ -s "$out/blocking.txt" ]; then
+if grep -q . "$out/blocking.txt"; then
   echo "blocking findings (these fail CI):"; sed '/^$/d' "$out/blocking.txt" | sort -u | sed 's/^/  /'
 fi
 nw=$(grep -c ' warning ' "$out/findings.txt" 2>/dev/null); echo "${nw:-0} warning(s) that do not block: $out/findings.txt"
 grep -E '^level ' "$out/report.log" 2>/dev/null
-[ -s "$out/blocking.txt" ] && verdict=1
+grep -q . "$out/blocking.txt" && verdict=1
 echo "timing: $(tr '\n' ' ' <"$out/timing.txt")"
 echo "full log and artifacts: $out"
 exit "$verdict"

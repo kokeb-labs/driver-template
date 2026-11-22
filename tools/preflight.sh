@@ -51,7 +51,7 @@ if [ "${container:-0}" = 1 ]; then
     -e FUZZ_SECONDS="${FUZZ_SECONDS:-20}" "$idf" bash -c \
     'cp -a /src /tmp/w && cd /tmp/w && tools/preflight.sh --skip misra "$@"; a=$?;
      tools/ci-container/gates.sh /tmp/w; b=$?; mkdir -p /out/main/gates && cp /tmp/gates/*.log /tmp/gates/coverage.txt /out/main/gates/ 2>/dev/null
-     exit $((a|b))' _ "${qarg[@]}" || rc=1
+     exit $((a|b))' _ ${qarg[@]+"${qarg[@]}"} || rc=1
   echo "-- containers: main $((SECONDS - t0))s"
   # 2. The MISRA scan: its own image (CodeQL and the pinned Arm toolchain are x86-64, emulated on an arm64 host).
   if [ "$quick" = 1 ]; then echo "SKIP misra (--quick)" >"$out/misra/skipped"
